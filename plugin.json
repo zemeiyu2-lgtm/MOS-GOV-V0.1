@@ -10,6 +10,7 @@
   "mainClass": "ChurchCRM\\Plugins\\MosGov\\MosGovPlugin",
   "dependencies": [],
   "settingsUrl": "/plugins/mos-gov/settings",
+  "routesFile": "routes/routes.php",
   "settings": [
     {
       "key": "enabled",
