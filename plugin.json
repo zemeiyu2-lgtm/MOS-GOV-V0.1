@@ -1,0 +1,25 @@
+{
+  "id": "mos-gov",
+  "name": "MOS-GOV",
+  "description": "MOS church governance layer for ChurchCRM. Stores governance data separately from ChurchCRM core.",
+  "version": "0.1.0",
+  "author": "MOS",
+  "authorUrl": "https://github.com/zemeiyu2-lgtm/MOS-GOV-V0.1",
+  "type": "community",
+  "minimumCRMVersion": "7.1.0",
+  "mainClass": "ChurchCRM\\Plugins\\MosGov\\MosGovPlugin",
+  "dependencies": [],
+  "settingsUrl": "/plugins/mos-gov/settings",
+  "settings": [
+    {
+      "key": "enabled",
+      "label": "Enable MOS-GOV",
+      "type": "boolean",
+      "required": false,
+      "help": "Enable the MOS governance layer."
+    }
+  ],
+  "menuItems": [],
+  "hooks": [],
+  "hasTest": true
+}
