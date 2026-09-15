@@ -1,32 +1,180 @@
-# WorkBuddy Execution Report
+# WorkBuddy Phase 1–2 Integration Report — MOS-GOV V0.1
 
-> WorkBuddy 完成 `docs/AI-TASK.md` 后填写本文件。不要只写“完成”，必须记录证据。
+Date: 2026-09-15
+Environment: ChurchCRM 7.7.0, PHP 8.4.25 (container `docker-webserver-1`),
+MariaDB 10.11.19 (container `docker-database-1`), document root `/var/www/html`
+(host mount `C:\churchcrm\src`).
 
-## RESULTS
+This report documents the local integration verification of MOS-GOV V0.1 as a
+ChurchCRM community plugin. No new features were added; the only code changes
+are fixes for two real V0.1 blockers found during testing.
 
-- 状态：待执行
-- 结论：待执行
+---
 
-## CHANGES
+## Phase 1 — Bootstrap / discovery diagnosis
 
-| 文件 | 修改 | 原因 |
-|---|---|---|
-| 待填写 | 待填写 | 待填写 |
+**Symptom.** A standalone CLI debug script reported
+`Propel\Runtime\Exception\RuntimeException: No connection defined for database "default"`
+(and, before loading the DB map, "Database map was not initialized").
 
-## TESTS
+**Root cause.** The CLI script (`src/mos-gov-debug.php`, now removed) loaded
+only `Include/LoadDatabaseMap.php` — it never went through the official
+bootstrap entry point. `Include/LoadConfigs.php` (used by every web and CLI
+entry, e.g. `src/cli/timerjobs.php`) is what calls `Bootstrapper::init()`
+(initMySQLI + initPropel connection manager + session + SystemConfig).
 
-| 测试 | 结果 | 证据 |
-|---|---|---|
-| 待执行 | 待执行 | 待填写 |
+**Resolution.** The diagnostic script was rewritten to use the full bootstrap.
+With it, `getPluginSettingsWithValues()` and `getAllPlugins()` worked with no
+exceptions, and the web Plugin Management page was confirmed to bootstrap
+cleanly (HTTP 302 to the login page, no fatal). **CLI test environment issue;
+no ChurchCRM core change and no MOS-GOV change were needed.**
 
-## BLOCKERS
+---
 
-- 无 / 待发现
+## Phase 2 — Enable / routes / schema / web E2E
 
-## NEXT
+### Step 1 — Status before enable
 
-- 待 ChatGPT 审查本报告后决定下一步。
+`PluginManager` discovery: yes. Active: false. Quarantined: false.
+Verification: unverified ("No install provenance recorded — plugin was copied
+in manually") — expected for a manually-copied community plugin.
 
-## EXECUTION NOTES
+### Step 2 — Official enable attempt
 
-记录关键命令、环境信息、异常与恢复动作。避免粘贴大量无关日志，只保留能证明结论的内容。
+`PluginManager::enablePlugin('mos-gov')` returned **false** (no exception,
+no admin-visible log).
+
+### Step 3 — Root-cause analysis (two real MOS-GOV blockers)
+
+**Blocker A — main class not PSR-4 locatable.**
+`PluginManager::registerPluginAutoloader()` derives the PSR-4 prefix from the
+`mainClass` in plugin.json (`ChurchCRM\Plugins\MosGov\`) and maps it to the
+plugin's `src/` directory. Therefore the loader expects
+`src/MosGovPlugin.php`. MOS-GOV shipped the class at
+`src/Plugins/MosGov/MosGovPlugin.php`, so `class_exists()` failed and
+`loadPlugin()` returned null. This matches the layout convention of all core
+plugins (e.g. `custom-links/src/CustomLinksPlugin.php`).
+
+**Blocker B — routes never registered, and wrong path prefix.**
+The previous `routes/routes.php` returned `function (App $app) {...}`, but
+`PluginManager::registerPluginRoutes()` `require`s the file inside its own
+scope and uses the in-scope `$app` directly — the returned closure was
+silently discarded, so no routes were ever registered. Additionally, route
+paths were absolute (`/plugins/mos-gov`) while the plugins entry point
+(`src/plugins/index.php`) runs a dedicated Slim app with basePath `/plugins`,
+which would have produced `/plugins/plugins/mos-gov` URLs.
+
+### Step 4 — Fixes (MOS-GOV only)
+
+1. Moved `src/Plugins/MosGov/MosGovPlugin.php` → `src/MosGovPlugin.php`
+   (namespace unchanged; plugin.json unchanged).
+2. Rewrote `routes/routes.php`: use the in-scope `$app`, register
+   `GET /mos-gov` and `GET /mos-gov/settings` (mount-point-relative).
+
+### Step 5 — Re-test results
+
+- `enablePlugin('mos-gov')` → **true** (official path; `boot()` executed via
+  `loadPlugin()`; `isEnabled()`, `isConfigured()` = true; not quarantined).
+- Route registration into a Slim collector → 2 routes:
+  `GET /mos-gov`, `GET /mos-gov/settings`.
+
+### Step 6 — Schema compatibility check
+
+`database/001_initial.sql` reviewed against MariaDB 10.11.19: 10 tables, all
+`ENGINE=InnoDB` + `utf8mb4_unicode_ci`, no FOREIGN KEYs, only
+`CREATE TABLE IF NOT EXISTS gov_*` statements, no ChurchCRM core tables
+referenced. Fully compatible. The test harness also asserts at runtime that
+the SQL file contains no non-`gov_*` objects before executing it.
+
+### Step 7 — Table initialization
+
+Executed via `SQLUtils::sqlImport()` (the same utility the ChurchCRM core
+installer uses) through the standard Propel connection.
+
+### Step 8 — Verification
+
+All 10 governance tables created and readable via the standard ORM
+connection (the same connection a dashboard would use):
+
+```
+gov_structure      rows=0 engine=InnoDB  [OK]
+gov_body           rows=0 engine=InnoDB  [OK]
+gov_role           rows=0 engine=InnoDB  [OK]
+gov_appointment    rows=0 engine=InnoDB  [OK]
+gov_responsibility rows=0 engine=InnoDB  [OK]
+gov_relationship   rows=0 engine=InnoDB  [OK]
+gov_meeting        rows=0 engine=InnoDB  [OK]
+gov_issue          rows=0 engine=InnoDB  [OK]
+gov_decision       rows=0 engine=InnoDB  [OK]
+gov_task           rows=0 engine=InnoDB  [OK]
+```
+
+### Step 9 — Web end-to-end
+
+Authenticated HTTP requests (admin API key) against the running container:
+
+```
+GET /plugins/mos-gov           → 200 text/html
+GET /plugins/mos-gov/settings  → 200 text/html
+```
+
+Dashboard HTML rendered completely (page title "MOS-GOV", governance
+dashboard cards, V0.1 scaffold notice).
+
+Note: the V0.1 dashboard intentionally shows placeholder statistics ("—") and
+does not yet query the governance tables; connecting the cards to real
+queries is explicitly deferred (documented in the view itself).
+
+---
+
+## Phase 2 closure — final regression
+
+During closure, an HTTP 500 on both plugin pages appeared. Diagnosis: a log
+file (`logs/2026-09-15-app.log`) had been created by a root-owned CLI
+diagnostic run, so the web process (`www-data`) could no longer append to it
+and Monolog's StreamHandler threw. This was an environment side effect of the
+diagnostics, not a code issue. Fixed with
+`chown -R www-data:www-data /var/www/html/logs/`. Lesson recorded: run CLI
+diagnostics as `www-data` (or fix log ownership afterwards).
+
+Final regression results (all green):
+
+```
+discovery:                mos-gov discovered (9 plugins total)
+enablePlugin:             true (boot ran, isEnabled/isConfigured true)
+route registration:       GET /mos-gov, GET /mos-gov/settings
+gov_* tables:             all 10 present (schema smoke passed)
+GET /plugins/mos-gov          → 200 text/html
+GET /plugins/mos-gov/settings → 200 text/html
+dashboard marker "Governance dashboard": present
+```
+
+---
+
+## Changes made
+
+| File | Change |
+| --- | --- |
+| `src/MosGovPlugin.php` | Moved from `src/Plugins/MosGov/MosGovPlugin.php` (PSR-4 layout fix — Blocker A) |
+| `routes/routes.php` | Rewritten: in-scope `$app`, mount-point-relative paths (Blocker B) |
+| `tests/integration_phase2.php` | Added: regression test (bootstrap → enable → routes → table check) |
+| `tests/init_tables.php` | Added: idempotent table init + 10-table verification |
+| `tests/probe_load*.php` | Temporary diagnostics; removed after root-cause confirmed |
+
+## Core safety
+
+- No ChurchCRM core file modified (verified via `git status` in the ChurchCRM
+  repository; the pre-existing local edit to
+  `docker/Dockerfile.churchcrm-apache-php8` — adding the `bcmath` PHP
+  extension — predates this work and is unrelated to MOS-GOV).
+- No core table created/altered/dropped; only `gov_*` tables were added.
+- No files deleted outside MOS-GOV's own obsolete artifacts.
+
+## Known follow-ups (deferred, not done in Phase 2)
+
+1. Dashboard cards currently show placeholders; real queries need explicit
+   approval before implementation.
+2. Plugin Management shows "unverified" until the plugin is installed through
+   the official flow (provenance recording).
+3. Plugin routes currently require login (global `AuthMiddleware`) but are
+   not admin-restricted; adding `AdminRoleAuthMiddleware` is a V0.2 concern.
