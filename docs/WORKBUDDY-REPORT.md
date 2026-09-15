@@ -11,6 +11,39 @@ are fixes for two real V0.1 blockers found during testing.
 
 ---
 
+## Executive summary (RESULTS / CHANGES / TESTS / BLOCKERS / NEXT)
+
+**RESULTS** — MOS-GOV V0.1 works as a ChurchCRM community plugin end to end:
+discovered, enabled via the official `PluginManager` path, `boot()` runs,
+routes registered, 10 `gov_*` tables created and readable, dashboard and
+settings pages return HTTP 200 over real authenticated HTTP.
+
+**CHANGES** (MOS-GOV only, no ChurchCRM core changes):
+- `src/MosGovPlugin.php` — moved from `src/Plugins/MosGov/MosGovPlugin.php`
+  (PSR-4 layout fix, Blocker A).
+- `routes/routes.php` — rewritten to use the in-scope Slim `$app` with
+  mount-point-relative paths (Blocker B).
+- `tests/integration_phase2.php`, `tests/init_tables.php` — added regression
+  harness.
+- `docs/WORKBUDDY-REPORT.md`, `docs/AI-TASK.md` — added.
+
+**TESTS** — all green: discovery (9 plugins, mos-gov included);
+`enablePlugin('mos-gov')` → true; route registration → `GET /mos-gov`,
+`GET /mos-gov/settings`; all 10 `gov_*` tables present (schema smoke);
+`GET /plugins/mos-gov` → 200; `GET /plugins/mos-gov/settings` → 200;
+dashboard content markers present.
+
+**BLOCKERS** — none outstanding in code. Environment note: a root-owned log
+file caused an HTTP 500 during closure; fixed by `chown www-data` (see
+"Phase 2 closure" below). Push to GitHub may require interactive Git
+Credential Manager authentication on this machine.
+
+**NEXT** — Phase 3 (dashboard queries, CRUD screens, authorization layer,
+provenance) is explicitly NOT started; see `docs/AI-TASK.md` for the backlog
+and standing constraints.
+
+---
+
 ## Phase 1 — Bootstrap / discovery diagnosis
 
 **Symptom.** A standalone CLI debug script reported

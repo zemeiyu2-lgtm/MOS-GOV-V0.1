@@ -5,7 +5,8 @@ future session can resume without re-deriving context.
 
 ## Current state (as of 2026-09-15)
 
-**Phase 2 complete. Ready for Phase 3 (not started).**
+**Phase 2 = COMPLETED.**
+**Next phase = Phase 3 — awaiting ChatGPT review. Phase 3 not started.**
 
 ## Completed
 
