@@ -1,7 +1,6 @@
 # AI Task Tracking — MOS-GOV V0.1
 
-This file records the execution state of AI-assisted integration work so any
-future session can resume without re-deriving context.
+This file records the execution state of AI-assisted integration work so any future session can resume without re-deriving context.
 
 ## Current state (as of 2026-09-15)
 
@@ -11,19 +10,13 @@ future session can resume without re-deriving context.
 ## Completed
 
 ### Phase 1 — Bootstrap diagnosis (done)
-- Confirmed the "Database map was not initialized" /
-  "No connection defined for database 'default'" errors were caused by a
-  standalone CLI debug script bypassing the official bootstrap
-  (`Include/LoadConfigs.php` → `Bootstrapper::init()`).
+- Confirmed the "Database map was not initialized" / "No connection defined for database 'default'" errors were caused by a standalone CLI debug script bypassing the official bootstrap (`Include/LoadConfigs.php` → `Bootstrapper::init()`).
 - No ChurchCRM core or MOS-GOV changes required.
-- The temporary debug script (`src/mos-gov-debug.php` inside ChurchCRM) was
-  removed after closure.
+- Temporary ChurchCRM debug probe was removed after closure.
 
 ### Phase 2 — Enable / routes / schema / web E2E (done)
-- Fixed Blocker A: main class moved to `src/MosGovPlugin.php`
-  (PSR-4 layout expected by `PluginManager::registerPluginAutoloader()`).
-- Fixed Blocker B: `routes/routes.php` rewritten to use the in-scope `$app`
-  with mount-point-relative paths (`/mos-gov`, `/mos-gov/settings`).
+- Fixed Blocker A: main class moved to `src/MosGovPlugin.php` (PSR-4 layout expected by `PluginManager::registerPluginAutoloader()`).
+- Fixed Blocker B: `routes/routes.php` rewritten to use the in-scope `$app` with mount-point-relative paths (`/mos-gov`, `/mos-gov/settings`).
 - `PluginManager::enablePlugin('mos-gov')` → true; `boot()` runs.
 - 2 routes registered; 10 `gov_*` tables created via `SQLUtils::sqlImport()`
   and verified readable; dashboard and settings pages return HTTP 200 over
@@ -75,9 +68,6 @@ future session can resume without re-deriving context.
 
 ## Standing constraints
 
-- No feature expansion without approval; no refactors.
-- ChurchCRM core code and core tables must never be modified.
-- Only the MOS-GOV repository (`zemeiyu2-lgtm/MOS-GOV-V0.1`, branch `main`)
-  receives MOS-GOV commits. The plugin directory lives inside the ChurchCRM
-  checkout at `src/plugins/community/mos-gov` but is ignored by ChurchCRM's
-  `.gitignore` (`src/plugins/community/*`).
+- Only the MOS-GOV repository (`zemeiyu2-lgtm/MOS-GOV-V0.1`, branch `main`) receives MOS-GOV commits.
+- The plugin directory lives inside the ChurchCRM checkout at `src/plugins/community/mos-gov` but is ignored by ChurchCRM's `.gitignore` (`src/plugins/community/*`).
+- Work must remain minimal, testable, and reversible.
