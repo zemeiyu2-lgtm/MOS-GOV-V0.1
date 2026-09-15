@@ -211,3 +211,86 @@ dashboard marker "Governance dashboard": present
    the official flow (provenance recording).
 3. Plugin routes currently require login (global `AuthMiddleware`) but are
    not admin-restricted; adding `AdminRoleAuthMiddleware` is a V0.2 concern.
+
+---
+
+# Phase 3 — Governance data layer + minimal CRUD (2026-09-15)
+
+## RESULTS
+
+Phase 3 delivered the core governance data layer and a minimal, safe CRUD
+foundation for the four core entities (structure -> body -> role ->
+appointment), plus real dashboard counters. All Phase 2 checks still pass.
+
+Data-layer audit conclusions (recorded for future phases):
+
+1. **No generated Propel models.** The Propel schema belongs to ChurchCRM
+   core; plugin tables cannot be added to it without a core change. Plugin
+   data access therefore goes through PDO-style statements on the standard
+   ChurchCRM connection obtained via `Propel::getConnection()` (in this
+   install the connection object is `Propel\Runtime\Connection\
+   ConnectionInterface`, statements are `StatementInterface`).
+2. **PDO over SQLUtils for queries.** `SQLUtils::sqlImport()` remains the
+   tool for schema migration files only.
+3. **A dedicated repository layer exists** (`src/Data/GovRepository.php`);
+   routes and views contain no SQL.
+4. **Schema audit passed**: the four tables have clear, non-overlapping
+   responsibilities (`gov_structure` self-referencing tree, `gov_body`
+   belongs to structure, `gov_role` belongs to body, `gov_appointment`
+   belongs to role + ChurchCRM `person_id` reference). No field duplication;
+   lack of FOREIGN KEYs is a deliberate boundary decision (documented in
+   `001_initial.sql`). The schema supports future CRUD growth.
+5. **Dashboard reads real data safely**: empty tables display 0; data-layer
+   failures render an explicit error banner instead of a crash.
+
+## CHANGES
+
+| File | Change |
+| --- | --- |
+| `src/Data/GovRepository.php` | New: entity registry (single source of truth for tables/fields/validation), prepared-statement-only CRUD, dashboard counters, per-field validation incl. ref existence and appointment date ordering |
+| `src/Data/GovDataException.php` | New: safe-message exception carrying per-field validation errors |
+| `routes/routes.php` | Dashboard now renders real counters; added 6 routes: list / new-form / create / detail / edit-form / update for `{structures\|bodies\|roles\|appointments}`; CSRF enforcement on all POSTs; root-path-aware redirects |
+| `views/dashboard.php` | Real counters (0 when empty), error banner, links to the four list pages |
+| `views/entity_list.php` | New: shared list view (escapes all output) |
+| `views/entity_form.php` | New: shared create/edit form (CSRF field, per-field errors, ref select options, status whitelist) |
+| `views/entity_view.php` | New: shared detail view with resolved parent labels |
+| `views/error_page.php` | New: standalone error page for CSRF rejection / 404 / data-layer failures |
+| `tests/phase3_test.php` | New: CLI data-layer suite (validation, full CRUD lifecycle, counters, cleanup) |
+
+## TESTS
+
+All green:
+
+- `php -l` on all 10 PHP files: no syntax errors.
+- `tests/phase3_test.php`: 22 PASS (validation rules, insert/find/update,
+  invalid-insert rejection, counts delta, list/ref-options, baseline-restore
+  cleanup).
+- `tests/integration_phase2.php` (Phase 2 regression): discovery yes, active
+  true, enablePlugin true, boot ran, **8 routes registered** (2 original +
+  6 new), all 10 gov_* tables present.
+- `tests/schema_smoke.php`: passed.
+- HTTP regression (unauthenticated + API-key authenticated):
+  - unauthenticated GET/POST -> 302 to `/session/begin` (login protection);
+  - authenticated GET dashboard / settings / 4 lists / new-form -> 200
+    text/html;
+  - detail of nonexistent id -> explicit "does not exist" page;
+  - POST without CSRF token -> 400 (rejected); positive-path CRUD covered by
+    the CLI suite (API-key auth has no session, so a browser-session CSRF
+    round trip was not automatable here).
+
+## BLOCKERS
+
+None outstanding. Environment note: pushing requires the repo-local
+`credential.helper=wincred` workaround (Git Credential Manager crashes when
+spawned as a grandchild process by git's HTTP transport on this machine);
+the stored Windows credential is used automatically.
+
+## NEXT
+
+- Phase 4 (pending ChatGPT review): remaining entities (meeting, issue,
+  decision, task, responsibility, relationship) can reuse the same
+  registry-driven repository/view pattern by adding entries to
+  `GovRepository::ENTITIES`.
+- R07 governance authorization layer and person lookup (resolving
+  `person_id` to names at runtime) remain future work; the repository
+  intentionally does not read ChurchCRM core tables.

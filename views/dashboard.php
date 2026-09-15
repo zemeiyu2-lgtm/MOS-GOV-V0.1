@@ -1,4 +1,13 @@
 <?php
+
+/**
+ * MOS-GOV governance dashboard.
+ *
+ * Expected variables (provided by the route):
+ * - $stats        array{structures:int, bodies:int, open_issues:int, open_tasks:int} or null
+ * - $statsError   optional safe error message when the data layer failed
+ * - $esc          HTML-escaping closure
+ */
 require_once __DIR__ . '/../../../../Include/Header.php';
 ?>
 <div class="container-xl">
@@ -6,10 +15,16 @@ require_once __DIR__ . '/../../../../Include/Header.php';
         <div class="row align-items-center">
             <div class="col">
                 <h2 class="page-title">MOS-GOV</h2>
-                <div class="text-secondary">Church governance layer · V0.1</div>
+                <div class="text-secondary">Church governance layer &middot; V0.1</div>
             </div>
         </div>
     </div>
+
+    <?php if (!empty($statsError)): ?>
+        <div class="alert alert-danger" role="alert">
+            <?= $esc($statsError) ?>
+        </div>
+    <?php endif; ?>
 
     <div class="row row-cards">
         <div class="col-12">
@@ -27,7 +42,7 @@ require_once __DIR__ . '/../../../../Include/Header.php';
                             <div class="card card-sm">
                                 <div class="card-body">
                                     <div class="text-secondary">Structures</div>
-                                    <div class="h2 mb-0">—</div>
+                                    <div class="h2 mb-0"><?= isset($stats['structures']) ? (int) $stats['structures'] : '&mdash;' ?></div>
                                 </div>
                             </div>
                         </div>
@@ -35,7 +50,7 @@ require_once __DIR__ . '/../../../../Include/Header.php';
                             <div class="card card-sm">
                                 <div class="card-body">
                                     <div class="text-secondary">Bodies</div>
-                                    <div class="h2 mb-0">—</div>
+                                    <div class="h2 mb-0"><?= isset($stats['bodies']) ? (int) $stats['bodies'] : '&mdash;' ?></div>
                                 </div>
                             </div>
                         </div>
@@ -43,7 +58,7 @@ require_once __DIR__ . '/../../../../Include/Header.php';
                             <div class="card card-sm">
                                 <div class="card-body">
                                     <div class="text-secondary">Open issues</div>
-                                    <div class="h2 mb-0">—</div>
+                                    <div class="h2 mb-0"><?= isset($stats['open_issues']) ? (int) $stats['open_issues'] : '&mdash;' ?></div>
                                 </div>
                             </div>
                         </div>
@@ -51,16 +66,17 @@ require_once __DIR__ . '/../../../../Include/Header.php';
                             <div class="card card-sm">
                                 <div class="card-body">
                                     <div class="text-secondary">Open tasks</div>
-                                    <div class="h2 mb-0">—</div>
+                                    <div class="h2 mb-0"><?= isset($stats['open_tasks']) ? (int) $stats['open_tasks'] : '&mdash;' ?></div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="alert alert-info mt-4">
-                        V0.1 scaffold is installed as a boundary-safe starting
-                        point. CRUD screens and ChurchCRM person lookup are
-                        added only after runtime verification.
+                    <div class="mt-4 d-flex flex-wrap gap-2">
+                        <a class="btn btn-outline-primary" href="<?= $esc($mosGovBase) ?>/structures">Structures</a>
+                        <a class="btn btn-outline-primary" href="<?= $esc($mosGovBase) ?>/bodies">Bodies</a>
+                        <a class="btn btn-outline-primary" href="<?= $esc($mosGovBase) ?>/roles">Roles</a>
+                        <a class="btn btn-outline-primary" href="<?= $esc($mosGovBase) ?>/appointments">Appointments</a>
                     </div>
                 </div>
             </div>
