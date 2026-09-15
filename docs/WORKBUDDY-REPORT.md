@@ -294,3 +294,139 @@ the stored Windows credential is used automatically.
 - R07 governance authorization layer and person lookup (resolving
   `person_id` to names at runtime) remain future work; the repository
   intentionally does not read ChurchCRM core tables.
+
+---
+
+# V0.1 final closure — from scaffold to working governance platform (2026-09-15)
+
+## STATUS
+
+**MOS-GOV V0.1 COMPLETE.** All fifteen acceptance criteria are met and all six
+test suites pass. No ChurchCRM core file, core table or core data model was
+modified.
+
+One earlier statement in this report is now superseded: `GovRepository` still
+never reads ChurchCRM core tables, but a *separate* class
+(`src/Integration/PersonLookup.php`) now does, read-only, as required for the
+appointment → ChurchCRM person link (R08).
+
+## RESULTS
+
+MOS-GOV V0.1 is no longer a scaffold. From a fresh enable, an administrator can:
+
+1. open `/plugins/mos-gov` and see live governance counters plus the most
+   recent governance meetings and decisions;
+2. maintain all ten governance entities through list / detail / create / edit
+   screens with validation, CSRF, empty states and error states;
+3. build and follow both governance loops, from either end:
+   `Structure → Body → Role → Appointment → Responsibility` and
+   `Meeting → Issue → Decision → Task` (each parent page lists its children,
+   and each child's "Add …" action opens a form with the parent prefilled);
+4. link appointments, issues, decisions and tasks to real ChurchCRM people,
+   with the person's name resolved for display and validated to exist.
+
+Non-administrators can read governance data but are refused every write route —
+by an explicit governance authorization layer (R07), not by an informal
+permission check.
+
+## CHANGES
+
+| File | Change |
+| --- | --- |
+| `src/Data/GovRepository.php` | Registry extended to all ten entities; new field types `select` / `datetime` / `person`; reference and ChurchCRM-person existence validation; cross-field rules; `omitIfEmpty` so DB defaults apply; whitelisted `listWhere` / `countWhere` / `recent` with whitelisted ORDER BY |
+| `src/Integration/PersonLookup.php` | New: read-only ChurchCRM person bridge (R08) with find / exists / label / labels / candidates / search and a request-scoped memo |
+| `src/Security/GovAuthorization.php` | New: the R07 governance authorization decision point (read = authenticated, write = administrator) |
+| `src/Security/GovWriteRoleAuthMiddleware.php` | New: binds R07 to every write route via ChurchCRM's `BaseAuthRoleMiddleware` |
+| `routes/routes.php` | Rewritten registry-driven: 8 routes for 10 entities; R07 guard on all four write routes; related-collection rendering on detail pages; parent prefill on "Add …" links; root-path-aware links and redirects |
+| `views/_tabs.php` | New: registry-driven section navigation |
+| `views/dashboard.php` | Live counters for all ten tables, recent meetings and decisions, read-only notice, explicit error/empty states |
+| `views/entity_list.php` | Shared list for all entities; resolved ref/person labels; write actions hidden without permission |
+| `views/entity_form.php` | Shared create/edit form: select / datetime-local / person datalist field types, per-field errors, prefilled parents |
+| `views/entity_view.php` | Shared detail: resolved ref/person labels plus related-collection tables with "Add …" prefill links |
+| `views/settings.php` | Reports current governance capabilities and live per-table row counts |
+| `views/error_page.php` | Styled; links back to the MOS-GOV dashboard |
+| `tests/v01_data_test.php` | New: registry/schema, person bridge, validation, full CRUD lifecycle of both loops, relations, counters, cleanup (80 assertions) |
+| `tests/v01_http_test.php` | New: authentication, authorization, CSRF, all pages/forms, invalid input, unknown records, edit, cleanup (59 assertions) |
+| `tests/run_all.php` | New: runs all six suites and summarises |
+| `README.md`, `docs/ARCHITECTURE.md`, `docs/R09-DEPLOYMENT.md`, `docs/IMPLEMENTATION-NOTES.md`, `docs/AI-TASK.md`, `docs/CHANGELOG.md` | Updated to describe the implemented V0.1 |
+
+### Bugs fixed on the way
+
+1. **Broken links in subdirectory installs.** The list, form and detail views
+   computed a root-path-aware base URL and then ignored it, hardcoding
+   `/plugins/mos-gov/…`. All links now derive from
+   `SystemURLs::getRootPath()`.
+2. **Empty browser titles and duplicated page headers.** Views rendered their
+   own page header and never set `$sPageTitle`/`$aBreadcrumbs`, so the shell
+   produced an empty `<title>` and a second header block. Views now use the
+   ChurchCRM header contract and the shell renders title, subtitle,
+   breadcrumbs and header buttons.
+3. **Slug pattern built from the wrong side of the registry map.** Grouping the
+   new registry map through `array_values()` produced a route regex of entity
+   keys instead of URL slugs, so every list page 302'd. Caught by the HTTP
+   suite; fixed to `array_keys()`.
+4. **Closure capture lost on refactor.** `$mosGovFormContext()` called
+   `$mosGovCollectRefOptions()` without capturing it, making every create form
+   throw "Value of type null is not callable". Caught by the HTTP suite.
+
+## TESTS
+
+All suites green (`tests/run_all.php` → **ALL 6 SUITES PASSED**):
+
+```
+schema smoke (SQL file structure)        PASS
+table initialization (idempotent)        PASS   (10/10 tables readable)
+Phase 2 integration regression           PASS   (discovery, enable, boot, 8 routes)
+Phase 3 data layer regression            PASS   (22 assertions)
+V0.1 data layer (ten entities)           PASS   (80 assertions)
+V0.1 HTTP end-to-end                     PASS   (59 assertions)
+```
+
+`php -l` is clean across every PHP file in the plugin (including views; PHP
+lint parses mixed HTML/PHP view files).
+
+HTTP coverage detail:
+
+- anonymous GET/POST → 302 to `/session/begin`;
+- administrator: dashboard + settings + 10 list pages + 10 create forms + 10
+  edit forms render 200 with a CSRF token;
+- POST without a token → 400; POST with a token → 302 and the row is created;
+- invalid submission → 400 with per-field messages re-rendered in the form;
+- unknown record → explicit "does not exist" page; unknown entity slug is not
+  served by a governance route;
+- non-administrator: reads 200, every write route → 302 to
+  `/v2/access-denied?role=Governance` (browser) or 403 JSON (API) — and the
+  refusal happens *before* CSRF processing, proving middleware ordering;
+- a user who may edit ChurchCRM records but is not an administrator is likewise
+  refused governance writes;
+- the HTTP suite cleans up after itself through the data layer; governance
+  tables return to their exact baseline.
+
+## BLOCKERS
+
+**None.** No condition requiring a pause was encountered: no ChurchCRM core
+code or core table needed changing, no confirmed MOS-GOV data model had to be
+altered, no significant external dependency was introduced, and no destructive
+database operation was needed.
+
+Environment notes (workarounds already in place, not blockers):
+
+- The shell needed an explicit `PATH` for coreutils/git in this session.
+- Pushing uses the repo-local `credential.helper=wincred` workaround (Git
+  Credential Manager crashes when spawned as a git grandchild process here).
+- CLI diagnostics must run as `www-data` (or the log ownership fixed
+  afterwards), otherwise Monolog cannot append and every plugin page 500s.
+
+## NEXT
+
+V0.2 — explicitly **not** started:
+
+1. ChatGPT review of the V0.1 implementation.
+2. Audit / event-sourcing design before governance decisions become
+   production-critical (a decision is currently one mutable row).
+3. A dedicated governance role so maintenance is not administrator-only.
+4. Search-backed person/group/event pickers for large churches.
+5. Install provenance so Plugin Management reports the plugin as verified.
+6. List-screen filtering, paging and search (V0.1 caps at 500 rows).
+7. Menu placement decision, and linking `gov_meeting.event_id` to the
+   ChurchCRM event calendar.
