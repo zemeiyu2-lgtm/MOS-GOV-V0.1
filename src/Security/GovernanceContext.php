@@ -27,6 +27,14 @@ final class GovernanceContext
     /** @var array<string, mixed>|null null = no governance identity */
     private static ?array $data = null;
 
+    /**
+     * Request-scoped cache of "this person has a gov_identity row at all",
+     * keyed by person id. See hasIdentityRecord().
+     *
+     * @var array<int, bool>
+     */
+    private static array $identityRecordCache = [];
+
     private function __construct(array $data)
     {
         self::$data = $data;
@@ -234,8 +242,40 @@ final class GovernanceContext
         return self::$current = new self($data);
     }
 
-    // -------------------------------------------------------------- accessors
+    /**
+     * Does this person hold a governance identity row AT ALL — whatever its
+     * status (active / inactive / archived)?
+     *
+     * This is the legibility gate for the legacy read surfaces (V0.2 FINAL
+     * REVIEW §1). Read access must never increase when a governance identity
+     * is provisioned or deactivated, so the gate cannot be "is there an
+     * ACTIVE identity":
+     *
+     *   - no identity row  → documented V0.1 bootstrap read policy (a church
+     *                        that has not provisioned governance yet still
+     *                        reads its own governance records);
+     *   - identity row, any status → the unified policy decides; an inactive
+     *                        identity therefore yields DENY, never full read.
+     */
+    public static function hasIdentityRecord(User $user): bool
+    {
+        $personId = (int) $user->getPersonId();
+        if ($personId <= 0) {
+            return false;
+        }
+        if (!array_key_exists($personId, self::$identityRecordCache)) {
+            $stmt = Propel::getConnection()->prepare(
+                'SELECT id FROM gov_identity WHERE person_id = :pid LIMIT 1'
+            );
+            $stmt->bindValue(':pid', $personId, \PDO::PARAM_INT);
+            $stmt->execute();
+            self::$identityRecordCache[$personId] = $stmt->fetch(\PDO::FETCH_ASSOC) !== false;
+        }
 
+        return self::$identityRecordCache[$personId];
+    }
+
+    // -------------------------------------------------------------- accessors
     public function identityId(): int
     {
         return (int) self::$data['identity_id'];
@@ -281,5 +321,6 @@ final class GovernanceContext
     {
         self::$current = null;
         self::$data = null;
+        self::$identityRecordCache = [];
     }
 }

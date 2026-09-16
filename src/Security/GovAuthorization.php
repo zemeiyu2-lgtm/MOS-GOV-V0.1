@@ -100,6 +100,31 @@ final class GovAuthorization
         return $user === null ? null : GovernanceContext::forUser($user);
     }
 
+    /**
+     * Is this user governed by the unified policy on the LEGACY read surfaces
+     * (dashboard, the ten entity lists, entity detail pages)?
+     *
+     * V0.2 FINAL REVIEW §1: the gate must be "does the person hold a
+     * governance identity row", NOT "is that identity active". Gating on an
+     * active identity made deactivating an identity INCREASE read access
+     * (no context → the legacy pages skipped every check). Access must be
+     * monotonic: provisioning, activating or deactivating an identity may
+     * never widen what a person can read.
+     *
+     *   - no identity row            → V0.1 bootstrap read policy (unchanged);
+     *   - identity row, any status   → GovernancePolicy decides per row, so
+     *                                  an inactive identity yields DENY.
+     *
+     * Callers must pair this with GovAuthorization::can(); on its own it is
+     * only a routing decision about WHICH policy applies.
+     */
+    public static function subjectToGovernancePolicy(?User $user = null): bool
+    {
+        $user ??= self::currentUser();
+
+        return $user !== null && GovernanceContext::hasIdentityRecord($user);
+    }
+
     /** Human-readable reason shown on the access-denied page. */
     public static function writeDeniedMessage(): string
     {

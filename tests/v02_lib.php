@@ -55,10 +55,14 @@ $mosGovTrack = function (string $entity, int $id) use (&$mosGovV2): void {
 };
 
 $mosGovCleanup = function () use (&$mosGovV2): void {
-    // children first, parents last (roughly reversed registry order)
+    // children first, parents last (roughly reversed registry order).
+    // FINAL REVIEW: 'visibility_rule' was missing from this list, so the row
+    // tracked by v02_visibility_test was recorded but never deleted and every
+    // run left one behind (all rows were status='inactive' test artifacts, so
+    // the engine ignored them — but the suite must not accumulate rows).
     $order = [
         'identity_permission', 'identity_scope', 'identity_role', 'identity',
-        'role_permission', 'permission', 'role_scope', 'scope',
+        'role_permission', 'role_scope', 'visibility_rule', 'permission', 'scope',
         'task', 'decision', 'issue', 'meeting', 'relationship',
         'responsibility', 'appointment', 'role', 'body', 'structure',
     ];

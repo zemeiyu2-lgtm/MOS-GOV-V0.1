@@ -33,18 +33,46 @@ Docker deployment (ChurchCRM + MariaDB 10.11).
 - CRM cutdown §28 within plugin boundary (navigation reorganisation, scoped
   search, export off by default, P5 masking) — see docs/V02-CRM-CUTDOWN.md.
 
+### V0.2 final review record (read-only review + 3 security corrections)
+
+- No new capability added, no new entity, no schema change, ChurchCRM core
+  untouched. Only the legacy read-surface boundary was corrected.
+- Found and fixed (all three reproduced over real HTTP before and after):
+  1. detail-page denial fataled to HTTP 500 (deny renderer not captured by the
+     route closure) and the deny view needed an `$esc` variable the renderer
+     never passed — the path had never been exercised;
+  2. deactivating a governance identity *widened* access (gate keyed on an
+     active identity → no context → legacy pages skipped all checks);
+  3. the permission registry was readable by any authenticated user.
+- New guard: `GovAuthorization::subjectToGovernancePolicy()` +
+  `GovernanceContext::hasIdentityRecord()`. Access is now monotonic.
+- Regression coverage: 12 real-HTTP checks added to
+  `tests/v02_my_governance_test.php` §3 (suite count unchanged at 14).
+- Re-verified after the fix: 14/14 suites PASS; ChurchCRM core diff unchanged;
+  `gov_*` V0.1 rows preserved; no `mos_*` table created.
+
 ### Known limitations (V0.2, honest list)
 
-- Audit is log-based via `AuditService`; no DB audit table / event sourcing yet.
+- Audit is log-based via `AuditService` (7 call sites: identity create, role
+  attach, appointment end, scope assign, permission override, export and
+  export-denied); no DB audit table / event sourcing yet.
 - V0.1 module-read policy (any authenticated user) is retained for the ten
-  legacy entity pages; strict scope/visibility applies to users carrying a
-  governance identity and to all new V0.2 surfaces.
+  legacy entity pages — but only for a user who holds **no** `gov_identity`
+  row. Any user holding an identity row, active or not, is decided by the
+  unified policy (final review §1: the gate must not be "active identity",
+  otherwise deactivating an identity widens access). This branch is the
+  remaining accepted limitation.
 - Group/ministry scope IDs reference ChurchCRM groups but are not yet
-  validated against them (opaque integers by design).
+  validated against them (opaque integers by design). Failure direction is
+  fail-closed: no governance entity currently resolves to a group/ministry
+  scope, so an unmatched scope under-grants and never over-grants.
 - ChurchCRM-admin bootstrap compatibility remains for identity management
   (documented boundary: system administration ≠ church governance authority);
   export has NO admin bypass.
 - Files/training/accountability are UI containers only.
+- `/mos-gov/settings` shows aggregate `gov_*` row counts to any authenticated
+  user (V0.1 dashboard already did); not changed in the final review as it is
+  outside the list-page mandate. Low severity, no record content.
 - CLI test runs create root-owned log files in this deployment (environment,
   see V02-SECURITY-MODE.md).
 

@@ -155,6 +155,12 @@ Individual suites can be run on their own. `v01_http_test.php` and
   whitelisted registry, never from user input.
 - No destructive uninstall: disabling the plugin preserves governance history.
 - No credentials or secrets are stored in this package.
+- Access is monotonic: provisioning, activating or deactivating a governance
+  identity can never increase what a person can read. The ten legacy V0.1
+  entity pages keep their original read policy only for users who hold no
+  `gov_identity` row at all; anyone holding an identity row is decided by the
+  unified authorization engine. Documented in
+  `docs/V02-GOVERNANCE-AUTHORIZATION.md`.
 
 ## Documentation
 

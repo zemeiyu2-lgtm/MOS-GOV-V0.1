@@ -113,3 +113,42 @@ V0.1 ships a single idempotent file (`001_initial.sql`) containing only
 - **Log ownership pitfall**: CLI processes create root-owned daily log files
   that break www-data web writes; fix + prevention documented in
   docs/V02-SECURITY-MODE.md.
+
+---
+
+# V0.2 final review — read-surface boundary note
+
+The final review was read-only apart from the three security corrections
+listed in `docs/CHANGELOG.md` ("Fixed — V0.2 final review").
+
+**The gate that matters.** `GovAuthorization::subjectToGovernancePolicy()`
+decides WHICH policy applies to the legacy read surfaces (dashboard recents,
+the ten entity lists, entity detail pages). It answers "does this person hold
+a `gov_identity` row at all", via `GovernanceContext::hasIdentityRecord()`
+(request-scoped cache, one indexed lookup per person):
+
+```
+no identity row            → V0.1 bootstrap read policy (documented limitation)
+identity row, any status   → GovernancePolicy decides every row
+```
+
+It must never be expressed as "is there an active identity", because
+`GovernanceContext::forUser()` returns null for an inactive identity — which
+would make deactivation *widen* access. This is asserted directly in
+`tests/v02_my_governance_test.php` §3 ("inactive identity still counts as an
+identity row for the read gate").
+
+**Why the bootstrap branch stays.** Making the absence of an identity deny
+outright would break the six V0.1 suites (`read-only user can read governance
+lists`, detail-page read) and would leave a fresh installation unusable before
+any identity is provisioned. The limitation is therefore explicit and
+negative-only: it can only ever *widen* access relative to the strict policy,
+never bypass a scope an identity actually holds.
+
+**Regression coverage.** `tests/v02_my_governance_test.php` §3 adds 12 real-HTTP
+checks: out-of-scope detail → 403 + "This information is protected" + no title
+leak; legacy list renders but hides out-of-scope rows at data level; permission
+registry → 403 + no matrix leak; inactive identity does not open either the
+detail page or the unscoped list; identity-less administrator keeps the
+bootstrap read. The suite count stays at 14 (checks added to an existing suite,
+no new suite type).

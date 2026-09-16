@@ -81,7 +81,10 @@ $appointmentId = $repo->insert('appointment', [
     'end_date' => date('Y-m-d'),
 ]);
 $mosGovTrack('appointment', $appointmentId);
-$service->attachRole($identityId, (int) $a01['id'], $appointmentId, '2026-01-01', date('Y-m-d'));
+// FINAL REVIEW: this bound attachment used to discard its id, so every run
+// left one orphaned gov_identity_role row behind.
+$appointmentAttachId = $service->attachRole($identityId, (int) $a01['id'], $appointmentId, '2026-01-01', date('Y-m-d'));
+$mosGovTrack('identity_role', $appointmentAttachId);
 GovAuthorization::reset();
 
 $ended = $service instanceof IdentityService;

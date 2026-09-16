@@ -55,3 +55,35 @@ Explicit DENY 优先于任何 GRANT。P5 默认 DENY,任何角色不因职位高
 `GovAuthorization::canRead()` / `canWrite()` 语义保留(模块读取 = 登录用户;
 治理 CRUD 写 = ChurchCRM 管理员)。携带治理身份的用户在其之上获得更严格的
 scope/visibility 约束。导出没有管理员旁路。
+
+---
+
+## Appendix — legacy read surfaces and the monotonicity rule (final review)
+
+The ten V0.1 entity pages predate the policy engine, so they cannot simply
+"be" the engine. They instead ask two questions in order:
+
+1. `GovAuthorization::subjectToGovernancePolicy()` — does this user hold a
+   `gov_identity` row (any status)? If not, the V0.1 bootstrap read policy
+   applies unchanged.
+2. If yes, every row and every detail lookup goes through
+   `GovAuthorization::can($user, 'view', $entity, $row)` — identity → role →
+   permission → appointment → scope → information level → explicit deny.
+
+The identity check in step 1 is deliberately *not* "is the identity active".
+Gating on an active identity made this sequence fail open: an inactive
+identity has no context, so step 2 never ran and the person saw the unscoped
+list. The rule is now:
+
+> Access is monotonic. Provisioning, activating or deactivating a governance
+> identity may never increase what a person can read.
+
+Consequences to keep in mind when extending this code:
+
+- Never reintroduce `$ctx !== null` as a gate on a read surface.
+- Detail denials must render through the deny page (it needs `decision` *and*
+  `esc`); a missing closure capture or view variable turns a 403 into a 500
+  while still leaking nothing — correct in direction, wrong in behaviour, and
+  easy to miss because the path is only reachable for identity holders.
+- Administrative `isAdmin()` bootstrap is applied to governance *writes* and
+  identity administration, never to export (§24) and never as a scope bypass.

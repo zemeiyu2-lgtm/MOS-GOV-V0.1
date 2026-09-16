@@ -85,10 +85,14 @@ $mosGovErrorPage = static function (Response $response, string $message, int $st
 /**
  * V0.2 — render a governance DENY page. The page explains the boundary
  * ("此信息受权限保护" style) without leaking the protected content.
+ *
+ * FINAL REVIEW §1: the view needs $esc; without it every deny path fataled
+ * ("Value of type null is not callable") and surfaced as a generic 500.
  */
-$mosGovDenyPage = static function (Response $response, \ChurchCRM\Plugins\MosGov\Security\AuthorizationDecision $decision, int $status = 403) use ($mosGovRender): Response {
+$mosGovDenyPage = static function (Response $response, \ChurchCRM\Plugins\MosGov\Security\AuthorizationDecision $decision, int $status = 403) use ($mosGovRender, $mosGovEsc): Response {
     $response->getBody()->write($mosGovRender('denied_page.php', [
         'decision' => $decision,
+        'esc' => $mosGovEsc,
     ]));
 
     return $response->withStatus($status)->withHeader('Content-Type', 'text/html; charset=utf-8');
@@ -315,8 +319,10 @@ $app->get('/mos-gov', function (Request $request, Response $response) use ($mosG
             $recentMeetings = $repo->recent('meeting', 5);
             $recentDecisions = $repo->recent('decision', 5);
             // V0.2: scoped users only see records inside their scope.
-            $ctx = GovAuthorization::context();
-            if ($ctx !== null) {
+            // FINAL REVIEW §1: the gate is "holds a governance identity row"
+            // (any status) — never "has an ACTIVE identity", which would let
+            // deactivation widen read access.
+            if (GovAuthorization::subjectToGovernancePolicy()) {
                 $user = GovAuthorization::currentUser();
                 $recentMeetings = array_values(array_filter(
                     $recentMeetings,
@@ -383,10 +389,11 @@ $app->get('/mos-gov/{entity:' . $mosGovSlugPattern . '}', function (Request $req
     $error = null;
     try {
         $rows = $repo->list($entity);
-        // V0.2 §20: scoped listing for users with a governance identity —
+        // V0.2 §20: scoped listing for users who hold a governance identity —
         // rows outside the identity's scope are removed at data level.
-        $ctx = GovAuthorization::context();
-        if ($ctx !== null) {
+        // FINAL REVIEW §1: an INACTIVE identity must not widen this to the
+        // full list; the gate is identity-row presence, not active status.
+        if (GovAuthorization::subjectToGovernancePolicy()) {
             $user = GovAuthorization::currentUser();
             $rows = array_values(array_filter(
                 $rows,
@@ -480,7 +487,7 @@ $app->post('/mos-gov/{entity:' . $mosGovSlugPattern . '}', function (Request $re
 })->add(GovWriteRoleAuthMiddleware::class)->add(GovSecureModeMiddleware::class);
 
 // ------------------------------------------------ entity detail
-$app->get('/mos-gov/{entity:' . $mosGovSlugPattern . '}/{id:[0-9]+}', function (Request $request, Response $response, array $args) use ($mosGovPage, $mosGovRepo, $mosGovEntityBySlug, $mosGovDecorateRows, $mosGovCollectRelated, $mosGovEsc): Response {
+$app->get('/mos-gov/{entity:' . $mosGovSlugPattern . '}/{id:[0-9]+}', function (Request $request, Response $response, array $args) use ($mosGovPage, $mosGovRepo, $mosGovEntityBySlug, $mosGovDecorateRows, $mosGovCollectRelated, $mosGovDenyPage, $mosGovEsc): Response {
     $entity = $mosGovEntityBySlug[$args['entity']];
     $repo = $mosGovRepo();
     $cfg = $repo->getEntity($entity);
@@ -493,16 +500,23 @@ $app->get('/mos-gov/{entity:' . $mosGovSlugPattern . '}/{id:[0-9]+}', function (
 
     // V0.2 §21: scope containment + information levels on detail pages.
     // URL/ID guessing can no longer read out-of-scope records for users who
-    // carry a governance identity; P5 fields are masked for everyone
+    // hold a governance identity; P5 fields are masked for everyone
     // without an explicit P5 grant.
-    $scopedUser = GovAuthorization::context();
-    if ($scopedUser !== null) {
+    //
+    // FINAL REVIEW §1: two corrections here.
+    //  (a) the gate is identity-row presence, not an ACTIVE identity, so
+    //      deactivating an identity can never turn into full disclosure;
+    //  (b) the deny page is a captured closure variable — without it this
+    //      path fataled into a generic 500 instead of the 403 page.
+    // When the row does not exist the decision is evaluated at module level,
+    // so a governed user cannot probe which ids exist.
+    $governed = GovAuthorization::subjectToGovernancePolicy();
+    $scopedUser = $governed ? GovAuthorization::context() : null;
+    if ($governed) {
         $preRow = $repo->find($entity, $id);
-        if ($preRow !== null) {
-            $decision = GovAuthorization::can(GovAuthorization::currentUser(), 'view', $entity, $preRow);
-            if (!$decision->allowed) {
-                return $mosGovDenyPage($response, $decision);
-            }
+        $decision = GovAuthorization::can(GovAuthorization::currentUser(), 'view', $entity, $preRow);
+        if (!$decision->allowed) {
+            return $mosGovDenyPage($response, $decision);
         }
     }
 
@@ -942,9 +956,17 @@ $app->post('/mos-gov/identity/{id:[0-9]+}/override-permission', function (Reques
 })->add(GovWriteRoleAuthMiddleware::class)->add(GovSecureModeMiddleware::class);
 
 // ------------------------------------------------------- permission registry
-$app->get('/mos-gov/permissions', function (Request $request, Response $response) use ($mosGovPage, $mosGovRepo, $mosGovEsc): Response {
+// FINAL REVIEW §1: reading the registry is itself a governance act — it
+// exposes the whole permission model and the role→permission matrix, which
+// is exactly what permission.manage governs. The page used to render for any
+// authenticated user and only hide the write controls; read is now gated by
+// the same permission as write.
+$app->get('/mos-gov/permissions', function (Request $request, Response $response) use ($mosGovPage, $mosGovRepo, $mosGovDenyPage, $mosGovEsc): Response {
     $user = GovAuthorization::currentUser();
     $canManage = GovAuthorization::allows($user, 'manage', 'permission') || ($user !== null && $user->isAdmin());
+    if (!$canManage) {
+        return $mosGovDenyPage($response, GovAuthorization::can($user, 'manage', 'permission'));
+    }
 
     $repo = $mosGovRepo();
     $permissions = $repo->list('permission', 1000);

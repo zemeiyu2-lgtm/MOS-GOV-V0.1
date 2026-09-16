@@ -77,6 +77,39 @@
 - No `mos_person`/`mos_family`/`mos_group` duplicates; PersonLookup remains
   read-only; no outbound network, cloud, analytics, mail, SMS or map calls.
 
+### Fixed — V0.2 final review (legacy read-surface boundary)
+
+Three defects were found on the legacy read surfaces during the read-only
+final review. No new capability was added; only the security boundary was
+corrected.
+
+- **Broken deny path on the entity detail page.** The detail route closure
+  never captured the deny-page renderer, so the §21 scope denial for
+  URL/ID guessing fataled (`Value of type null is not callable`) and
+  surfaced as a generic HTTP 500 instead of the 403 page. The denial view
+  also required an `$esc` helper that the renderer did not pass, which
+  produced a second failure on the same path — the path had never been
+  exercised over HTTP. Both are fixed and covered by real-HTTP assertions.
+- **Deactivating a governance identity widened access.** The legacy read
+  gate keyed on an *active* governance identity, so setting an identity to
+  `inactive` removed the context and made the dashboard recents, entity
+  lists and detail pages skip every check — the person saw the full
+  unscoped data set. The gate is now "holds a governance identity row,
+  whatever its status" (`GovAuthorization::subjectToGovernancePolicy()` →
+  `GovernanceContext::hasIdentityRecord()`), so access is monotonic:
+  provisioning, activating or deactivating an identity can never increase
+  what a person can read. An inactive identity now yields DENY.
+- **Permission registry was readable by any authenticated user.** The page
+  rendered the whole permission whitelist and the role→permission matrix and
+  only hid the write controls; read is now gated by the same
+  `permission.manage` permission as write (ChurchCRM administrators keep
+  their documented bootstrap read).
+
+Scope of the correction: the documented bootstrap read policy for users with
+**no** governance identity row is unchanged — it is what keeps a
+not-yet-provisioned installation and the V0.1 suites working. It is recorded
+as a known limitation, not a regression.
+
 ## 0.1.0 — V0.1 complete
 
 ### Added

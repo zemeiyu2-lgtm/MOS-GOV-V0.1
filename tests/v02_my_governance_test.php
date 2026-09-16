@@ -139,6 +139,97 @@ if ($member !== null) {
     $mosGovCheck('member search finds only in-scope records', !str_contains($search['body'], 'OUT-OF-SCOPE-MARKER'));
 }
 
+// ===========================================================================
+// 3. FINAL REVIEW §1 — legacy read surfaces must not be a scope bypass.
+//    These checks exist because the deny path on the legacy detail page and
+//    the identity-status gate were both broken in the first V0.2 pass:
+//      (a) the detail closure did not capture the deny-page renderer;
+//      (b) the deny view was rendered without its $esc helper;
+//      (c) the scope gate keyed on an ACTIVE identity, so deactivating an
+//          identity WIDENED access to the unscoped list.
+//    All three are now covered over real HTTP.
+// ===========================================================================
+$mosGovSection('3. Legacy surface scope enforcement (§21 — FINAL REVIEW regression)');
+
+// An unassigned task is church-scoped; an A01 identity only holds a
+// self-person scope, so it is a genuine out-of-scope record.
+$outOfScopeTask = $repo->insert('task', [
+    'title' => 'OUT-OF-SCOPE-TASK-MARKER',
+    'priority' => 'normal',
+    'status' => 'open',
+]);
+$mosGovTrack('task', $outOfScopeTask);
+
+$memberKey = $member === null ? '' : (string) $member->getApiKey();
+$memberJar = $tmpDir . '/legacy-member.cookies';
+
+// --- gate semantics (monotonic access) ------------------------------------
+GovAuthorization::reset();
+$mosGovCheck(
+    'identity-less admin is NOT under the governance read policy',
+    $admin === null || GovAuthorization::subjectToGovernancePolicy($admin) === false
+);
+$mosGovCheck(
+    'identity holder IS under the governance read policy',
+    $member !== null && GovAuthorization::subjectToGovernancePolicy($member) === true
+);
+
+// --- out-of-scope detail must deny, not error, and not leak ---------------
+if ($member !== null) {
+    $detail = $http('GET', $baseUrl . $basePath . '/tasks/' . $outOfScopeTask, $memberJar, $memberKey);
+    $mosGovCheck('out-of-scope detail is DENIED with 403 (not 500)', $detail['status'] === 403, (string) $detail['status']);
+    $mosGovCheck('denial renders the protected-information page', str_contains($detail['body'], 'This information is protected'));
+    $mosGovCheck('denial states the scope boundary', str_contains($detail['body'], 'outside your governance scope'));
+    $mosGovCheck('denial leaks no protected content', !str_contains($detail['body'], 'OUT-OF-SCOPE-TASK-MARKER'));
+
+    $list = $http('GET', $baseUrl . $basePath . '/tasks', $memberJar, $memberKey);
+    $mosGovCheck('legacy list still renders for an identity holder', $list['status'] === 200, (string) $list['status']);
+    $mosGovCheck('legacy list hides out-of-scope rows at data level', !str_contains($list['body'], 'OUT-OF-SCOPE-TASK-MARKER'));
+
+    $registry = $http('GET', $baseUrl . $basePath . '/permissions', $memberJar, $memberKey);
+    $mosGovCheck('permission registry DENIED without permission.manage', $registry['status'] === 403, (string) $registry['status']);
+    $mosGovCheck('permission registry leaks no permission matrix', !str_contains($registry['body'], 'governance.approve'));
+
+    // --- deactivating the identity must NOT widen access ------------------
+    $conn = Propel\Runtime\Propel::getConnection();
+    $stmt = $conn->prepare("UPDATE gov_identity SET identity_status = 'inactive' WHERE id = :id");
+    $stmt->bindValue(':id', $identityId, \PDO::PARAM_INT);
+    $stmt->execute();
+    GovAuthorization::reset();
+
+    $mosGovCheck(
+        'inactive identity still counts as an identity row for the read gate',
+        GovAuthorization::subjectToGovernancePolicy($member) === true
+    );
+
+    $detailInactive = $http('GET', $baseUrl . $basePath . '/tasks/' . $outOfScopeTask, $memberJar, $memberKey);
+    $mosGovCheck(
+        'deactivating an identity does NOT open out-of-scope detail (§1)',
+        $detailInactive['status'] === 403 && !str_contains($detailInactive['body'], 'OUT-OF-SCOPE-TASK-MARKER'),
+        (string) $detailInactive['status']
+    );
+
+    $listInactive = $http('GET', $baseUrl . $basePath . '/tasks', $memberJar, $memberKey);
+    $mosGovCheck(
+        'deactivating an identity does NOT leak the unscoped list (§1)',
+        !str_contains($listInactive['body'], 'OUT-OF-SCOPE-TASK-MARKER'),
+        (string) $listInactive['status']
+    );
+
+    $stmt = $conn->prepare("UPDATE gov_identity SET identity_status = 'active' WHERE id = :id");
+    $stmt->bindValue(':id', $identityId, \PDO::PARAM_INT);
+    $stmt->execute();
+    GovAuthorization::reset();
+}
+
+// --- the bootstrap administrator keeps its documented read access ---------
+if ($admin !== null) {
+    $adminList = $http('GET', $baseUrl . $basePath . '/tasks', $tmpDir . '/legacy-admin.cookies', (string) $admin->getApiKey());
+    $mosGovCheck('identity-less admin keeps the V0.1 bootstrap list read', $adminList['status'] === 200, (string) $adminList['status']);
+    $adminRegistry = $http('GET', $baseUrl . $basePath . '/permissions', $tmpDir . '/legacy-admin.cookies', (string) $admin->getApiKey());
+    $mosGovCheck('administrator can still read the permission registry', $adminRegistry['status'] === 200, (string) $adminRegistry['status']);
+}
+
 GovAuthorization::reset();
 $mosGovCleanup();
 $mosGovFinish('V0.2 MY GOVERNANCE');
