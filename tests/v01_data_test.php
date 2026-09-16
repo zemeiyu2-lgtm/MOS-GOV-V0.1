@@ -122,7 +122,10 @@ $check('appointment: bad date rejected', $repo->validate('appointment', ['role_i
 $check('appointment: end before start rejected', $repo->validate('appointment', ['role_id' => 1, 'person_id' => 1, 'status' => 'active', 'start_date' => '2026-01-10', 'end_date' => '2026-01-01']) !== []);
 
 $check('responsibility: priority whitelist enforced', $repo->validate('responsibility', ['title' => 'X', 'priority' => 'urgent', 'status' => 'active']) !== []);
-$check('responsibility: valid priority accepted', $repo->validate('responsibility', ['title' => 'X', 'priority' => 'high', 'status' => 'active']) === []);
+// V0.2 semantic rule (§39): a responsibility must belong to a role or an
+// appointment, so a context-free row is no longer valid. The positive path
+// (valid priority + role context) is exercised by the real insert below.
+$check('responsibility: context-free responsibility rejected (V0.2 §39)', $repo->validate('responsibility', ['title' => 'X', 'priority' => 'high', 'status' => 'active']) !== []);
 
 $check('relationship: bad from_type rejected', $repo->validate('relationship', ['from_type' => 'nope', 'from_id' => 1, 'relationship_type' => 'x', 'to_type' => 'body', 'to_id' => 1, 'status' => 'active']) !== []);
 $check('relationship: valid endpoint types accepted', $repo->validate('relationship', ['from_type' => 'structure', 'from_id' => 1, 'relationship_type' => 'oversees', 'to_type' => 'body', 'to_id' => 1, 'status' => 'active']) === []);

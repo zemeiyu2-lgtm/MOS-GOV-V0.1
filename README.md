@@ -1,12 +1,12 @@
-# MOS-GOV V0.1
+# MOS-GOV V0.2
 
 **MOS-GOV — MOS church governance plugin for ChurchCRM**
 
-MOS-GOV V0.1 is a working, self-contained governance module for ChurchCRM: it
-is discoverable by the official plugin system, can be enabled from Plugin
-Management, and provides a complete minimal working loop over the ten
-governance entities — from organisational structure through to the decisions
-and tasks that follow from a governance meeting.
+MOS-GOV V0.2 upgrades V0.1 from "a governance CRUD plugin" to a governance
+system with **governance identity, roles, appointments, responsibilities,
+scope, information levels, a unified authorization engine, a personal
+governance center and a local/LAN secure mode** — running on the ChurchCRM
+factual data layer, for localhost / trusted-LAN deployment only.
 
 ## Core principle
 
@@ -29,7 +29,13 @@ names at runtime through ChurchCRM's own models.
 | Structure → Body → Role → Appointment → Responsibility loop | yes |
 | Meeting → Issue → Decision → Task loop | yes |
 | Cross-entity relations shown on detail pages | yes |
-| Audit / event sourcing, workflow engine, policy engine | **no** (later) |
+| Governance identity / roles / appointments / scope (V0.2) | yes |
+| Unified authorization engine with 11-step order (V0.2) | yes |
+| Information levels P1–P5, P5 default DENY (V0.2) | yes |
+| My Governance Center (V0.2) | yes |
+| Scoped governance search + export control (V0.2) | yes |
+| Local/LAN secure mode (V0.2) | yes |
+| Audit / event sourcing | **no** (AuditService interface reserved) |
 
 ## Governance entities (P0 tables)
 
@@ -113,13 +119,15 @@ machinery (including the access-denied redirect).
 
 1. Copy this directory to `src/plugins/community/mos-gov/`.
 2. Enable it in ChurchCRM → Admin → Plugins.
-3. Create the tables (idempotent, safe to re-run):
+3. Create the tables (both migrations are idempotent, safe to re-run):
 
 ```bash
-docker exec <webserver-container> php /var/www/html/plugins/community/mos-gov/tests/init_tables.php
+docker exec <webserver-container> php /var/www/html/plugins/community/mos-gov/tests/init_tables.php   # V0.1 schema
+docker exec docker-webserver-1 php /var/www/html/plugins/community/mos-gov/tests/v02_migrate.php      # V0.2 authorization model
 ```
 
-4. Open `/plugins/mos-gov`.
+4. Set the security mode: `MOS_GOV_SECURITY_MODE=LOCAL` (default) or `LAN`.
+5. Open `/plugins/mos-gov`.
 
 ## Tests
 
@@ -127,9 +135,18 @@ docker exec <webserver-container> php /var/www/html/plugins/community/mos-gov/te
 docker exec <webserver-container> php /var/www/html/plugins/community/mos-gov/tests/run_all.php
 ```
 
-Individual suites can be run on their own. `v01_http_test.php` needs the web
-server to be reachable (`MOSGOV_BASE_URL`, default `http://localhost`) and picks
-its administrator / read-only test accounts from ChurchCRM's own user table.
+14 suites: the six V0.1 suites plus V0.2 migration / identity / scope /
+permission / visibility / authorization / security / my-governance(+HTTP).
+Individual suites can be run on their own. `v01_http_test.php` and
+`v02_my_governance_test.php` need the web server reachable
+(`MOSGOV_BASE_URL`, default `http://localhost`).
+
+## V0.2 documentation
+
+- `docs/V02-GOVERNANCE-AUTHORIZATION.md` — identity/role/scope/permission model and the 11-step engine
+- `docs/V02-SECURITY-MODE.md` — LOCAL/LAN secure mode, outbound/database policy
+- `docs/V02-CRM-CUTDOWN.md` — governance-first UI cutdown and core-boundary guidance
+- `docs/V02-MY-GOVERNANCE.md` — the personal governance center contract
 
 ## Safety
 

@@ -34,9 +34,17 @@
 
 use ChurchCRM\Plugins\MosGov\Data\GovDataException;
 use ChurchCRM\Plugins\MosGov\Data\GovRepository;
+use ChurchCRM\Plugins\MosGov\Governance\GovSearchService;
+use ChurchCRM\Plugins\MosGov\Governance\IdentityService;
+use ChurchCRM\Plugins\MosGov\Governance\MyGovernanceService;
 use ChurchCRM\Plugins\MosGov\Integration\PersonLookup;
+use ChurchCRM\Plugins\MosGov\Security\AuditService;
 use ChurchCRM\Plugins\MosGov\Security\GovAuthorization;
+use ChurchCRM\Plugins\MosGov\Security\GovSecureModeMiddleware;
 use ChurchCRM\Plugins\MosGov\Security\GovWriteRoleAuthMiddleware;
+use ChurchCRM\Plugins\MosGov\Security\GovernancePolicy;
+use ChurchCRM\Plugins\MosGov\Security\LocalSecureMode;
+use ChurchCRM\Plugins\MosGov\Security\PermissionResolver;
 use ChurchCRM\Slim\SlimUtils;
 use ChurchCRM\Utils\CSRFUtils;
 use ChurchCRM\dto\SystemURLs;
@@ -72,6 +80,38 @@ $mosGovErrorPage = static function (Response $response, string $message, int $st
     $response->getBody()->write($mosGovRender('error_page.php', ['message' => $message]));
 
     return $response->withStatus($status)->withHeader('Content-Type', 'text/html; charset=utf-8');
+};
+
+/**
+ * V0.2 — render a governance DENY page. The page explains the boundary
+ * ("此信息受权限保护" style) without leaking the protected content.
+ */
+$mosGovDenyPage = static function (Response $response, \ChurchCRM\Plugins\MosGov\Security\AuthorizationDecision $decision, int $status = 403) use ($mosGovRender): Response {
+    $response->getBody()->write($mosGovRender('denied_page.php', [
+        'decision' => $decision,
+    ]));
+
+    return $response->withStatus($status)->withHeader('Content-Type', 'text/html; charset=utf-8');
+};
+
+/**
+ * V0.2 guard for the new governance surfaces: a permission from the V0.2
+ * registry is required. V0.1 admin compatibility: ChurchCRM administrators
+ * keep write access to the legacy CRUD (identity bootstrap), but export
+ * never gets an admin bypass — export requires an explicit permission
+ * (§24: view and export are separated, only explicit grants may export).
+ */
+$mosGovGuard = static function (string $action, string $resource, bool $adminFallback = true): ?\ChurchCRM\Plugins\MosGov\Security\AuthorizationDecision {
+    $user = GovAuthorization::currentUser();
+    $decision = GovAuthorization::can($user, $action, $resource);
+    if ($decision->allowed) {
+        return null;
+    }
+    if ($adminFallback && $action !== 'export' && $user !== null && $user->isAdmin()) {
+        return null;
+    }
+
+    return $decision;
 };
 
 /** Render a full plugin page (shared header/footer) with an error notice. */
@@ -274,6 +314,19 @@ $app->get('/mos-gov', function (Request $request, Response $response) use ($mosG
         try {
             $recentMeetings = $repo->recent('meeting', 5);
             $recentDecisions = $repo->recent('decision', 5);
+            // V0.2: scoped users only see records inside their scope.
+            $ctx = GovAuthorization::context();
+            if ($ctx !== null) {
+                $user = GovAuthorization::currentUser();
+                $recentMeetings = array_values(array_filter(
+                    $recentMeetings,
+                    static fn (array $row): bool => GovAuthorization::can($user, 'view', 'meeting', $row)->allowed
+                ));
+                $recentDecisions = array_values(array_filter(
+                    $recentDecisions,
+                    static fn (array $row): bool => GovAuthorization::can($user, 'view', 'decision', $row)->allowed
+                ));
+            }
             $meetingDecorations = $mosGovDecorateRows($repo, $repo->getEntity('meeting'), $recentMeetings);
             $decisionDecorations = $mosGovDecorateRows($repo, $repo->getEntity('decision'), $recentDecisions);
         } catch (GovDataException $e) {
@@ -294,7 +347,7 @@ $app->get('/mos-gov', function (Request $request, Response $response) use ($mosG
     ]));
 
     return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
-});
+})->add(GovSecureModeMiddleware::class);
 
 // --------------------------------------------------------------- settings
 $app->get('/mos-gov/settings', function (Request $request, Response $response) use ($mosGovRender, $mosGovRepo, $mosGovEsc): Response {
@@ -312,11 +365,13 @@ $app->get('/mos-gov/settings', function (Request $request, Response $response) u
         'statsError' => $statsError,
         'canWrite' => GovAuthorization::canWrite(),
         'capabilities' => GovAuthorization::capabilitySummary(),
+        'secureMode' => LocalSecureMode::mode(),
+        'secureModeDescription' => LocalSecureMode::describe(),
         'esc' => $mosGovEsc,
     ]));
 
     return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
-});
+})->add(GovSecureModeMiddleware::class);
 
 // ----------------------------------------------------------- entity list
 $app->get('/mos-gov/{entity:' . $mosGovSlugPattern . '}', function (Request $request, Response $response, array $args) use ($mosGovPage, $mosGovRepo, $mosGovEntityBySlug, $mosGovDecorateRows, $mosGovEsc): Response {
@@ -328,6 +383,16 @@ $app->get('/mos-gov/{entity:' . $mosGovSlugPattern . '}', function (Request $req
     $error = null;
     try {
         $rows = $repo->list($entity);
+        // V0.2 §20: scoped listing for users with a governance identity —
+        // rows outside the identity's scope are removed at data level.
+        $ctx = GovAuthorization::context();
+        if ($ctx !== null) {
+            $user = GovAuthorization::currentUser();
+            $rows = array_values(array_filter(
+                $rows,
+                static fn (array $row): bool => GovAuthorization::can($user, 'view', $entity, $row)->allowed
+            ));
+        }
         $decorations = $mosGovDecorateRows($repo, $cfg, $rows);
     } catch (GovDataException $e) {
         $error = $e->getMessage();
@@ -343,7 +408,7 @@ $app->get('/mos-gov/{entity:' . $mosGovSlugPattern . '}', function (Request $req
         'canWrite' => GovAuthorization::canWrite(),
         'esc' => $mosGovEsc,
     ]);
-});
+})->add(GovSecureModeMiddleware::class);
 
 // ------------------------------------------------ entity create: form
 $app->get('/mos-gov/{entity:' . $mosGovSlugPattern . '}/new', function (Request $request, Response $response, array $args) use ($mosGovPage, $mosGovRepo, $mosGovEntityBySlug, $mosGovFormContext, $mosGovPrefill, $mosGovErrorPage, $mosGovBase, $mosGovEsc): Response {
@@ -371,7 +436,7 @@ $app->get('/mos-gov/{entity:' . $mosGovSlugPattern . '}/new', function (Request 
         'canWrite' => true,
         'esc' => $mosGovEsc,
     ]);
-})->add(GovWriteRoleAuthMiddleware::class);
+})->add(GovWriteRoleAuthMiddleware::class)->add(GovSecureModeMiddleware::class);
 
 // ------------------------------------------------ entity create: submit
 $app->post('/mos-gov/{entity:' . $mosGovSlugPattern . '}', function (Request $request, Response $response, array $args) use ($mosGovPage, $mosGovRepo, $mosGovEntityBySlug, $mosGovFormContext, $mosGovErrorPage, $mosGovSlugByEntity, $mosGovBase, $mosGovEsc): Response {
@@ -412,7 +477,7 @@ $app->post('/mos-gov/{entity:' . $mosGovSlugPattern . '}', function (Request $re
             'esc' => $mosGovEsc,
         ], 400);
     }
-})->add(GovWriteRoleAuthMiddleware::class);
+})->add(GovWriteRoleAuthMiddleware::class)->add(GovSecureModeMiddleware::class);
 
 // ------------------------------------------------ entity detail
 $app->get('/mos-gov/{entity:' . $mosGovSlugPattern . '}/{id:[0-9]+}', function (Request $request, Response $response, array $args) use ($mosGovPage, $mosGovRepo, $mosGovEntityBySlug, $mosGovDecorateRows, $mosGovCollectRelated, $mosGovEsc): Response {
@@ -426,9 +491,27 @@ $app->get('/mos-gov/{entity:' . $mosGovSlugPattern . '}/{id:[0-9]+}', function (
     $related = [];
     $error = null;
 
+    // V0.2 §21: scope containment + information levels on detail pages.
+    // URL/ID guessing can no longer read out-of-scope records for users who
+    // carry a governance identity; P5 fields are masked for everyone
+    // without an explicit P5 grant.
+    $scopedUser = GovAuthorization::context();
+    if ($scopedUser !== null) {
+        $preRow = $repo->find($entity, $id);
+        if ($preRow !== null) {
+            $decision = GovAuthorization::can(GovAuthorization::currentUser(), 'view', $entity, $preRow);
+            if (!$decision->allowed) {
+                return $mosGovDenyPage($response, $decision);
+            }
+        }
+    }
+
     try {
         $row = $repo->find($entity, $id);
         if ($row !== null) {
+            if ($scopedUser !== null) {
+                $row = GovernancePolicy::filterFields($scopedUser, $entity, [$row])[0];
+            }
             $decorations = $mosGovDecorateRows($repo, $cfg, [$row]);
             $decorations = $decorations[$id] ?? [];
             $related = $mosGovCollectRelated($repo, $cfg, $id);
@@ -447,7 +530,7 @@ $app->get('/mos-gov/{entity:' . $mosGovSlugPattern . '}/{id:[0-9]+}', function (
         'canWrite' => GovAuthorization::canWrite(),
         'esc' => $mosGovEsc,
     ]);
-});
+})->add(GovSecureModeMiddleware::class);
 
 // ------------------------------------------------ entity edit: form
 $app->get('/mos-gov/{entity:' . $mosGovSlugPattern . '}/{id:[0-9]+}/edit', function (Request $request, Response $response, array $args) use ($mosGovPage, $mosGovRepo, $mosGovEntityBySlug, $mosGovFormContext, $mosGovErrorPage, $mosGovBase, $mosGovEsc): Response {
@@ -480,7 +563,7 @@ $app->get('/mos-gov/{entity:' . $mosGovSlugPattern . '}/{id:[0-9]+}/edit', funct
         'canWrite' => true,
         'esc' => $mosGovEsc,
     ]);
-})->add(GovWriteRoleAuthMiddleware::class);
+})->add(GovWriteRoleAuthMiddleware::class)->add(GovSecureModeMiddleware::class);
 
 // ------------------------------------------------ entity edit: submit
 $app->post('/mos-gov/{entity:' . $mosGovSlugPattern . '}/{id:[0-9]+}/edit', function (Request $request, Response $response, array $args) use ($mosGovPage, $mosGovRepo, $mosGovEntityBySlug, $mosGovFormContext, $mosGovErrorPage, $mosGovSlugByEntity, $mosGovBase, $mosGovEsc): Response {
@@ -522,4 +605,365 @@ $app->post('/mos-gov/{entity:' . $mosGovSlugPattern . '}/{id:[0-9]+}/edit', func
             'esc' => $mosGovEsc,
         ], 400);
     }
-})->add(GovWriteRoleAuthMiddleware::class);
+})->add(GovWriteRoleAuthMiddleware::class)->add(GovSecureModeMiddleware::class);
+
+// ===========================================================================
+// MOS-GOV V0.2 — governance identity, my governance center, scoped search,
+// export control and identity administration. All routes below enforce the
+// local/LAN secure mode and route permission questions through the unified
+// authorization engine (GovAuthorization::can → GovernancePolicy).
+// ===========================================================================
+
+// ------------------------------------------------------------ my governance
+$app->get('/mos-gov/my-governance', function (Request $request, Response $response) use ($mosGovPage, $mosGovEsc): Response {
+    $ctx = GovAuthorization::context();
+
+    $data = null;
+    if ($ctx !== null) {
+        $service = new MyGovernanceService();
+        $data = $service->build($ctx);
+    }
+
+    return $mosGovPage($response, 'my_governance.php', [
+        'ctx' => $ctx,
+        'data' => $data,
+        'esc' => $mosGovEsc,
+    ]);
+})->add(GovSecureModeMiddleware::class);
+
+// --------------------------------------------------------- governance search
+$app->get('/mos-gov/search', function (Request $request, Response $response) use ($mosGovPage, $mosGovErrorPage, $mosGovEsc): Response {
+    $query = trim((string) ($request->getQueryParams()['q'] ?? ''));
+    $results = [];
+    $error = null;
+
+    try {
+        $ctx = GovAuthorization::context();
+        if ($ctx !== null && $query !== '') {
+            $service = new GovSearchService();
+            $results = $service->search($ctx, $query);
+        }
+    } catch (GovDataException $e) {
+        $error = $e->getMessage();
+    }
+
+    return $mosGovPage($response, 'search.php', [
+        'query' => $query,
+        'results' => $results,
+        'error' => $error,
+        'esc' => $mosGovEsc,
+    ]);
+})->add(GovSecureModeMiddleware::class);
+
+// ------------------------------------------------------------ export (CSV)
+// §24: view and export are separate permissions. Default member = DENY,
+// P5 = DENY; only explicit grants (governance.export / meeting.export) may
+// export, and every export is audit-logged.
+$app->get('/mos-gov/{entity:' . $mosGovSlugPattern . '}/export', function (Request $request, Response $response, array $args) use ($mosGovRepo, $mosGovEntityBySlug, $mosGovErrorPage): Response {
+    $entity = $mosGovEntityBySlug[$args['entity']];
+    $user = GovAuthorization::currentUser();
+    $ctx = GovAuthorization::context();
+
+    // module-level export permission (view rights are NOT enough)
+    $decision = GovAuthorization::can($user, 'export', $entity);
+    if (!$decision->allowed) {
+        AuditService::auditCurrent('export-denied', $entity, null, 'DENY', $decision->reason);
+
+        return $mosGovErrorPage($response, 'Export is not permitted: ' . $decision->reason, 403);
+    }
+
+    $repo = $mosGovRepo();
+    $rows = $repo->list($entity, 1000);
+
+    // per-row scope containment + P5 masking
+    $visible = [];
+    foreach ($rows as $row) {
+        $d = GovAuthorization::can($user, 'view', $entity, $row);
+        if ($d->allowed) {
+            $visible[] = $ctx !== null
+                ? GovernancePolicy::filterFields($ctx, $entity, [$row])[0]
+                : $row;
+        }
+    }
+
+    AuditService::auditCurrent('export', $entity, null, 'ALLOW', count($visible) . ' rows');
+
+    $cfg = $repo->getEntity($entity);
+    $columns = array_merge(['id'], array_keys($cfg['fields']), ['created_at', 'updated_at']);
+
+    $response->getBody()->write("\xEF\xBB\xBF"); // UTF-8 BOM for Excel
+    $out = fopen('php://temp', 'r+');
+    fputcsv($out, $columns);
+    foreach ($visible as $row) {
+        $line = [];
+        foreach ($columns as $column) {
+            $value = $row[$column] ?? '';
+            $line[] = $value === '__P5_PROTECTED__' ? '[protected]' : (string) $value;
+        }
+        fputcsv($out, $line);
+    }
+    rewind($out);
+    $response->getBody()->write((string) stream_get_contents($out));
+    fclose($out);
+
+    return $response
+        ->withHeader('Content-Type', 'text/csv; charset=utf-8')
+        ->withHeader('Content-Disposition', 'attachment; filename="mos-gov-' . $entity . '-' . date('Ymd-His') . '.csv"')
+        ->withHeader('Cache-Control', 'no-store');
+})->add(GovSecureModeMiddleware::class);
+
+// ===========================================================================
+// Identity administration (V0.2 §13). Guarded by the identity.view /
+// identity.edit / role.manage / permission.manage registry permissions;
+// ChurchCRM administrators keep bootstrap access for the legacy CRUD path
+// (documented boundary: system administration ≠ church governance authority).
+// ===========================================================================
+
+$mosGovIdentityGuard = static function (string $permission) use ($mosGovDenyPage): ?Response {
+    $user = GovAuthorization::currentUser();
+    $decision = GovAuthorization::can($user, explode('.', $permission)[1], explode('.', $permission)[0]);
+    if ($decision->allowed) {
+        return null;
+    }
+    // bootstrap compatibility for ChurchCRM administrators on non-export actions
+    if ($user !== null && $user->isAdmin()) {
+        return null;
+    }
+
+    return $mosGovDenyPage(new \Slim\Psr7\Response(), $decision);
+};
+
+// identity list
+$app->get('/mos-gov/identity', function (Request $request, Response $response) use ($mosGovPage, $mosGovRepo, $mosGovEsc, $mosGovIdentityGuard, $mosGovErrorPage): Response {
+    if ($resp = $mosGovIdentityGuard('identity.view')) {
+        return $resp;
+    }
+
+    $repo = $mosGovRepo();
+    $user = GovAuthorization::currentUser();
+    $rows = $repo->list('identity', 500);
+    $personLabels = [];
+    $visible = [];
+    foreach ($rows as $row) {
+        $d = GovAuthorization::can($user, 'view', 'identity', $row);
+        if ($d->allowed) {
+            $visible[] = $row;
+            $personLabels[(int) $row['id']] = PersonLookup::label((int) $row['person_id']);
+        }
+    }
+
+    return $mosGovPage($response, 'identity_list.php', [
+        'rows' => $visible,
+        'personLabels' => $personLabels,
+        'canEdit' => GovAuthorization::allows($user, 'edit', 'identity') || ($user !== null && $user->isAdmin()),
+        'csrfField' => CSRFUtils::getTokenInputField('mos-gov'),
+        'esc' => $mosGovEsc,
+    ]);
+})->add(GovSecureModeMiddleware::class);
+
+// identity create
+$app->get('/mos-gov/identity/new', function (Request $request, Response $response) use ($mosGovPage, $mosGovRepo, $mosGovEsc, $mosGovIdentityGuard): Response {
+    if ($resp = $mosGovIdentityGuard('identity.edit')) {
+        return $resp;
+    }
+
+    return $mosGovPage($response, 'identity_form.php', [
+        'isEdit' => false,
+        'row' => [],
+        'personCandidates' => PersonLookup::candidates(),
+        'csrfField' => CSRFUtils::getTokenInputField('mos-gov'),
+        'esc' => $mosGovEsc,
+    ]);
+})->add(GovSecureModeMiddleware::class);
+
+$app->post('/mos-gov/identity', function (Request $request, Response $response) use ($mosGovRepo, $mosGovPage, $mosGovErrorPage, $mosGovEsc): Response {
+    if (!CSRFUtils::verifyRequest((array) $request->getParsedBody(), 'mos-gov')) {
+        return $mosGovErrorPage($response, 'Invalid or missing CSRF token. Go back, reload the form and try again.');
+    }
+    $user = GovAuthorization::currentUser();
+    $allowed = GovAuthorization::allows($user, 'edit', 'identity') || ($user !== null && $user->isAdmin());
+    if (!$allowed) {
+        return $mosGovErrorPage($response, 'You do not have permission to manage governance identities.', 403);
+    }
+
+    $repo = $mosGovRepo();
+    $data = (array) $request->getParsedBody();
+    unset($data['csrf_token']);
+
+    $service = new IdentityService($repo);
+    try {
+        $identityId = $service->provisionIdentity((int) ($data['person_id'] ?? 0), [
+            'identity_status' => $data['identity_status'] ?? 'active',
+            'member_since' => $data['member_since'] ?? null,
+            'display_name_override' => $data['display_name_override'] ?? null,
+        ]);
+
+        return SlimUtils::renderRedirect($response, SystemURLs::getRootPath() . '/plugins/mos-gov/identity/' . $identityId);
+    } catch (GovDataException $e) {
+        return $mosGovPage($response, 'identity_form.php', [
+            'isEdit' => false,
+            'row' => $data,
+            'personCandidates' => PersonLookup::candidates(),
+            'errors' => $e->getErrors(),
+            'csrfField' => CSRFUtils::getTokenInputField('mos-gov'),
+            'esc' => $mosGovEsc,
+        ], 400);
+    }
+})->add(GovWriteRoleAuthMiddleware::class)->add(GovSecureModeMiddleware::class);
+
+// identity detail: roles, scopes, permission overrides
+$app->get('/mos-gov/identity/{id:[0-9]+}', function (Request $request, Response $response, array $args) use ($mosGovPage, $mosGovRepo, $mosGovDenyPage, $mosGovEsc): Response {
+    $repo = $mosGovRepo();
+    $id = (int) $args['id'];
+    $row = $repo->find('identity', $id);
+    if ($row === null) {
+        return $mosGovPage($response, 'error_page.php', ['message' => 'This governance identity does not exist.'], 404);
+    }
+
+    $user = GovAuthorization::currentUser();
+    $decision = GovAuthorization::can($user, 'view', 'identity', $row);
+    if (!$decision->allowed && !($user !== null && $user->isAdmin())) {
+        return $mosGovDenyPage($response, $decision);
+    }
+
+    $identityRoles = $repo->listWhere('identity_role', ['identity_id' => $id], 100);
+    $identityScopes = $repo->listWhere('identity_scope', ['identity_id' => $id], 100);
+    $overrides = $repo->listWhere('identity_permission', ['identity_id' => $id], 100);
+
+    // decorate references
+    $roleLabels = $appointmentLabels = $permissionLabels = [];
+    foreach ($repo->list('role', 1000) as $r) {
+        $roleLabels[(int) $r['id']] = $r['name'] . ' [' . ($r['role_code'] ?? '') . ']';
+    }
+    foreach ($identityRoles as $ir) {
+        if (!empty($ir['appointment_id'])) {
+            $a = $repo->find('appointment', (int) $ir['appointment_id']);
+            $appointmentLabels[(int) $ir['appointment_id']] = $a ? 'Appointment #' . $a['id'] . ' (person ' . PersonLookup::label((int) $a['person_id']) . ')' : '#' . $ir['appointment_id'];
+        }
+    }
+    foreach ($repo->list('permission', 1000) as $p) {
+        $permissionLabels[(int) $p['id']] = $p['permission_key'];
+    }
+
+    return $mosGovPage($response, 'identity_view.php', [
+        'row' => $row,
+        'personLabel' => PersonLookup::label((int) $row['person_id']),
+        'identityRoles' => $identityRoles,
+        'identityScopes' => $identityScopes,
+        'overrides' => $overrides,
+        'roleLabels' => $roleLabels,
+        'appointmentLabels' => $appointmentLabels,
+        'permissionLabels' => $permissionLabels,
+        'scopeTypes' => GovRepository::SCOPE_TYPES,
+        'grantModes' => GovRepository::GRANT_MODES,
+        'canEdit' => GovAuthorization::allows($user, 'edit', 'identity') || ($user !== null && $user->isAdmin()),
+        'csrfField' => CSRFUtils::getTokenInputField('mos-gov'),
+        'esc' => $mosGovEsc,
+    ]);
+})->add(GovSecureModeMiddleware::class);
+
+// attach role to identity
+$app->post('/mos-gov/identity/{id:[0-9]+}/attach-role', function (Request $request, Response $response, array $args) use ($mosGovRepo, $mosGovErrorPage): Response {
+    if (!CSRFUtils::verifyRequest((array) $request->getParsedBody(), 'mos-gov')) {
+        return $mosGovErrorPage($response, 'Invalid or missing CSRF token.');
+    }
+    $user = GovAuthorization::currentUser();
+    if (!(GovAuthorization::allows($user, 'edit', 'identity') || $user?->isAdmin())) {
+        return $mosGovErrorPage($response, 'You do not have permission to manage governance identities.', 403);
+    }
+
+    $data = (array) $request->getParsedBody();
+    $service = new IdentityService($mosGovRepo());
+    try {
+        $service->attachRole(
+            (int) $args['id'],
+            (int) ($data['role_id'] ?? 0),
+            isset($data['appointment_id']) && $data['appointment_id'] !== '' ? (int) $data['appointment_id'] : null,
+            $data['start_date'] ?? null,
+            $data['end_date'] ?? null
+        );
+    } catch (GovDataException $e) {
+        return $mosGovErrorPage($response, implode(' ', $e->getErrors() ?: [$e->getMessage()]));
+    }
+
+    return SlimUtils::renderRedirect($response, SystemURLs::getRootPath() . '/plugins/mos-gov/identity/' . (int) $args['id']);
+})->add(GovWriteRoleAuthMiddleware::class)->add(GovSecureModeMiddleware::class);
+
+// assign scope to identity
+$app->post('/mos-gov/identity/{id:[0-9]+}/assign-scope', function (Request $request, Response $response, array $args) use ($mosGovRepo, $mosGovErrorPage): Response {
+    if (!CSRFUtils::verifyRequest((array) $request->getParsedBody(), 'mos-gov')) {
+        return $mosGovErrorPage($response, 'Invalid or missing CSRF token.');
+    }
+    $user = GovAuthorization::currentUser();
+    if (!(GovAuthorization::allows($user, 'edit', 'identity') || $user?->isAdmin())) {
+        return $mosGovErrorPage($response, 'You do not have permission to manage governance identities.', 403);
+    }
+
+    $data = (array) $request->getParsedBody();
+    $service = new IdentityService($mosGovRepo());
+    try {
+        $service->assignScope(
+            (int) $args['id'],
+            (string) ($data['scope_type'] ?? ''),
+            isset($data['scope_id']) && $data['scope_id'] !== '' ? (int) $data['scope_id'] : null,
+            (string) ($data['source_type'] ?? 'manual_assignment')
+        );
+    } catch (GovDataException $e) {
+        return $mosGovErrorPage($response, $e->getMessage());
+    }
+
+    return SlimUtils::renderRedirect($response, SystemURLs::getRootPath() . '/plugins/mos-gov/identity/' . (int) $args['id']);
+})->add(GovWriteRoleAuthMiddleware::class)->add(GovSecureModeMiddleware::class);
+
+// explicit permission override (grant / deny)
+$app->post('/mos-gov/identity/{id:[0-9]+}/override-permission', function (Request $request, Response $response, array $args) use ($mosGovRepo, $mosGovErrorPage): Response {
+    if (!CSRFUtils::verifyRequest((array) $request->getParsedBody(), 'mos-gov')) {
+        return $mosGovErrorPage($response, 'Invalid or missing CSRF token.');
+    }
+    $user = GovAuthorization::currentUser();
+    if (!(GovAuthorization::allows($user, 'manage', 'permission') || $user?->isAdmin())) {
+        return $mosGovErrorPage($response, 'You do not have permission to manage permissions.', 403);
+    }
+
+    $data = (array) $request->getParsedBody();
+    $service = new IdentityService($mosGovRepo());
+    try {
+        $service->overridePermission(
+            (int) $args['id'],
+            (int) ($data['permission_id'] ?? 0),
+            (string) ($data['grant_mode'] ?? 'grant'),
+            (string) ($data['reason'] ?? '')
+        );
+    } catch (GovDataException $e) {
+        return $mosGovErrorPage($response, $e->getMessage());
+    }
+
+    return SlimUtils::renderRedirect($response, SystemURLs::getRootPath() . '/plugins/mos-gov/identity/' . (int) $args['id']);
+})->add(GovWriteRoleAuthMiddleware::class)->add(GovSecureModeMiddleware::class);
+
+// ------------------------------------------------------- permission registry
+$app->get('/mos-gov/permissions', function (Request $request, Response $response) use ($mosGovPage, $mosGovRepo, $mosGovEsc): Response {
+    $user = GovAuthorization::currentUser();
+    $canManage = GovAuthorization::allows($user, 'manage', 'permission') || ($user !== null && $user->isAdmin());
+
+    $repo = $mosGovRepo();
+    $permissions = $repo->list('permission', 1000);
+    $roles = [];
+    $rolePermissions = [];
+    foreach ($repo->list('role', 200) as $role) {
+        if (!empty($role['role_code'])) {
+            $roles[(int) $role['id']] = $role;
+        }
+    }
+    foreach ($repo->list('role_permission', 5000) as $rp) {
+        $rolePermissions[(int) $rp['role_id']][] = (int) $rp['permission_id'];
+    }
+
+    return $mosGovPage($response, 'permission_registry.php', [
+        'permissions' => $permissions,
+        'roles' => $roles,
+        'rolePermissions' => $rolePermissions,
+        'canManage' => $canManage,
+        'esc' => $mosGovEsc,
+    ]);
+})->add(GovSecureModeMiddleware::class);

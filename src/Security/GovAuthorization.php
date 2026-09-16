@@ -2,29 +2,24 @@
 
 namespace ChurchCRM\Plugins\MosGov\Security;
 
-use ChurchCRM\Authentication\AuthenticationManager;
 use ChurchCRM\model\ChurchCRM\User;
 
 /**
- * MOS-GOV governance authorization layer (R07).
+ * MOS-GOV governance authorization layer (R07, upgraded in V0.2 to the
+ * unified authorization center — design §17/§18).
  *
- * Why this exists as its own class instead of a bare middleware:
+ * V0.1 entry points are PRESERVED:
+ *   - canRead()  : module read (any authenticated user) — the V0.1 policy
+ *                  for the ten governance entity pages;
+ *   - canWrite() : ChurchCRM administrators only.
  *
- * docs/ARCHITECTURE.md and docs/IMPLEMENTATION-NOTES.md state that
- * governance authorization must NOT be inferred from ChurchCRM login state
- * alone, and that R07 requires an explicit governance authorization layer.
- * This class IS that layer — the single decision point for every MOS-GOV
- * permission question. It deliberately delegates the underlying identity and
- * role facts to ChurchCRM's own API (AuthenticationManager + User), because
- * ChurchCRM remains the authority on users and application permissions.
- *
- * Policy for V0.1:
- *  - read  : any authenticated ChurchCRM user (the plugin pages are already
- *            behind the global AuthMiddleware on the /plugins entry point);
- *  - write : ChurchCRM administrators only.
- *
- * The write policy lives in exactly one method, so a future governance role
- * (e.g. "governance secretary") only has to change canWrite().
+ * V0.2 adds the decision engine:
+ *   - can($user, $action, $resource, $row) returns an AuthorizationDecision
+ *     produced by GovernancePolicy (identity → role → appointment → scope →
+ *     information level → explicit deny). New surfaces (My Governance,
+ *     governance search, export, identity/permission management) are bound
+ *     to it; the legacy pages additionally mask P5 fields and enforce scope
+ *     for users who carry a governance identity.
  */
 final class GovAuthorization
 {
@@ -43,7 +38,7 @@ final class GovAuthorization
         self::$resolved = true;
 
         try {
-            $user = AuthenticationManager::getCurrentUser();
+            $user = \ChurchCRM\Authentication\AuthenticationManager::getCurrentUser();
             self::$user = $user instanceof User ? $user : null;
         } catch (\Throwable $e) {
             self::$user = null;
@@ -55,7 +50,7 @@ final class GovAuthorization
     /**
      * Read access to governance data.
      *
-     * V0.1 policy: any authenticated user. Zero-permission users keep
+     * V0.1 policy (kept): any authenticated user. Zero-permission users keep
      * read-only access — matching ChurchCRM's own read-default policy.
      */
     public static function canRead(?User $user = null): bool
@@ -68,7 +63,7 @@ final class GovAuthorization
     /**
      * Write access to governance data (create / edit governance records).
      *
-     * V0.1 policy: ChurchCRM administrators only. Reuses the core
+     * V0.1 policy (kept): ChurchCRM administrators only. Reuses the core
      * User::isAdmin() API rather than re-deriving permissions from roles.
      */
     public static function canWrite(?User $user = null): bool
@@ -76,6 +71,33 @@ final class GovAuthorization
         $user ??= self::currentUser();
 
         return $user !== null && $user->isAdmin();
+    }
+
+    /**
+     * V0.2 unified decision: ALLOW or DENY with a reason. Every new
+     * governance surface routes through this method.
+     *
+     * @param string               $action   one of GovRepository::ACTIONS
+     * @param string               $resource entity key or 'governance'
+     * @param array<string, mixed> $row      the resource row (null = module level)
+     */
+    public static function can(?User $user, string $action, string $resource, ?array $row = null): AuthorizationDecision
+    {
+        return GovernancePolicy::decide($user, $action, $resource, $row);
+    }
+
+    /** Boolean convenience wrapper around can(). */
+    public static function allows(?User $user, string $action, string $resource, ?array $row = null): bool
+    {
+        return self::can($user, $action, $resource, $row)->allowed;
+    }
+
+    /** The request-scoped governance context of the current user. */
+    public static function context(): ?GovernanceContext
+    {
+        $user = self::currentUser();
+
+        return $user === null ? null : GovernanceContext::forUser($user);
     }
 
     /** Human-readable reason shown on the access-denied page. */
@@ -93,12 +115,15 @@ final class GovAuthorization
     public static function capabilitySummary(): array
     {
         $user = self::currentUser();
+        $ctx = $user === null ? null : GovernanceContext::forUser($user);
 
         return [
             'canRead' => self::canRead($user),
             'canWrite' => self::canWrite($user),
             'isAdmin' => $user !== null && $user->isAdmin(),
             'userName' => $user?->getUserName(),
+            'identityId' => $ctx?->identityId(),
+            'roleCodes' => $ctx !== null ? array_column($ctx->activeRoles(), 'role_code') : [],
         ];
     }
 
@@ -107,5 +132,7 @@ final class GovAuthorization
     {
         self::$user = null;
         self::$resolved = false;
+        GovernanceContext::reset();
+        VisibilityResolver::resetCache();
     }
 }

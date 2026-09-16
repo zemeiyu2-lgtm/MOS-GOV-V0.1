@@ -86,3 +86,30 @@ Schema changes should be delivered as ordered SQL migrations
 (`002_…`, `003_…`) and tested on a copy/backup of the real ChurchCRM database.
 V0.1 ships a single idempotent file (`001_initial.sql`) containing only
 `CREATE TABLE IF NOT EXISTS gov_*` statements.
+
+---
+
+# V0.2 implementation notes (appendix)
+
+- **Migration policy**: `database/002_v02_authorization.sql` is additive and
+  idempotent (CREATE TABLE IF NOT EXISTS + WHERE NOT EXISTS seeds). Verified
+  by `tests/v02_migrate.php` (no destructive statements, V0.1 rows preserved,
+  seeds not duplicated on re-run).
+- **§39 semantic corrections** implemented at validation layer (not DB CHECK)
+  to avoid breaking existing V0.1 data: `gov_responsibility` requires
+  role_id or appointment_id; `gov_decision` requires issue_id or meeting_id;
+  relationship types were already whitelisted via the registry.
+  `tests/v01_data_test.php` had one assertion updated to the corrected
+  semantics (context-free responsibility is now invalid) — an intentional,
+  documented behaviour change, not a masked failure.
+- **Identity uniqueness**: one `gov_identity` row per `person_id`
+  (DB unique index + idempotent service).
+- **P5 masking**: `GovernancePolicy::filterFields()` replaces P5 field
+  content with `__P5_PROTECTED__` before any view/export serialisation;
+  the CSV export writes `[protected]`.
+- **Request-scoped caches only**: GovernanceContext and VisibilityResolver
+  memoise per request and are reset by `GovAuthorization::reset()` in tests.
+  No persistent person-fact caching.
+- **Log ownership pitfall**: CLI processes create root-owned daily log files
+  that break www-data web writes; fix + prevention documented in
+  docs/V02-SECURITY-MODE.md.

@@ -1,8 +1,61 @@
-# AI Task Tracking — MOS-GOV V0.1
+# AI Task Tracking — MOS-GOV
 
 This file records the execution state of AI-assisted integration work so any future session can resume without re-deriving context.
 
-## Current state (as of 2026-09-15)
+## Current state (as of 2026-09-16)
+
+**V0.1 = COMPLETE. V0.2 = COMPLETE (feature branch
+`feature/mos-gov-v0.2-governance-security`).**
+
+V0.2 added the governance identity / scope / permission / visibility model,
+the unified authorization engine, My Governance Center, scoped governance
+search, export control, identity administration UI and LOCAL/LAN secure
+mode. All 14 suites (6 V0.1 regression + 8 V0.2) pass against the live
+Docker deployment (ChurchCRM + MariaDB 10.11).
+
+### V0.2 execution record
+
+- Repository audited first: branch/commit/working tree, deployment copy in
+  `C:\churchcrm\src\plugins\community\mos-gov` (identical to GitHub, CRLF only).
+- Environment fix (not code): root-owned daily log files broke web writes → 500.
+- Migration `database/002_v02_authorization.sql`: additive, idempotent,
+  21-check verification (`v02_migrate.php`), no destructive statements.
+- Authorization engine per §17/§18 with request-scoped context; explicit deny
+  wins; appointment lifecycle ends authority (§15); scope containment is an
+  exact (type,id) match (Group 12 ≠ 13); P5 default DENY with explicit-only unlock.
+- Route hardening: secure-mode middleware on every route; scope-filtered lists
+  and dashboard recents; detail-page ID-guessing DENY; P5 field masking.
+- Semantic corrections per §39: responsibility requires role or appointment;
+  decision requires issue or meeting (one V0.1 test assertion updated to the
+  corrected semantics — documented, not masked).
+- Export separation §24 verified over HTTP (admin without grant → 403;
+  member → 403).
+- CRM cutdown §28 within plugin boundary (navigation reorganisation, scoped
+  search, export off by default, P5 masking) — see docs/V02-CRM-CUTDOWN.md.
+
+### Known limitations (V0.2, honest list)
+
+- Audit is log-based via `AuditService`; no DB audit table / event sourcing yet.
+- V0.1 module-read policy (any authenticated user) is retained for the ten
+  legacy entity pages; strict scope/visibility applies to users carrying a
+  governance identity and to all new V0.2 surfaces.
+- Group/ministry scope IDs reference ChurchCRM groups but are not yet
+  validated against them (opaque integers by design).
+- ChurchCRM-admin bootstrap compatibility remains for identity management
+  (documented boundary: system administration ≠ church governance authority);
+  export has NO admin bypass.
+- Files/training/accountability are UI containers only.
+- CLI test runs create root-owned log files in this deployment (environment,
+  see V02-SECURITY-MODE.md).
+
+### Next steps (V0.3 candidates)
+
+1. DB-backed audit trail (actor/action/resource/timestamp/result/reason).
+2. Approval workflow engine on top of `governance.submit/approve/publish`.
+3. Group/ministry pickers with ChurchCRM validation for scope assignment.
+4. Finance read-only governance reporting interface.
+
+## V0.1 state (as of 2026-09-15)
 
 **Phase 1 = COMPLETED. Phase 2 = COMPLETED. Phase 3 = COMPLETED.
 V0.1 COMPLETE (final closure).**

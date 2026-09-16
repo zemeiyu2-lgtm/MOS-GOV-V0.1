@@ -2,7 +2,7 @@
   "id": "mos-gov",
   "name": "MOS-GOV",
   "description": "MOS church governance layer for ChurchCRM. Stores governance data separately from ChurchCRM core.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "MOS",
   "authorUrl": "https://github.com/zemeiyu2-lgtm/MOS-GOV-V0.1",
   "type": "community",

@@ -13,6 +13,8 @@
  * - $statsError    safe error message when counts could not be read
  * - $capabilities  GovAuthorization::capabilitySummary()
  * - $canWrite      whether the current user may modify governance data
+ * - $secureMode    effective MOS_GOV_SECURITY_MODE (LOCAL/LAN/OFF)
+ * - $secureModeDescription  human description of the mode
  * - $esc           HTML-escaping closure
  */
 
@@ -118,6 +120,46 @@ require __DIR__ . '/_tabs.php';
         <p class="text-secondary mb-0">
             V0.1 has no configurable options. Plugin activation is managed from
             <a href="<?= $esc(SystemURLs::getRootPath() . '/plugins/management') ?>">Plugin Management</a>.
+        </p>
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header">
+        <h3 class="card-title">Local / LAN secure mode (V0.2)</h3>
+    </div>
+    <div class="card-body">
+        <div class="datagrid">
+            <div class="datagrid-item">
+                <div class="datagrid-title">MOS_GOV_SECURITY_MODE</div>
+                <div class="datagrid-content">
+                    <span class="badge bg-primary-lt"><?= $esc($secureMode ?? 'LOCAL') ?></span>
+                </div>
+            </div>
+            <div class="datagrid-item">
+                <div class="datagrid-title">Policy</div>
+                <div class="datagrid-content"><?= $esc($secureModeDescription ?? '') ?></div>
+            </div>
+            <div class="datagrid-item">
+                <div class="datagrid-title">Outbound network</div>
+                <div class="datagrid-content">DENY — MOS-GOV performs no external API, cloud, analytics, mail or map calls.</div>
+            </div>
+            <div class="datagrid-item">
+                <div class="datagrid-title">Public binding</div>
+                <div class="datagrid-content">DENY — deploy on localhost or a trusted LAN only; never expose to the public internet.</div>
+            </div>
+            <div class="datagrid-item">
+                <div class="datagrid-title">Database</div>
+                <div class="datagrid-content">MariaDB must stay on localhost / Docker internal / trusted LAN. Port 3306 must not be exposed.</div>
+            </div>
+            <div class="datagrid-item">
+                <div class="datagrid-title">Backup</div>
+                <div class="datagrid-content">Keep one local backup plus one offline copy. Governance data must never exist only once.</div>
+            </div>
+        </div>
+        <p class="text-secondary small mb-0 mt-3">
+            Set the mode with the environment variable <code>MOS_GOV_SECURITY_MODE=LOCAL|LAN</code>.
+            CRM surface reduction guidance: see <code>docs/V02-CRM-CUTDOWN.md</code>.
         </p>
     </div>
 </div>

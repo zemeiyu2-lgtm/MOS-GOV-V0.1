@@ -142,3 +142,34 @@ production-critical. See `IMPLEMENTATION-NOTES.md`.
 - record
 
 They are deliberately excluded from the V0.1 P0 schema.
+
+---
+
+# V0.2 — Authorization architecture (appendix)
+
+New layer between ChurchCRM authentication and governance actions:
+
+```
+ChurchCRM AuthMiddleware (login)
+    ↓
+GovAuthorization::can(user, action, resource, row)   ← unified entry (R07 upgraded)
+    ↓
+GovernancePolicy  11-step order (identity→role→permission→appointment→
+                  scope→visibility→explicit-deny→ALLOW)
+    ├─ GovernanceContext   request-scoped identity/roles/scopes/permissions
+    ├─ ScopeResolver       exact (scope_type, scope_id) containment
+    ├─ PermissionResolver  whitelist registry + explicit deny precedence
+    └─ VisibilityResolver  P1–P5 information levels, P5 default DENY
+    ↓
+AuthorizationDecision { allowed, reason, permission, scope, level, source }
+```
+
+Code organisation (§49): `src/Security/` holds the engine;
+`src/Governance/` holds IdentityService / MyGovernanceService /
+GovSearchService; `src/Data/GovRepository.php` gains a second registry
+(`SECURITY_ENTITIES`) for the nine authorization tables while the ten V0.1
+entities and slug map stay untouched.
+
+Boundary rules unchanged: ChurchCRM core untouched; PersonLookup read-only;
+all SQL prepared + whitelisted; routes/views contain no SQL (statically
+tested); no outbound network calls (statically tested).
