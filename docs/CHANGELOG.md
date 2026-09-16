@@ -77,6 +77,21 @@
 - No `mos_person`/`mos_family`/`mos_group` duplicates; PersonLookup remains
   read-only; no outbound network, cloud, analytics, mail, SMS or map calls.
 
+### Fixed — Docker browser access in LOCAL secure mode
+
+- **The host's own browser was refused in LOCAL mode.** Inside Docker the
+  host's browser reaches the published port over the Docker bridge, so
+  Apache sees `REMOTE_ADDR = 172.18.0.1` (the bridge gateway — the host's
+  own address on that network), not `127.0.0.1`. `LOCAL` therefore denied
+  every browser request with "this client address is not trusted".
+  `LOCAL` mode now additionally accepts exactly the gateway addresses of
+  the container's connected networks (parsed from `/proc/net/route`, e.g.
+  `172.18.0.1`) plus an optional exact-address allow-list
+  (`MOS_GOV_LOCAL_EXTRA_CLIENTS`, default empty). Private ranges as a whole
+  stay closed in LOCAL mode: neighbouring containers (`172.18.0.x` ≠
+  gateway) and LAN clients (their real LAN source IP) are still denied, so
+  "LOCAL = this machine only" holds. LAN mode rules are unchanged.
+
 ### Fixed — V0.2 final review (legacy read-surface boundary)
 
 Three defects were found on the legacy read surfaces during the read-only

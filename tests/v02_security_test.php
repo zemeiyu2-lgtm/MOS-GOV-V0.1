@@ -28,6 +28,62 @@ $mosGovCheck('172.15.x NOT a private range (out of 172.16/12)', !((bool) preg_ma
 $check = LocalSecureMode::clientAllowed('127.0.0.1') && !LocalSecureMode::clientAllowed('203.0.113.9');
 $mosGovCheck('secure-mode allow/deny logic consistent', $check);
 
+$mosGovSection('1b. Docker host-bridge clients in LOCAL mode');
+
+// /proc/net/route gateway hex (little-endian u32) → dotted quad
+$mosGovCheck('route hex 010012AC parses to 172.18.0.1', LocalSecureMode::routeHexToIp('010012AC') === '172.18.0.1', (string) LocalSecureMode::routeHexToIp('010012AC'));
+$mosGovCheck('route hex 00000000 (no gateway) rejected', LocalSecureMode::routeHexToIp('00000000') === null);
+$mosGovCheck('route hex malformed rejected', LocalSecureMode::routeHexToIp('ZZZZZZZZ') === null);
+
+// The host's own browser arrives via the Docker bridge gateway (REMOTE_ADDR
+// = e.g. 172.18.0.1). That address is the local machine, not a LAN client.
+$hostAddrs = LocalSecureMode::thisHostAddresses();
+if ($hostAddrs !== []) {
+    $mosGovCheck('container host address detected (' . implode(', ', $hostAddrs) . ')', true, implode(', ', $hostAddrs));
+    foreach ($hostAddrs as $hostAddr) {
+        $mosGovCheck("host bridge address {$hostAddr} allowed in LOCAL mode", LocalSecureMode::clientAllowed($hostAddr));
+        $mosGovCheck("host bridge address {$hostAddr} allowed as IPv4-mapped IPv6", LocalSecureMode::clientAllowed('::ffff:' . $hostAddr));
+    }
+
+    // a neighboring address on the same bridge is another container, not the host
+    $parts = explode('.', (string) $hostAddrs[0]);
+    if (count($parts) === 4) {
+        $neighbor = $parts[0] . '.' . $parts[1] . '.' . $parts[2] . '.' . ($parts[3] === '1' ? '99' : '1');
+        if (!in_array($neighbor, $hostAddrs, true)) {
+            $mosGovCheck("other-container address {$neighbor} refused in LOCAL mode", !LocalSecureMode::clientAllowed($neighbor));
+        }
+    }
+} else {
+    $mosGovCheck('no /proc/net/route in this environment — bridge gateway checks skipped', true);
+}
+
+// operator allow-list (exact addresses only, default empty)
+putenv('MOS_GOV_LOCAL_EXTRA_CLIENTS=203.0.113.77');
+LocalSecureMode::resetRuntimeCache();
+$mosGovCheck('allow-listed address accepted in LOCAL mode', LocalSecureMode::clientAllowed('203.0.113.77'));
+$mosGovCheck('allow-list entry accepted as IPv4-mapped IPv6', LocalSecureMode::clientAllowed('::ffff:203.0.113.77'));
+putenv('MOS_GOV_LOCAL_EXTRA_CLIENTS');
+LocalSecureMode::resetRuntimeCache();
+$mosGovCheck('public client refused again after allow-list cleared', !LocalSecureMode::clientAllowed('203.0.113.77'));
+
+// LOCAL must never open whole private ranges (regression guard)
+$mosGovCheck('192.168.0.1 still refused in LOCAL mode', !LocalSecureMode::clientAllowed('192.168.0.1'));
+$mosGovCheck('10.0.0.1 still refused in LOCAL mode', !LocalSecureMode::clientAllowed('10.0.0.1'));
+$mosGovCheck('172.20.0.1 still refused in LOCAL mode', !LocalSecureMode::clientAllowed('172.20.0.1'));
+
+$mosGovSection('1c. LAN mode trusted-private rules');
+
+putenv('MOS_GOV_SECURITY_MODE=LAN');
+$mosGovCheck('mode reads LAN from environment', LocalSecureMode::mode() === 'LAN', LocalSecureMode::mode());
+$mosGovCheck('loopback allowed in LAN mode', LocalSecureMode::clientAllowed('127.0.0.1'));
+$mosGovCheck('trusted private 192.168.1.50 allowed in LAN mode', LocalSecureMode::clientAllowed('192.168.1.50'));
+$mosGovCheck('trusted private 10.20.30.40 allowed in LAN mode', LocalSecureMode::clientAllowed('10.20.30.40'));
+$mosGovCheck('trusted private 172.20.0.5 allowed in LAN mode', LocalSecureMode::clientAllowed('172.20.0.5'));
+$mosGovCheck('public 203.0.113.9 refused in LAN mode', !LocalSecureMode::clientAllowed('203.0.113.9'));
+$mosGovCheck('public 8.8.8.8 refused in LAN mode', !LocalSecureMode::clientAllowed('8.8.8.8'));
+putenv('MOS_GOV_SECURITY_MODE');
+$mosGovCheck('mode restored to LOCAL after test', LocalSecureMode::mode() === 'LOCAL', LocalSecureMode::mode());
+
 $mosGovSection('2. Outbound network scan (§33 — OUTBOUND_NETWORK = DENY)');
 
 $srcDir = dirname(__DIR__) . '/src';
