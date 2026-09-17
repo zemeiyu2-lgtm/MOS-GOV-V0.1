@@ -186,13 +186,13 @@ try {
 
     $dashboard = $request('GET', $baseUrl . $basePath, $adminJar, $adminKey);
     $check('dashboard returns 200', $dashboard['status'] === 200, (string) $dashboard['status']);
-    foreach (['Governance dashboard', 'Recent governance meetings', 'Recent governance decisions', 'Open issues', 'Open tasks'] as $marker) {
+    foreach (['治理数据统计', '最近的会议', '最近的决策', '待处理议题', '待办任务'] as $marker) {
         $check('dashboard shows "' . $marker . '"', str_contains($dashboard['body'], $marker));
     }
 
     $settings = $request('GET', $baseUrl . $basePath . '/settings', $adminJar, $adminKey);
     $check('settings returns 200', $settings['status'] === 200, (string) $settings['status']);
-    $check('settings shows governance table status', str_contains($settings['body'], 'gov_structure') && str_contains($settings['body'], 'Your governance permissions'));
+    $check('settings shows governance table status', str_contains($settings['body'], 'gov_structure') && str_contains($settings['body'], '你的治理权限'));
 
     $slugs = array_keys(GovRepository::SLUG_TO_ENTITY);
     foreach ($slugs as $slug) {
@@ -246,7 +246,7 @@ try {
 
     $structureDetail = $request('GET', $baseUrl . $basePath . '/structures/' . $structureId, $adminJar, $adminKey);
     $check('structure detail returns 200 with its name', $structureDetail['status'] === 200 && str_contains($structureDetail['body'], 'HTTP Test Structure'));
-    $check('structure detail shows the related-collection sections', str_contains($structureDetail['body'], 'Bodies') && str_contains($structureDetail['body'], 'Child structures'));
+    $check('structure detail shows the related-collection sections', str_contains($structureDetail['body'], '治理主体') && str_contains($structureDetail['body'], '下级结构'));
 
     // Body, using the parent reference prefill link (/bodies/new?structure_id=N)
     $prefilled = $request('GET', $baseUrl . $basePath . '/bodies/new?structure_id=' . $structureId, $adminJar, $adminKey);
@@ -289,7 +289,7 @@ try {
         'invalid submission re-renders the form with 400 and field errors',
         $invalid['status'] === 400
         && str_contains($invalid['body'], 'is required')
-        && str_contains($invalid['body'], 'correct the highlighted fields'),
+        && str_contains($invalid['body'], '请修正标红'),
         (string) $invalid['status']
     );
 
@@ -320,7 +320,7 @@ try {
     $missing = $request('GET', $baseUrl . $basePath . '/structures/99999999', $adminJar, $adminKey);
     $check(
         'unknown record renders an explicit "does not exist" page',
-        $missing['status'] === 200 && str_contains($missing['body'], 'does not exist'),
+        $missing['status'] === 200 && str_contains($missing['body'], '不存在'),
         (string) $missing['status']
     );
 
@@ -343,7 +343,7 @@ try {
         $roDashboard = $request('GET', $baseUrl . $basePath, $roJar, $roKey);
         $check(
             'read-only user sees the read-only notice on the dashboard',
-            $roDashboard['status'] === 200 && str_contains($roDashboard['body'], 'read-only access'),
+            $roDashboard['status'] === 200 && str_contains($roDashboard['body'], '只读'),
             (string) $roDashboard['status']
         );
 
@@ -420,7 +420,7 @@ try {
     $check('edited values are visible on the detail page', str_contains($edited['body'], 'HTTP Test Structure (edited)') && str_contains($edited['body'], 'HTTP2'));
 
     $readOnlyView = $request('GET', $baseUrl . $basePath . '/structures/' . $structureId, $jarFor('ro-view'), $readOnlyUser?->getApiKey() ?? '');
-    $check('detail page omits write actions for a read-only user', !str_contains($readOnlyView['body'], '/edit">Edit'));
+    $check('detail page omits write actions for a read-only user', !str_contains($readOnlyView['body'], '/edit">编辑'));
 } catch (\Throwable $e) {
     $check('HTTP suite completed without unexpected error', false, get_class($e) . ': ' . $e->getMessage());
 } finally {

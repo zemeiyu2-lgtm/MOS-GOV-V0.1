@@ -1,7 +1,7 @@
 <?php
 
 /**
- * MOS-GOV shared entity create/edit form view.
+ * MOS-GOV 通用实体新建/编辑表单.
  *
  * Expected variables (provided by the route):
  * - $cfg               entity config from GovRepository::ENTITIES
@@ -20,17 +20,24 @@
  */
 
 use ChurchCRM\dto\SystemURLs;
+use ChurchCRM\Plugins\MosGov\Data\GovRepository;
 
 $mosGovRootPath = SystemURLs::getRootPath() . '/plugins/mos-gov';
 $listUrl = $mosGovRootPath . '/' . $slug;
 
-$sPageTitle = ($isEdit ? 'Edit ' : 'New ') . $cfg['label'];
-$sPageSubtitle = 'MOS-GOV governance data';
+require __DIR__ . '/_i18n.php';
+
+$entityKey = (string) (GovRepository::entityForSlug($slug) ?? $slug);
+$entityLabel = $mosGovEntityLabel($entityKey);
+$entityLabelPlural = $mosGovEntityLabelPlural($entityKey);
+
+$sPageTitle = ($isEdit ? '编辑' : '新建') . $entityLabel;
+$sPageSubtitle = 'MOS-GOV 治理数据';
 $aBreadcrumbs = [
-    ['label' => 'Plugins', 'url' => SystemURLs::getRootPath() . '/plugins/management'],
+    ['label' => '插件', 'url' => SystemURLs::getRootPath() . '/plugins/management'],
     ['label' => 'MOS-GOV', 'url' => $mosGovRootPath],
-    ['label' => $cfg['labelPlural'], 'url' => $listUrl],
-    ['label' => $isEdit ? 'Edit #' . (int) ($data['id'] ?? 0) : 'New', 'active' => true],
+    ['label' => $entityLabelPlural, 'url' => $listUrl],
+    ['label' => $isEdit ? '编辑 #' . (int) ($data['id'] ?? 0) : '新建', 'active' => true],
 ];
 
 require __DIR__ . '/../../../../Include/Header.php';
@@ -55,18 +62,18 @@ $mosGovDateTimeInput = static function ($value): string {
 
 <?php if ($errors !== []): ?>
     <div class="alert alert-warning" role="alert">
-        Please correct the highlighted fields.
+        请修正标红的字段后重新提交。
     </div>
 <?php endif; ?>
 
 <?php if (empty($canWrite)): ?>
     <div class="alert alert-info" role="alert">
-        You do not have permission to modify MOS-GOV governance data.
+        你没有修改 MOS-GOV 治理数据的权限。
     </div>
 <?php else: ?>
     <div class="card">
         <div class="card-header">
-            <h3 class="card-title"><?= $esc($cfg['label']) ?> details</h3>
+            <h3 class="card-title"><?= $esc($entityLabel) ?>详情</h3>
         </div>
         <div class="card-body">
             <form method="post" action="<?= $esc($actionUrl) ?>" novalidate>
@@ -83,7 +90,7 @@ $mosGovDateTimeInput = static function ($value): string {
                     ?>
                     <div class="mb-3">
                         <label class="form-label" for="<?= $esc($fieldId) ?>">
-                            <?= $esc($spec['label']) ?><?= !empty($spec['required']) ? ' <span class="text-danger">*</span>' : '' ?>
+                            <?= $esc($mosGovT($spec['label'])) ?><?= !empty($spec['required']) ? ' <span class="text-danger">*</span>' : '' ?>
                         </label>
 
                         <?php if ($spec['type'] === 'text'): ?>
@@ -111,19 +118,19 @@ $mosGovDateTimeInput = static function ($value): string {
                         <?php elseif ($spec['type'] === 'status' || $spec['type'] === 'select'): ?>
                             <select class="form-select" id="<?= $esc($fieldId) ?>" name="<?= $esc($field) ?>">
                                 <?php if (empty($spec['required'])): ?>
-                                    <option value="">-- none --</option>
+                                    <option value="">—— 无 ——</option>
                                 <?php endif; ?>
                                 <?php foreach ($spec['options'] ?? [] as $option): ?>
                                     <option value="<?= $esc($option) ?>"
                                         <?= (string) $value === (string) $option ? 'selected' : '' ?>>
-                                        <?= $esc($option) ?>
+                                        <?= $esc($mosGovValue($option)) ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
 
                         <?php elseif ($spec['type'] === 'ref'): ?>
                             <select class="form-select" id="<?= $esc($fieldId) ?>" name="<?= $esc($field) ?>">
-                                <option value="">-- none --</option>
+                                <option value="">—— 无 ——</option>
                                 <?php foreach ($refOptions[$field] ?? [] as $optId => $optLabel): ?>
                                     <option value="<?= (int) $optId ?>"
                                         <?= (string) $value === (string) $optId ? 'selected' : '' ?>>
@@ -133,8 +140,7 @@ $mosGovDateTimeInput = static function ($value): string {
                             </select>
                             <?php if (($refOptions[$field] ?? []) === [] && !empty($spec['required'])): ?>
                                 <div class="form-hint text-warning">
-                                    No <?= $esc(strtolower(\ChurchCRM\Plugins\MosGov\Data\GovRepository::labelFor($spec['ref']))) ?>
-                                    exists yet — create one first.
+                                    尚未创建可选的<?= $esc($mosGovEntityLabel((string) $spec['ref'])) ?>——请先创建。
                                 </div>
                             <?php endif; ?>
 
@@ -144,9 +150,9 @@ $mosGovDateTimeInput = static function ($value): string {
                                    list="gov-person-candidates" value="<?= $esc($value) ?>"
                                    autocomplete="off">
                             <?php if (!empty($personLabels[$field])): ?>
-                                <div class="form-hint">Currently: <?= $esc($personLabels[$field]) ?></div>
+                                <div class="form-hint">当前：<?= $esc($personLabels[$field]) ?></div>
                             <?php else: ?>
-                                <div class="form-hint">ChurchCRM person ID (read-only reference).</div>
+                                <div class="form-hint">ChurchCRM 人员 ID（只读引用）。</div>
                             <?php endif; ?>
                         <?php endif; ?>
 
@@ -163,12 +169,12 @@ $mosGovDateTimeInput = static function ($value): string {
                 </datalist>
 
                 <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-primary">Save</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
                     <?php if ($isEdit): ?>
                         <a class="btn btn-outline-secondary"
-                           href="<?= $esc($listUrl . '/' . (int) ($data['id'] ?? 0)) ?>">Cancel</a>
+                           href="<?= $esc($listUrl . '/' . (int) ($data['id'] ?? 0)) ?>">取消</a>
                     <?php else: ?>
-                        <a class="btn btn-outline-secondary" href="<?= $esc($listUrl) ?>">Cancel</a>
+                        <a class="btn btn-outline-secondary" href="<?= $esc($listUrl) ?>">取消</a>
                     <?php endif; ?>
                 </div>
             </form>
@@ -177,7 +183,7 @@ $mosGovDateTimeInput = static function ($value): string {
 
     <?php if ($isEdit): ?>
         <p class="mt-3">
-            <a href="<?= $esc($listUrl . '/' . (int) ($data['id'] ?? 0)) ?>">&larr; Back to this <?= $esc(strtolower($cfg['label'])) ?></a>
+            <a href="<?= $esc($listUrl . '/' . (int) ($data['id'] ?? 0)) ?>">&larr; 返回该<?= $esc($entityLabel) ?></a>
         </p>
     <?php endif; ?>
 <?php endif; ?>

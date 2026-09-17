@@ -1,11 +1,10 @@
 <?php
 
 /**
- * Governance search results (V0.2 §23).
+ * 治理搜索 — V0.2 §23.
  *
- * Results have already passed: Authorization → Scope → Visibility.
- * P5 content arrives masked as '__P5_PROTECTED__' and is shown as a
- * protection notice, never as field name + content (§42).
+ * 结果已依次通过：授权 → 范围 → 可见性。P5 内容以 '__P5_PROTECTED__'
+ * 占位返回，仅显示保护提示，绝不显示字段名 + 内容（§42）。
  *
  * Expected variables: $query, $results (entity => rows), $error, $esc
  */
@@ -14,12 +13,14 @@ use ChurchCRM\dto\SystemURLs;
 
 $mosGovRootPath = SystemURLs::getRootPath() . '/plugins/mos-gov';
 
-$sPageTitle = 'Governance Search';
-$sPageSubtitle = 'Scoped governance search (not the CRM global search)';
+require __DIR__ . '/_i18n.php';
+
+$sPageTitle = '治理搜索';
+$sPageSubtitle = '限定范围的治理搜索（不是 CRM 全局搜索）';
 $aBreadcrumbs = [
-    ['label' => 'Plugins', 'url' => SystemURLs::getRootPath() . '/plugins/management'],
+    ['label' => '插件', 'url' => SystemURLs::getRootPath() . '/plugins/management'],
     ['label' => 'MOS-GOV', 'url' => $mosGovRootPath],
-    ['label' => 'Search', 'active' => true],
+    ['label' => '治理搜索', 'active' => true],
 ];
 
 require __DIR__ . '/../../../../Include/Header.php';
@@ -28,19 +29,19 @@ $activeSlug = 'search';
 require __DIR__ . '/_tabs.php';
 
 $mosGovEntityRoute = ['meeting' => 'meetings', 'issue' => 'issues', 'decision' => 'decisions', 'task' => 'tasks'];
-$mosGovLabels = ['meeting' => 'Meetings', 'issue' => 'Issues', 'decision' => 'Decisions', 'task' => 'Tasks'];
+$mosGovLabels = ['meeting' => '会议', 'issue' => '议题', 'decision' => '决策', 'task' => '任务'];
 ?>
 
 <div class="card mb-3">
     <div class="card-body">
         <form method="get" action="<?= $esc($mosGovRootPath . '/search') ?>" class="d-flex gap-2">
             <input type="text" class="form-control" name="q" value="<?= $esc($query) ?>"
-                   placeholder="Search governance meetings, issues, decisions, tasks…"
+                   placeholder="搜索治理会议、议题、决策、任务…"
                    maxlength="100" autocomplete="off">
-            <button class="btn btn-primary" type="submit">Search</button>
+            <button class="btn btn-primary" type="submit">搜索</button>
         </form>
         <p class="text-secondary small mb-0 mt-2">
-            Results are limited to your governance scope and information level.
+            结果仅限你的治理范围与信息分级；搜索不会回退到 CRM 全局搜索。
         </p>
     </div>
 </div>
@@ -74,7 +75,7 @@ $mosGovLabels = ['meeting' => 'Meetings', 'issue' => 'Issues', 'decision' => 'De
                                     <?php endif; ?>
                                 <?php endforeach; ?>
                             </td>
-                            <td class="text-end"><span class="badge bg-secondary-lt"><?= $esc($row['status'] ?? '') ?></span></td>
+                            <td class="text-end"><span class="badge bg-secondary-lt"><?= $esc($mosGovValue($row['status'] ?? '')) ?></span></td>
                         </tr>
                     <?php endforeach; ?>
                     </tbody>
@@ -86,7 +87,7 @@ $mosGovLabels = ['meeting' => 'Meetings', 'issue' => 'Issues', 'decision' => 'De
     <?php if (!$anyResults): ?>
         <div class="card">
             <div class="card-body text-secondary">
-                No results inside your governance scope for “<?= $esc($query) ?>”.
+                在你的治理范围内没有找到与「<?= $esc($query) ?>」相符的记录。
             </div>
         </div>
     <?php endif; ?>

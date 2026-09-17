@@ -3,14 +3,12 @@
 /**
  * Shared MOS-GOV section navigation (V0.2 §41 — governance-first).
  *
- * The ten V0.1 entity tabs are grouped into governance meaning instead of a
- * CRM-like flat list:
+ * 简体中文导航。一级入口固定为「治理首页」与「我的治理中心」，其余按治理含义分组：
  *
- *   教会治理  Church governance  — structures, bodies, roles, appointments
- *   治理运行  Governance running — responsibilities, relationships, meetings,
- *                                  issues, decisions, tasks
- *   治理身份  Identity           — identities, permission registry
- *   安全设置  Security           — settings
+ *   教会治理  结构 · 治理主体 · 角色 · 任命 · 职责
+ *   治理运行  会议 · 议题 · 决策 · 任务 · 关系
+ *   治理身份  治理身份 · 权限注册表 · 治理搜索
+ *   安全设置  安全设置
  *
  * Expected variables:
  * - $activeSlug  current URL slug, or null on the dashboard
@@ -18,47 +16,61 @@
  */
 
 use ChurchCRM\dto\SystemURLs;
-use ChurchCRM\Plugins\MosGov\Data\GovRepository;
 
 $mosGovRootPath = SystemURLs::getRootPath() . '/plugins/mos-gov';
 $activeSlug = $activeSlug ?? null;
 
-$mosGovNavGroups = [
-    '' => [
-        'dashboard' => ['label' => 'Governance Home', 'url' => $mosGovRootPath],
-        'my-governance' => ['label' => 'My Governance', 'url' => $mosGovRootPath . '/my-governance'],
+$mosGovNavSections = [
+    [
+        'header' => null,
+        'items' => [
+            'dashboard' => ['label' => '治理首页', 'url' => $mosGovRootPath],
+            'my-governance' => ['label' => '我的治理中心', 'url' => $mosGovRootPath . '/my-governance'],
+        ],
     ],
-    'Church governance' => [
-        'structures' => ['label' => 'Structures', 'url' => $mosGovRootPath . '/structures'],
-        'bodies' => ['label' => 'Bodies', 'url' => $mosGovRootPath . '/bodies'],
-        'roles' => ['label' => 'Roles', 'url' => $mosGovRootPath . '/roles'],
-        'appointments' => ['label' => 'Appointments', 'url' => $mosGovRootPath . '/appointments'],
-        'responsibilities' => ['label' => 'Responsibilities', 'url' => $mosGovRootPath . '/responsibilities'],
+    [
+        'header' => '教会治理',
+        'items' => [
+            'structures' => ['label' => '结构', 'url' => $mosGovRootPath . '/structures'],
+            'bodies' => ['label' => '治理主体', 'url' => $mosGovRootPath . '/bodies'],
+            'roles' => ['label' => '角色', 'url' => $mosGovRootPath . '/roles'],
+            'appointments' => ['label' => '任命', 'url' => $mosGovRootPath . '/appointments'],
+            'responsibilities' => ['label' => '职责', 'url' => $mosGovRootPath . '/responsibilities'],
+        ],
     ],
-    'Governance running' => [
-        'meetings' => ['label' => 'Meetings', 'url' => $mosGovRootPath . '/meetings'],
-        'issues' => ['label' => 'Issues', 'url' => $mosGovRootPath . '/issues'],
-        'decisions' => ['label' => 'Decisions', 'url' => $mosGovRootPath . '/decisions'],
-        'tasks' => ['label' => 'Tasks', 'url' => $mosGovRootPath . '/tasks'],
-        'relationships' => ['label' => 'Relationships', 'url' => $mosGovRootPath . '/relationships'],
+    [
+        'header' => '治理运行',
+        'items' => [
+            'meetings' => ['label' => '会议', 'url' => $mosGovRootPath . '/meetings'],
+            'issues' => ['label' => '议题', 'url' => $mosGovRootPath . '/issues'],
+            'decisions' => ['label' => '决策', 'url' => $mosGovRootPath . '/decisions'],
+            'tasks' => ['label' => '任务', 'url' => $mosGovRootPath . '/tasks'],
+            'relationships' => ['label' => '关系', 'url' => $mosGovRootPath . '/relationships'],
+        ],
     ],
-    'Governance identity' => [
-        'identity' => ['label' => 'Identities', 'url' => $mosGovRootPath . '/identity'],
-        'permissions' => ['label' => 'Permission Registry', 'url' => $mosGovRootPath . '/permissions'],
-        'search' => ['label' => 'Governance Search', 'url' => $mosGovRootPath . '/search'],
+    [
+        'header' => '治理身份',
+        'items' => [
+            'identity' => ['label' => '治理身份', 'url' => $mosGovRootPath . '/identity'],
+            'permissions' => ['label' => '权限注册表', 'url' => $mosGovRootPath . '/permissions'],
+            'search' => ['label' => '治理搜索', 'url' => $mosGovRootPath . '/search'],
+        ],
     ],
-    'Security' => [
-        'settings' => ['label' => 'Settings', 'url' => $mosGovRootPath . '/settings'],
+    [
+        'header' => null,
+        'items' => [
+            'settings' => ['label' => '安全设置', 'url' => $mosGovRootPath . '/settings'],
+        ],
     ],
 ];
 ?>
 <div class="mb-3 d-print-none">
-    <?php foreach ($mosGovNavGroups as $groupName => $items): ?>
-        <?php if ($groupName !== ''): ?>
-            <div class="text-secondary small text-uppercase mt-2 mb-1"><?= $esc($groupName) ?></div>
+    <?php foreach ($mosGovNavSections as $section): ?>
+        <?php if (!empty($section['header'])): ?>
+            <div class="text-secondary small mt-2 mb-1"><?= $esc($section['header']) ?></div>
         <?php endif; ?>
         <ul class="nav nav-pills flex-wrap gap-1 mb-1">
-            <?php foreach ($items as $slug => $item): ?>
+            <?php foreach ($section['items'] as $slug => $item): ?>
                 <li class="nav-item">
                     <a class="nav-link<?= $activeSlug === $slug || ($activeSlug === null && $slug === 'dashboard') ? ' active' : '' ?>"
                        href="<?= $esc($item['url']) ?>"><?= $esc($item['label']) ?></a>

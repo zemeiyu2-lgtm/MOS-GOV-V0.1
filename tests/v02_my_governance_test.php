@@ -105,11 +105,11 @@ if ($admin !== null) {
 
     $page = $http('GET', $baseUrl . $basePath . '/my-governance', $adminJar, $adminKey);
     $mosGovCheck('admin my-governance renders 200', $page['status'] === 200, (string) $page['status']);
-    $mosGovCheck('my-governance shows the no-identity notice for identity-less admin', str_contains($page['body'], 'No governance identity'));
+    $mosGovCheck('my-governance shows the no-identity notice for identity-less admin', str_contains($page['body'], '尚无治理身份'));
 
     $search = $http('GET', $baseUrl . $basePath . '/search?q=rota', $adminJar, $adminKey);
     $mosGovCheck('governance search renders 200', $search['status'] === 200, (string) $search['status']);
-    $mosGovCheck('search marks itself as scoped', str_contains($search['body'], 'governance scope'));
+    $mosGovCheck('search marks itself as scoped', str_contains($search['body'], '治理范围'));
 
     $perm = $http('GET', $baseUrl . $basePath . '/permissions', $adminJar, $adminKey);
     $mosGovCheck('permission registry renders 200', $perm['status'] === 200, (string) $perm['status']);
@@ -120,7 +120,7 @@ if ($admin !== null) {
 
     $export = $http('GET', $baseUrl . $basePath . '/tasks/export', $adminJar, $adminKey);
     $mosGovCheck('export refused without explicit permission (view≠export)', $export['status'] === 403, (string) $export['status']);
-    $mosGovCheck('export denial explains the boundary', str_contains($export['body'], 'not permitted'));
+    $mosGovCheck('export denial explains the boundary', str_contains($export['body'], '不允许导出'));
 } else {
     $mosGovSkip('admin HTTP checks', 'no administrator with an API key exists');
 }
@@ -130,7 +130,7 @@ if ($member !== null) {
     $memberJar = $tmpDir . '/member.cookies';
     $page = $http('GET', $baseUrl . $basePath . '/my-governance', $memberJar, $memberKey);
     $mosGovCheck('member my-governance renders 200 with identity', $page['status'] === 200, (string) $page['status']);
-    $mosGovCheck('member sees their own identity chain', str_contains($page['body'], 'Who I am'));
+    $mosGovCheck('member sees their own identity chain', str_contains($page['body'], '我是谁'));
 
     $export = $http('GET', $baseUrl . $basePath . '/tasks/export', $memberJar, $memberKey);
     $mosGovCheck('member export DENIED by default (§24)', $export['status'] === 403, (string) $export['status']);
@@ -178,7 +178,7 @@ $mosGovCheck(
 if ($member !== null) {
     $detail = $http('GET', $baseUrl . $basePath . '/tasks/' . $outOfScopeTask, $memberJar, $memberKey);
     $mosGovCheck('out-of-scope detail is DENIED with 403 (not 500)', $detail['status'] === 403, (string) $detail['status']);
-    $mosGovCheck('denial renders the protected-information page', str_contains($detail['body'], 'This information is protected'));
+    $mosGovCheck('denial renders the protected-information page', str_contains($detail['body'], '此信息受权限保护'));
     $mosGovCheck('denial states the scope boundary', str_contains($detail['body'], 'outside your governance scope'));
     $mosGovCheck('denial leaks no protected content', !str_contains($detail['body'], 'OUT-OF-SCOPE-TASK-MARKER'));
 

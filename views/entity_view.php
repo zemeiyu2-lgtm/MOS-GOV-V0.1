@@ -1,13 +1,12 @@
 <?php
 
 /**
- * MOS-GOV shared entity detail view.
+ * MOS-GOV 通用实体详情视图.
  *
- * Shows the record's own fields (with resolved reference and ChurchCRM person
- * labels) plus the child collections configured in the entity registry, so the
- * governance working loops are visible from either end:
- *   Structure → Body → Role → Appointment → Responsibility
- *   Meeting   → Issue → Decision → Task
+ * 显示记录自身字段（含引用与 ChurchCRM 人员标签）以及注册表中配置的子集合，
+ * 使治理链路从任一端都可追溯：
+ *   结构 → 治理主体 → 角色 → 任命 → 职责
+ *   会议 → 议题 → 决策 → 任务
  *
  * Expected variables (provided by the route):
  * - $cfg          entity config from GovRepository::ENTITIES
@@ -21,21 +20,27 @@
  */
 
 use ChurchCRM\dto\SystemURLs;
+use ChurchCRM\Plugins\MosGov\Data\GovRepository;
 
 $mosGovRootPath = SystemURLs::getRootPath() . '/plugins/mos-gov';
 $listUrl = $mosGovRootPath . '/' . $slug;
 
-$sPageTitle = $cfg['label'] . ($row !== null ? ' #' . (int) $row['id'] : '');
-$sPageSubtitle = 'MOS-GOV governance data';
+require __DIR__ . '/_i18n.php';
+
+$entityLabel = $mosGovEntityLabel((string) (GovRepository::entityForSlug($slug) ?? $slug));
+$entityLabelPlural = $mosGovEntityLabelPlural((string) (GovRepository::entityForSlug($slug) ?? $slug));
+
+$sPageTitle = $entityLabel . ($row !== null ? ' #' . (int) $row['id'] : '');
+$sPageSubtitle = 'MOS-GOV 治理数据';
 $aBreadcrumbs = [
-    ['label' => 'Plugins', 'url' => SystemURLs::getRootPath() . '/plugins/management'],
+    ['label' => '插件', 'url' => SystemURLs::getRootPath() . '/plugins/management'],
     ['label' => 'MOS-GOV', 'url' => $mosGovRootPath],
-    ['label' => $cfg['labelPlural'], 'url' => $listUrl],
-    ['label' => $row !== null ? '#' . (int) $row['id'] : 'Not found', 'active' => true],
+    ['label' => $entityLabelPlural, 'url' => $listUrl],
+    ['label' => $row !== null ? '#' . (int) $row['id'] : '未找到', 'active' => true],
 ];
 if ($row !== null && !empty($canWrite)) {
     $sPageHeaderButtons = '<a class="btn btn-primary" href="'
-        . $esc($listUrl . '/' . (int) $row['id'] . '/edit') . '">Edit</a>';
+        . $esc($listUrl . '/' . (int) $row['id'] . '/edit') . '">编辑</a>';
 }
 
 require __DIR__ . '/../../../../Include/Header.php';
@@ -44,7 +49,7 @@ $activeSlug = $slug;
 require __DIR__ . '/_tabs.php';
 
 /** Format one value of the record for display. */
-$mosGovValue = static function (array $cfg, string $field, array $row, array $dec) use ($esc): string {
+$mosGovValue2 = static function (array $cfg, string $field, array $row, array $dec) use ($esc, $mosGovValue): string {
     $value = $row[$field] ?? null;
     $type = $cfg['fields'][$field]['type'] ?? 'text';
 
@@ -63,6 +68,9 @@ $mosGovValue = static function (array $cfg, string $field, array $row, array $de
     }
     if ($type === 'textlong') {
         return nl2br($esc($value));
+    }
+    if ($type === 'status' || $type === 'select') {
+        return $esc($mosGovValue($value));
     }
 
     return $esc($value);
@@ -85,34 +93,34 @@ $mosGovRelatedCell = static function (array $fields, array $row, array $dec) use
     <div class="alert alert-danger" role="alert"><?= $esc($error) ?></div>
 <?php elseif ($row === null): ?>
     <div class="alert alert-warning" role="alert">
-        This <?= $esc(strtolower($cfg['label'])) ?> does not exist (it may have been removed).
+        该<?= $esc($entityLabel) ?>不存在（可能已被删除）。
     </div>
-    <p><a href="<?= $esc($listUrl) ?>">&larr; Back to <?= $esc(strtolower($cfg['labelPlural'])) ?></a></p>
+    <p><a href="<?= $esc($listUrl) ?>">&larr; 返回<?= $esc($entityLabelPlural) ?>列表</a></p>
 <?php else: ?>
     <div class="card">
         <div class="card-header d-flex align-items-center">
-            <h3 class="card-title"><?= $esc($cfg['label']) ?></h3>
+            <h3 class="card-title"><?= $esc($entityLabel) ?></h3>
             <div class="ms-auto d-flex gap-2">
                 <?php if (!empty($canWrite)): ?>
-                    <a class="btn btn-sm btn-primary" href="<?= $esc($listUrl . '/' . (int) $row['id'] . '/edit') ?>">Edit</a>
+                    <a class="btn btn-sm btn-primary" href="<?= $esc($listUrl . '/' . (int) $row['id'] . '/edit') ?>">编辑</a>
                 <?php endif; ?>
-                <a class="btn btn-sm btn-outline-secondary" href="<?= $esc($listUrl) ?>">Back to list</a>
+                <a class="btn btn-sm btn-outline-secondary" href="<?= $esc($listUrl) ?>">返回列表</a>
             </div>
         </div>
         <div class="card-body">
             <div class="datagrid">
                 <?php foreach ($cfg['fields'] as $field => $spec): ?>
                     <div class="datagrid-item">
-                        <div class="datagrid-title"><?= $esc($spec['label']) ?></div>
-                        <div class="datagrid-content"><?= $mosGovValue($cfg, $field, $row, $decorations) ?></div>
+                        <div class="datagrid-title"><?= $esc($mosGovT($spec['label'])) ?></div>
+                        <div class="datagrid-content"><?= $mosGovValue2($cfg, $field, $row, $decorations) ?></div>
                     </div>
                 <?php endforeach; ?>
                 <div class="datagrid-item">
-                    <div class="datagrid-title">Created</div>
+                    <div class="datagrid-title">创建时间</div>
                     <div class="datagrid-content"><?= $esc($row['created_at'] ?? '') ?></div>
                 </div>
                 <div class="datagrid-item">
-                    <div class="datagrid-title">Last updated</div>
+                    <div class="datagrid-title">最后更新</div>
                     <div class="datagrid-content"><?= $esc($row['updated_at'] ?? '') ?></div>
                 </div>
             </div>
@@ -122,22 +130,22 @@ $mosGovRelatedCell = static function (array $fields, array $row, array $dec) use
     <?php foreach ($related as $group): ?>
         <div class="card mt-3">
             <div class="card-header d-flex align-items-center">
-                <h3 class="card-title"><?= $esc($group['label']) ?></h3>
+                <h3 class="card-title"><?= $esc($mosGovT($group['label'])) ?></h3>
                 <div class="ms-auto">
                     <a class="btn btn-sm btn-outline-primary"
                        href="<?= $esc($mosGovRootPath . '/' . $group['slug'] . '/new?' . $group['field'] . '=' . (int) $row['id']) ?>">
-                        Add <?= $esc(\ChurchCRM\Plugins\MosGov\Data\GovRepository::labelPluralFor(\ChurchCRM\Plugins\MosGov\Data\GovRepository::entityForSlug($group['slug']))) ?>
+                        新建<?= $esc($mosGovEntityLabel((string) ($group['entity'] ?? ''))) ?>
                     </a>
                 </div>
             </div>
             <div class="card-body">
                 <?php if ($group['rows'] === []): ?>
-                    <p class="text-secondary mb-0">None recorded yet.</p>
+                    <p class="text-secondary mb-0">暂无记录。</p>
                 <?php else: ?>
                     <div class="table-responsive">
                         <table class="table table-sm table-vcenter card-table">
                             <thead>
-                                <tr><th class="w-1">ID</th><th>Summary</th><th class="w-1"></th></tr>
+                                <tr><th class="w-1">ID</th><th>摘要</th><th class="w-1"></th></tr>
                             </thead>
                             <tbody>
                                 <?php foreach ($group['rows'] as $childRow): ?>
@@ -147,7 +155,7 @@ $mosGovRelatedCell = static function (array $fields, array $row, array $dec) use
                                         <td><?= $mosGovRelatedCell($group['fields'], $childRow, $childDec) ?></td>
                                         <td>
                                             <a class="btn btn-sm btn-outline-secondary"
-                                               href="<?= $esc($mosGovRootPath . '/' . $group['slug'] . '/' . (int) $childRow['id']) ?>">View</a>
+                                               href="<?= $esc($mosGovRootPath . '/' . $group['slug'] . '/' . (int) $childRow['id']) ?>">查看</a>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>

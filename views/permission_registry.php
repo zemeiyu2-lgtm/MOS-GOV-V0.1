@@ -1,10 +1,10 @@
 <?php
 
 /**
- * Permission registry + role permission matrix (V0.2 §12).
+ * 权限注册表 + 角色权限矩阵 (V0.2 §12).
  *
- * The registry is a closed whitelist — this page is read-only; overrides are
- * managed per identity. Unknown permission keys cannot exist in the system.
+ * 注册表是封闭白名单——本页只读；覆盖项按身份逐个管理。
+ * 系统内不可能存在白名单之外的权限键。
  *
  * Expected variables: $permissions, $roles, $rolePermissions, $canManage, $esc
  */
@@ -13,12 +13,14 @@ use ChurchCRM\dto\SystemURLs;
 
 $mosGovRootPath = SystemURLs::getRootPath() . '/plugins/mos-gov';
 
-$sPageTitle = 'Permission Registry';
-$sPageSubtitle = 'System permission whitelist and role defaults';
+require __DIR__ . '/_i18n.php';
+
+$sPageTitle = '权限注册表';
+$sPageSubtitle = '系统权限白名单与角色默认权限';
 $aBreadcrumbs = [
-    ['label' => 'Plugins', 'url' => SystemURLs::getRootPath() . '/plugins/management'],
+    ['label' => '插件', 'url' => SystemURLs::getRootPath() . '/plugins/management'],
     ['label' => 'MOS-GOV', 'url' => $mosGovRootPath],
-    ['label' => 'Permissions', 'active' => true],
+    ['label' => '权限注册表', 'active' => true],
 ];
 
 require __DIR__ . '/../../../../Include/Header.php';
@@ -30,40 +32,39 @@ $riskClass = ['low' => 'bg-secondary-lt', 'medium' => 'bg-info-lt', 'high' => 'b
 ?>
 
 <div class="card mb-3">
-    <div class="card-header"><h3 class="card-title">Permission registry (<?= count($permissions) ?>)</h3></div>
+    <div class="card-header"><h3 class="card-title">权限注册表（<?= count($permissions) ?>）</h3></div>
     <div class="card-body">
         <div class="table-responsive">
             <table class="table table-sm table-vcenter">
-                <thead><tr><th>Key</th><th>Resource</th><th>Action</th><th>Risk</th><th>Status</th></tr></thead>
+                <thead><tr><th>权限键</th><th>资源</th><th>动作</th><th>风险</th><th>状态</th></tr></thead>
                 <tbody>
                 <?php foreach ($permissions as $p): ?>
                     <tr>
                         <td><code><?= $esc($p['permission_key']) ?></code></td>
-                        <td><?= $esc($p['resource_type']) ?></td>
-                        <td><?= $esc($p['action']) ?></td>
-                        <td><span class="badge <?= $riskClass[$p['risk_level']] ?? 'bg-secondary-lt' ?>"><?= $esc($p['risk_level']) ?></span></td>
-                        <td><?= $esc($p['status']) ?></td>
+                        <td><?= $esc($mosGovT(ucfirst((string) $p['resource_type']))) ?></td>
+                        <td><?= $esc($mosGovValue($p['action'])) ?></td>
+                        <td><span class="badge <?= $riskClass[$p['risk_level']] ?? 'bg-secondary-lt' ?>"><?= $esc($mosGovValue($p['risk_level'])) ?></span></td>
+                        <td><?= $esc($mosGovValue($p['status'])) ?></td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>
             </table>
         </div>
         <p class="text-secondary small mb-0">
-            Keys come from the closed system whitelist. Administrators cannot
-            create unknown permission keys through any page or API.
+            权限键来自系统封闭白名单；任何页面或接口都无法创建白名单之外的权限键。
         </p>
     </div>
 </div>
 
 <div class="card">
-    <div class="card-header"><h3 class="card-title">Role default permissions</h3></div>
+    <div class="card-header"><h3 class="card-title">角色默认权限</h3></div>
     <div class="card-body">
         <?php if ($roles === []): ?>
-            <p class="text-secondary mb-0">No governance roles defined yet.</p>
+            <p class="text-secondary mb-0">尚未定义治理角色。</p>
         <?php else: ?>
             <div class="table-responsive">
                 <table class="table table-sm table-vcenter">
-                    <thead><tr><th>Role</th><th>Code</th><th>Default permissions</th></tr></thead>
+                    <thead><tr><th>角色</th><th>角色编码</th><th>默认权限</th></tr></thead>
                     <tbody>
                     <?php foreach ($roles as $roleId => $role): ?>
                         <?php

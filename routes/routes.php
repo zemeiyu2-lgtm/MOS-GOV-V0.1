@@ -139,13 +139,13 @@ $mosGovDescribe = static function (GovRepository $repo, string $entity, array $r
 
     // Appointments have no name column: describe them by role + person.
     if ($entity === 'appointment') {
-        $roleName = 'Role #' . ($row['role_id'] ?? '?');
+        $roleName = '角色 #' . ($row['role_id'] ?? '?');
         $roleId = (int) ($row['role_id'] ?? 0);
         if ($roleId > 0) {
             $key = 'role#' . $roleId;
             if (!isset($mosGovLabelCache[$key])) {
                 $role = $repo->find('role', $roleId);
-                $mosGovLabelCache[$key] = $role['name'] ?? ('Role #' . $roleId);
+                $mosGovLabelCache[$key] = $role['name'] ?? ('角色 #' . $roleId);
             }
             $roleName = $mosGovLabelCache[$key];
         }
@@ -194,7 +194,7 @@ $mosGovDecorateRows = static function (GovRepository $repo, array $cfg, array $r
             if ($spec['type'] === 'ref') {
                 $parent = $repo->find($spec['ref'], (int) $value);
                 $ref[$field] = $parent === null
-                    ? '#' . (int) $value . ' (missing)'
+                    ? '#' . (int) $value . '（已缺失）'
                     : $mosGovDescribe($repo, $spec['ref'], $parent);
             } elseif ($spec['type'] === 'person') {
                 $person[$field] = PersonLookup::label((int) $value);
@@ -453,7 +453,7 @@ $app->post('/mos-gov/{entity:' . $mosGovSlugPattern . '}', function (Request $re
     $data = (array) $request->getParsedBody();
 
     if (!CSRFUtils::verifyRequest($data, 'mos-gov')) {
-        return $mosGovErrorPage($response, 'Invalid or missing CSRF token. Go back, reload the form and try again.');
+        return $mosGovErrorPage($response, 'CSRF 令牌无效或缺失：请返回、刷新表单后重试。');
     }
     unset($data['csrf_token']);
 
@@ -556,7 +556,7 @@ $app->get('/mos-gov/{entity:' . $mosGovSlugPattern . '}/{id:[0-9]+}/edit', funct
     try {
         $row = $repo->find($entity, $id);
         if ($row === null) {
-            return $mosGovErrorPage($response, 'This record does not exist.', 404);
+            return $mosGovErrorPage($response, '该记录不存在。', 404);
         }
         $context = $mosGovFormContext($repo, $cfg, $row);
     } catch (GovDataException $e) {
@@ -588,7 +588,7 @@ $app->post('/mos-gov/{entity:' . $mosGovSlugPattern . '}/{id:[0-9]+}/edit', func
     $data = (array) $request->getParsedBody();
 
     if (!CSRFUtils::verifyRequest($data, 'mos-gov')) {
-        return $mosGovErrorPage($response, 'Invalid or missing CSRF token. Go back, reload the form and try again.');
+        return $mosGovErrorPage($response, 'CSRF 令牌无效或缺失：请返回、刷新表单后重试。');
     }
     unset($data['csrf_token']);
 
@@ -683,7 +683,7 @@ $app->get('/mos-gov/{entity:' . $mosGovSlugPattern . '}/export', function (Reque
     if (!$decision->allowed) {
         AuditService::auditCurrent('export-denied', $entity, null, 'DENY', $decision->reason);
 
-        return $mosGovErrorPage($response, 'Export is not permitted: ' . $decision->reason, 403);
+        return $mosGovErrorPage($response, '不允许导出：' . $decision->reason, 403);
     }
 
     $repo = $mosGovRepo();
@@ -792,12 +792,12 @@ $app->get('/mos-gov/identity/new', function (Request $request, Response $respons
 
 $app->post('/mos-gov/identity', function (Request $request, Response $response) use ($mosGovRepo, $mosGovPage, $mosGovErrorPage, $mosGovEsc): Response {
     if (!CSRFUtils::verifyRequest((array) $request->getParsedBody(), 'mos-gov')) {
-        return $mosGovErrorPage($response, 'Invalid or missing CSRF token. Go back, reload the form and try again.');
+        return $mosGovErrorPage($response, 'CSRF 令牌无效或缺失：请返回、刷新表单后重试。');
     }
     $user = GovAuthorization::currentUser();
     $allowed = GovAuthorization::allows($user, 'edit', 'identity') || ($user !== null && $user->isAdmin());
     if (!$allowed) {
-        return $mosGovErrorPage($response, 'You do not have permission to manage governance identities.', 403);
+        return $mosGovErrorPage($response, '你没有管理治理身份的权限。', 403);
     }
 
     $repo = $mosGovRepo();
@@ -831,7 +831,7 @@ $app->get('/mos-gov/identity/{id:[0-9]+}', function (Request $request, Response 
     $id = (int) $args['id'];
     $row = $repo->find('identity', $id);
     if ($row === null) {
-        return $mosGovPage($response, 'error_page.php', ['message' => 'This governance identity does not exist.'], 404);
+        return $mosGovPage($response, 'error_page.php', ['message' => '该治理身份不存在。'], 404);
     }
 
     $user = GovAuthorization::currentUser();
@@ -852,7 +852,7 @@ $app->get('/mos-gov/identity/{id:[0-9]+}', function (Request $request, Response 
     foreach ($identityRoles as $ir) {
         if (!empty($ir['appointment_id'])) {
             $a = $repo->find('appointment', (int) $ir['appointment_id']);
-            $appointmentLabels[(int) $ir['appointment_id']] = $a ? 'Appointment #' . $a['id'] . ' (person ' . PersonLookup::label((int) $a['person_id']) . ')' : '#' . $ir['appointment_id'];
+            $appointmentLabels[(int) $ir['appointment_id']] = $a ? '任命 #' . $a['id'] . '（人员 ' . PersonLookup::label((int) $a['person_id']) . '）' : '#' . $ir['appointment_id'];
         }
     }
     foreach ($repo->list('permission', 1000) as $p) {
@@ -879,11 +879,11 @@ $app->get('/mos-gov/identity/{id:[0-9]+}', function (Request $request, Response 
 // attach role to identity
 $app->post('/mos-gov/identity/{id:[0-9]+}/attach-role', function (Request $request, Response $response, array $args) use ($mosGovRepo, $mosGovErrorPage): Response {
     if (!CSRFUtils::verifyRequest((array) $request->getParsedBody(), 'mos-gov')) {
-        return $mosGovErrorPage($response, 'Invalid or missing CSRF token.');
+        return $mosGovErrorPage($response, 'CSRF 令牌无效或缺失。');
     }
     $user = GovAuthorization::currentUser();
     if (!(GovAuthorization::allows($user, 'edit', 'identity') || $user?->isAdmin())) {
-        return $mosGovErrorPage($response, 'You do not have permission to manage governance identities.', 403);
+        return $mosGovErrorPage($response, '你没有管理治理身份的权限。', 403);
     }
 
     $data = (array) $request->getParsedBody();
@@ -906,11 +906,11 @@ $app->post('/mos-gov/identity/{id:[0-9]+}/attach-role', function (Request $reque
 // assign scope to identity
 $app->post('/mos-gov/identity/{id:[0-9]+}/assign-scope', function (Request $request, Response $response, array $args) use ($mosGovRepo, $mosGovErrorPage): Response {
     if (!CSRFUtils::verifyRequest((array) $request->getParsedBody(), 'mos-gov')) {
-        return $mosGovErrorPage($response, 'Invalid or missing CSRF token.');
+        return $mosGovErrorPage($response, 'CSRF 令牌无效或缺失。');
     }
     $user = GovAuthorization::currentUser();
     if (!(GovAuthorization::allows($user, 'edit', 'identity') || $user?->isAdmin())) {
-        return $mosGovErrorPage($response, 'You do not have permission to manage governance identities.', 403);
+        return $mosGovErrorPage($response, '你没有管理治理身份的权限。', 403);
     }
 
     $data = (array) $request->getParsedBody();
@@ -932,11 +932,11 @@ $app->post('/mos-gov/identity/{id:[0-9]+}/assign-scope', function (Request $requ
 // explicit permission override (grant / deny)
 $app->post('/mos-gov/identity/{id:[0-9]+}/override-permission', function (Request $request, Response $response, array $args) use ($mosGovRepo, $mosGovErrorPage): Response {
     if (!CSRFUtils::verifyRequest((array) $request->getParsedBody(), 'mos-gov')) {
-        return $mosGovErrorPage($response, 'Invalid or missing CSRF token.');
+        return $mosGovErrorPage($response, 'CSRF 令牌无效或缺失。');
     }
     $user = GovAuthorization::currentUser();
     if (!(GovAuthorization::allows($user, 'manage', 'permission') || $user?->isAdmin())) {
-        return $mosGovErrorPage($response, 'You do not have permission to manage permissions.', 403);
+        return $mosGovErrorPage($response, '你没有管理权限的权限。', 403);
     }
 
     $data = (array) $request->getParsedBody();

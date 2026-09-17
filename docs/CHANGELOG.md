@@ -77,6 +77,27 @@
 - No `mos_person`/`mos_family`/`mos_group` duplicates; PersonLookup remains
   read-only; no outbound network, cloud, analytics, mail, SMS or map calls.
 
+### Changed — V0.2 界面收口（简体中文 / 导航层）
+
+界面（含导航与文案）统一为简体中文；本次只改表现层，未触碰数据模型、权限
+引擎、Scope、身份模型、LocalSecureMode 与 ChurchCRM core。
+
+- **新增 `views/_i18n.php`** — 表现层唯一的中英映射点：把数据层/注册表的英文
+  标签与枚举值映射为中文显示，未知文本原样透出。实体键、权限键、范围类型、
+  枚举**存储值与提交值**保持英文，仅 `<option>` 可见文本中文化。
+- **导航（`views/_tabs.php`）** — 一级入口为「治理首页」「我的治理中心」；
+  分组：教会治理（结构·治理主体·角色·任命·职责）、治理运行（会议·议题·决策·
+  任务·关系）、治理身份（治理身份·权限注册表·治理搜索）、安全设置。
+- **首页（`views/dashboard.php`）** — 标题 MOS-GOV / 教会治理平台；原先只突出
+  数据库统计，现把「我的治理中心」与「治理运行」置于统计卡片之前，统计降为
+  「治理数据统计」区块；页面顶部说明 ChurchCRM 为底层事实系统。
+- **全部视图中文化** — 我的治理中心（1–9 步问句）、治理搜索、拒绝页、错误页、
+  实体列表/表单/详情、治理身份列表/详情/新建、权限注册表、安全设置。
+- **路由用户可见文案中文化（`routes/routes.php`）** — CSRF 拒绝、记录不存在、
+  导出被拒、身份/权限管理权限不足等提示；授权判定逻辑与顺序完全未改。
+- **测试断言同步** — `v01_http_test`、`v02_my_governance_test` 中依赖界面文案的
+  断言更新为对应中文表述，语义与安全断言不变（14 套全部通过）。
+
 ### Fixed — Docker browser access in LOCAL secure mode
 
 - **The host's own browser was refused in LOCAL mode.** Inside Docker the

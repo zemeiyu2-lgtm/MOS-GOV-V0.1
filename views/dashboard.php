@@ -1,10 +1,10 @@
 <?php
 
 /**
- * MOS-GOV governance dashboard.
+ * MOS-GOV governance dashboard — 治理平台首页.
  *
- * Every figure on this page comes from the governance data layer
- * (GovRepository) — the view contains no SQL and no data access.
+ * 页面顺序体现治理平台定位：平台定位 → 我的治理中心 / 治理运行 → 治理数据统计
+ * → 最近治理活动。统计数字来自数据层（GovRepository），视图不含任何 SQL。
  *
  * Expected variables (provided by the route):
  * - $stats                array<string,int> dashboard counters, or null on failure
@@ -23,10 +23,12 @@ use ChurchCRM\dto\SystemURLs;
 
 $mosGovRootPath = SystemURLs::getRootPath() . '/plugins/mos-gov';
 
+require __DIR__ . '/_i18n.php';
+
 $sPageTitle = 'MOS-GOV';
-$sPageSubtitle = 'Church governance overview (V0.1)';
+$sPageSubtitle = '教会治理平台（V0.2）';
 $aBreadcrumbs = [
-    ['label' => 'Plugins', 'url' => SystemURLs::getRootPath() . '/plugins/management'],
+    ['label' => '插件', 'url' => SystemURLs::getRootPath() . '/plugins/management'],
     ['label' => 'MOS-GOV', 'active' => true],
 ];
 
@@ -44,7 +46,7 @@ $mosGovTile = static function (string $label, $value, string $href = '') use ($e
                 <div class="text-secondary"><?= $esc($label) ?></div>
                 <div class="h2 mb-0"><?= $value === null ? '&mdash;' : (int) $value ?></div>
                 <?php if ($href !== ''): ?>
-                    <a class="small" href="<?= $esc($href) ?>">Open list</a>
+                    <a class="small" href="<?= $esc($href) ?>">查看列表</a>
                 <?php endif; ?>
             </div>
         </div>
@@ -55,45 +57,113 @@ $mosGovTile = static function (string $label, $value, string $href = '') use ($e
 
 <?php if (!empty($statsError)): ?>
     <div class="alert alert-danger" role="alert">
-        Governance data is unavailable: <?= $esc($statsError) ?>
+        治理数据暂不可用：<?= $esc($statsError) ?>
     </div>
 <?php endif; ?>
 
 <?php if (empty($canWrite)): ?>
     <div class="alert alert-info" role="alert">
-        You have read-only access to governance data.
-        Modifying MOS-GOV records requires ChurchCRM administrator rights.
+        你对治理数据仅有只读权限。修改 MOS-GOV 记录需要 ChurchCRM 管理员权限。
     </div>
 <?php endif; ?>
 
 <div class="card mb-3">
+    <div class="card-body">
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <div>
+                <div class="h1 mb-1">MOS-GOV</div>
+                <div class="text-secondary">教会治理平台</div>
+            </div>
+            <div class="ms-auto d-flex flex-wrap gap-2">
+                <a class="btn btn-primary" href="<?= $esc($mosGovRootPath . '/my-governance') ?>">进入我的治理中心</a>
+                <a class="btn btn-outline-primary" href="<?= $esc($mosGovRootPath . '/identity') ?>">治理身份</a>
+                <a class="btn btn-outline-primary" href="<?= $esc($mosGovRootPath . '/search') ?>">治理搜索</a>
+            </div>
+        </div>
+        <p class="text-secondary mb-0 mt-3">
+            MOS-GOV 在 ChurchCRM 之上承载教会治理：治理身份、角色、任命、职责、范围、
+            权限与信息分级。人员、家庭、小组与活动等**事实数据**仍由 ChurchCRM 保存，
+            MOS-GOV 仅通过 ID 引用，不复制、不替代。
+        </p>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header d-flex align-items-center">
+                <h3 class="card-title">我的治理中心</h3>
+                <div class="ms-auto">
+                    <a class="btn btn-sm btn-primary" href="<?= $esc($mosGovRootPath . '/my-governance') ?>">打开</a>
+                </div>
+            </div>
+            <div class="card-body">
+                <p class="text-secondary mb-2">
+                    我是谁 → 我承担什么角色 → 我被托付什么 → 我负责什么范围 →
+                    我能看到什么、能做什么 → 我现在要完成什么 → 我向谁负责。
+                </p>
+                <p class="text-secondary mb-0 small">
+                    这是我的治理身份入口；治理权限来自教会授予，与 ChurchCRM 登录账号相互独立。
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header d-flex align-items-center">
+                <h3 class="card-title">治理运行</h3>
+                <div class="ms-auto">
+                    <a class="btn btn-sm btn-outline-primary" href="<?= $esc($mosGovRootPath . '/meetings') ?>">会议列表</a>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="d-flex flex-wrap gap-1">
+                    <a class="btn btn-sm btn-outline-secondary" href="<?= $esc($mosGovRootPath . '/meetings') ?>">会议</a>
+                    <a class="btn btn-sm btn-outline-secondary" href="<?= $esc($mosGovRootPath . '/issues') ?>">议题</a>
+                    <a class="btn btn-sm btn-outline-secondary" href="<?= $esc($mosGovRootPath . '/decisions') ?>">决策</a>
+                    <a class="btn btn-sm btn-outline-secondary" href="<?= $esc($mosGovRootPath . '/tasks') ?>">任务</a>
+                    <a class="btn btn-sm btn-outline-secondary" href="<?= $esc($mosGovRootPath . '/relationships') ?>">关系</a>
+                </div>
+                <p class="text-secondary small mb-0 mt-3">
+                    治理运行链路：会议 → 议题 → 决策 → 任务。所有读取都经过统一授权引擎按范围与信息分级过滤。
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-3">
     <div class="card-header">
-        <h3 class="card-title">Governance dashboard</h3>
+        <h3 class="card-title">教会治理</h3>
     </div>
     <div class="card-body">
-        <p class="text-secondary">
-            MOS-GOV stores governance-specific data separately from ChurchCRM
-            core data. ChurchCRM remains the source of people, families, groups
-            and events; MOS-GOV records reference them by ID.
-        </p>
+        <div class="d-flex flex-wrap gap-1 mb-3">
+            <a class="btn btn-sm btn-outline-secondary" href="<?= $esc($mosGovRootPath . '/structures') ?>">结构</a>
+            <a class="btn btn-sm btn-outline-secondary" href="<?= $esc($mosGovRootPath . '/bodies') ?>">治理主体</a>
+            <a class="btn btn-sm btn-outline-secondary" href="<?= $esc($mosGovRootPath . '/roles') ?>">角色</a>
+            <a class="btn btn-sm btn-outline-secondary" href="<?= $esc($mosGovRootPath . '/appointments') ?>">任命</a>
+            <a class="btn btn-sm btn-outline-secondary" href="<?= $esc($mosGovRootPath . '/responsibilities') ?>">职责</a>
+        </div>
+        <div class="text-secondary small mb-2">治理数据统计</div>
         <div class="row g-3">
             <?php
-            $mosGovTile('Structures', $stats['structures'] ?? null, $mosGovRootPath . '/structures');
-            $mosGovTile('Bodies', $stats['bodies'] ?? null, $mosGovRootPath . '/bodies');
-            $mosGovTile('Open issues', $stats['open_issues'] ?? null, $mosGovRootPath . '/issues');
-            $mosGovTile('Open tasks', $stats['open_tasks'] ?? null, $mosGovRootPath . '/tasks');
+            $mosGovTile('结构', $stats['structures'] ?? null, $mosGovRootPath . '/structures');
+            $mosGovTile('治理主体', $stats['bodies'] ?? null, $mosGovRootPath . '/bodies');
+            $mosGovTile('待处理议题', $stats['open_issues'] ?? null, $mosGovRootPath . '/issues');
+            $mosGovTile('待办任务', $stats['open_tasks'] ?? null, $mosGovRootPath . '/tasks');
             ?>
         </div>
         <div class="row g-3 mt-0">
             <?php
-            $mosGovTile('Roles', $stats['roles'] ?? null, $mosGovRootPath . '/roles');
-            $mosGovTile('Appointments', $stats['appointments'] ?? null, $mosGovRootPath . '/appointments');
-            $mosGovTile('Responsibilities', $stats['responsibilities'] ?? null, $mosGovRootPath . '/responsibilities');
-            $mosGovTile('Relationships', $stats['relationships'] ?? null, $mosGovRootPath . '/relationships');
-            $mosGovTile('Meetings', $stats['meetings'] ?? null, $mosGovRootPath . '/meetings');
-            $mosGovTile('Issues (all)', $stats['issues'] ?? null, $mosGovRootPath . '/issues');
-            $mosGovTile('Decisions', $stats['decisions'] ?? null, $mosGovRootPath . '/decisions');
-            $mosGovTile('Tasks (all)', $stats['tasks'] ?? null, $mosGovRootPath . '/tasks');
+            $mosGovTile('角色', $stats['roles'] ?? null, $mosGovRootPath . '/roles');
+            $mosGovTile('任命', $stats['appointments'] ?? null, $mosGovRootPath . '/appointments');
+            $mosGovTile('职责', $stats['responsibilities'] ?? null, $mosGovRootPath . '/responsibilities');
+            $mosGovTile('关系', $stats['relationships'] ?? null, $mosGovRootPath . '/relationships');
+            $mosGovTile('会议', $stats['meetings'] ?? null, $mosGovRootPath . '/meetings');
+            $mosGovTile('议题（全部）', $stats['issues'] ?? null, $mosGovRootPath . '/issues');
+            $mosGovTile('决策', $stats['decisions'] ?? null, $mosGovRootPath . '/decisions');
+            $mosGovTile('任务（全部）', $stats['tasks'] ?? null, $mosGovRootPath . '/tasks');
             ?>
         </div>
     </div>
@@ -101,7 +171,7 @@ $mosGovTile = static function (string $label, $value, string $href = '') use ($e
 
 <?php if (!empty($recentError)): ?>
     <div class="alert alert-warning" role="alert">
-        Recent governance activity could not be loaded: <?= $esc($recentError) ?>
+        最近的治理活动无法加载：<?= $esc($recentError) ?>
     </div>
 <?php endif; ?>
 
@@ -109,19 +179,19 @@ $mosGovTile = static function (string $label, $value, string $href = '') use ($e
     <div class="col-lg-6">
         <div class="card">
             <div class="card-header d-flex align-items-center">
-                <h3 class="card-title">Recent governance meetings</h3>
+                <h3 class="card-title">最近的会议</h3>
                 <div class="ms-auto">
-                    <a class="btn btn-sm btn-outline-primary" href="<?= $esc($mosGovRootPath . '/meetings') ?>">All meetings</a>
+                    <a class="btn btn-sm btn-outline-primary" href="<?= $esc($mosGovRootPath . '/meetings') ?>">全部会议</a>
                 </div>
             </div>
             <div class="card-body">
                 <?php if ($recentMeetings === []): ?>
-                    <p class="text-secondary mb-0">No governance meetings recorded yet.</p>
+                    <p class="text-secondary mb-0">暂无会议记录。</p>
                 <?php else: ?>
                     <div class="table-responsive">
                         <table class="table table-sm table-vcenter card-table">
                             <thead>
-                                <tr><th>Meeting</th><th>Body</th><th>Date</th><th>Status</th></tr>
+                                <tr><th>会议</th><th>治理主体</th><th>日期</th><th>状态</th></tr>
                             </thead>
                             <tbody>
                             <?php foreach ($recentMeetings as $row): ?>
@@ -134,7 +204,9 @@ $mosGovTile = static function (string $label, $value, string $href = '') use ($e
                                     </td>
                                     <td><?= $esc($dec['ref']['body_id'] ?? '') ?></td>
                                     <td><?= $esc($row['meeting_date'] ?? '') ?></td>
-                                    <td><?= $esc($row['status'] ?? '') ?></td>
+                                    <td>
+                                        <span class="badge bg-secondary-lt"><?= $esc($mosGovValue($row['status'] ?? '')) ?></span>
+                                    </td>
                                 </tr>
                             <?php endforeach; ?>
                             </tbody>
@@ -148,19 +220,19 @@ $mosGovTile = static function (string $label, $value, string $href = '') use ($e
     <div class="col-lg-6">
         <div class="card">
             <div class="card-header d-flex align-items-center">
-                <h3 class="card-title">Recent governance decisions</h3>
+                <h3 class="card-title">最近的决策</h3>
                 <div class="ms-auto">
-                    <a class="btn btn-sm btn-outline-primary" href="<?= $esc($mosGovRootPath . '/decisions') ?>">All decisions</a>
+                    <a class="btn btn-sm btn-outline-primary" href="<?= $esc($mosGovRootPath . '/decisions') ?>">全部决策</a>
                 </div>
             </div>
             <div class="card-body">
                 <?php if ($recentDecisions === []): ?>
-                    <p class="text-secondary mb-0">No governance decisions recorded yet.</p>
+                    <p class="text-secondary mb-0">暂无决策记录。</p>
                 <?php else: ?>
                     <div class="table-responsive">
                         <table class="table table-sm table-vcenter card-table">
                             <thead>
-                                <tr><th>Decision</th><th>Related issue</th><th>Status</th><th>Decided</th></tr>
+                                <tr><th>决策</th><th>相关议题</th><th>状态</th><th>决议时间</th></tr>
                             </thead>
                             <tbody>
                             <?php foreach ($recentDecisions as $row): ?>
@@ -172,7 +244,9 @@ $mosGovTile = static function (string $label, $value, string $href = '') use ($e
                                         </a>
                                     </td>
                                     <td><?= $esc($dec['ref']['issue_id'] ?? '') ?></td>
-                                    <td><?= $esc($row['decision_status'] ?? '') ?></td>
+                                    <td>
+                                        <span class="badge bg-secondary-lt"><?= $esc($mosGovValue($row['decision_status'] ?? '')) ?></span>
+                                    </td>
                                     <td><?= $esc($row['decided_at'] ?? '') ?></td>
                                 </tr>
                             <?php endforeach; ?>
@@ -187,12 +261,14 @@ $mosGovTile = static function (string $label, $value, string $href = '') use ($e
 
 <div class="card mt-3">
     <div class="card-body">
-        <p class="text-secondary mb-2">
-            The governance working loop in V0.1:
-        </p>
+        <p class="text-secondary mb-2">治理运行主链路：</p>
         <p class="mb-0">
-            <code>Structure → Body → Role → Appointment → Responsibility</code><br>
-            <code>Meeting → Issue → Decision → Task</code>
+            <code>结构 → 治理主体 → 角色 → 任命 → 职责</code><br>
+            <code>会议 → 议题 → 决策 → 任务</code>
+        </p>
+        <p class="text-secondary small mb-0 mt-3">
+            ChurchCRM 仍是底层事实系统（人员 / 家庭 / 小组 / 活动）；
+            MOS-GOV 页面仅呈现治理层，不替代 CRM 导航。
         </p>
     </div>
 </div>
