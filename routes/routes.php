@@ -936,7 +936,7 @@ $app->post('/mos-gov/identity/{id:[0-9]+}/override-permission', function (Reques
     }
     $user = GovAuthorization::currentUser();
     if (!(GovAuthorization::allows($user, 'manage', 'permission') || $user?->isAdmin())) {
-        return $mosGovErrorPage($response, '你没有管理权限的权限。', 403);
+        return $mosGovErrorPage($response, '你没有管理权限。', 403);
     }
 
     $data = (array) $request->getParsedBody();

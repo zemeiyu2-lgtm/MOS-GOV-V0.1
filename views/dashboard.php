@@ -82,7 +82,7 @@ $mosGovTile = static function (string $label, $value, string $href = '') use ($e
         </div>
         <p class="text-secondary mb-0 mt-3">
             MOS-GOV 在 ChurchCRM 之上承载教会治理：治理身份、角色、任命、职责、范围、
-            权限与信息分级。人员、家庭、小组与活动等**事实数据**仍由 ChurchCRM 保存，
+            权限与信息分级。人员、家庭、小组与活动等事实数据仍由 ChurchCRM 保存，
             MOS-GOV 仅通过 ID 引用，不复制、不替代。
         </p>
     </div>
