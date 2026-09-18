@@ -1122,21 +1122,23 @@ if ($mode === 'verify' || $mode === 'all') {
         $dec('T02', 'view', 'meeting', $mainMeeting)->allowed);
     $check('T02 (deacon) may NOT EXPORT (view != export)',
         !$dec('T02', 'export', 'meeting')->allowed);
+    $r = $dec('T02', 'export', 'meeting');
+    $check('T02 export denial is the missing meeting.export key, not the visibility layer',
+        $r->source === 'permission', 'source=' . (string) $r->source);
     $r = $dec('T01', 'export', 'meeting');
-    $check('T01 (pastor) export is still refused by the visibility layer',
-        !$r->allowed, 'source=' . (string) $r->source);
-    $check('...because the seeded model has no allow rule for the export action',
-        $r->source === 'visibility', (string) $r->source);
+    $check('T01 (pastor) export is ALLOWED by its explicit meeting.export grant (visibility no longer vetoes actions)',
+        $r->allowed, 'source=' . (string) $r->source);
 
     // C. edit vs approve  (registry proof is in 2a)
     $r = $dec('T02', 'edit', 'decision', $mainDecision);
-    $check('T02 (deacon) edit is refused by the visibility layer',
-        !$r->allowed, 'source=' . (string) $r->source);
-    $check('T02 (deacon) may NOT APPROVE a decision (edit != approve)',
-        !$dec('T02', 'approve', 'decision', $mainDecision)->allowed);
+    $check('T02 (deacon) edit decision is ALLOWED by its role grant (action permission independent of visibility)',
+        $r->allowed, 'source=' . (string) $r->source);
+    $r = $dec('T02', 'approve', 'decision', $mainDecision);
+    $check('T02 (deacon) may NOT APPROVE a decision (edit != approve, missing decision.approve key)',
+        !$r->allowed && $r->source === 'permission', 'source=' . (string) $r->source);
     $r = $dec('T01', 'approve', 'decision', $mainDecision);
-    $check('T01 (pastor) approve is refused by the visibility layer too',
-        !$r->allowed, 'source=' . (string) $r->source);
+    $check('T01 (pastor) approve decision is ALLOWED by its decision.approve grant',
+        $r->allowed, 'source=' . (string) $r->source);
 
     // D. explicit deny outranks role grant
     $r = $dec('T02', 'create', 'meeting', null);

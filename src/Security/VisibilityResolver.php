@@ -12,12 +12,19 @@ use Propel\Runtime\Propel;
  *   P1 Public · P2 Member · P3 Ministry · P4 Governance · P5 Sensitive
  *
  * Hard rules:
+ *   - Rules express VISIBILITY: whether an information level (P1..P5) is
+ *     visible to the identity. They never gate which ACTIONS may run —
+ *     action authorization lives exclusively in the permission registry
+ *     (PermissionResolver / GovernancePolicy steps 5/10).
  *   - P5 is DENY by default. No role, however senior, gains P5 automatically;
  *     it requires an explicit per-identity grant (gov_identity_permission).
  *   - P3/P4 visibility is additionally scope-bound: the ScopeResolver must
  *     also contain the resource, so an allow row never widens scope.
  *   - Rules come from gov_visibility_rule (role_id NULL = every role) with
- *     request-level caching.
+ *     request-level caching. Rule rows are evaluated with view semantics:
+ *     the level's canonical visibility rule set is the action='view' rows
+ *     (the seeded baseline); rule rows carrying any other action value are
+ *     not consulted for visibility.
  */
 final class VisibilityResolver
 {
@@ -37,8 +44,16 @@ final class VisibilityResolver
     }
 
     /**
-     * May this identity view an information level? Scope containment is NOT
-     * checked here — the policy engine combines both answers.
+     * May this identity see an information level at all?
+     *
+     * Visibility rules answer a question about SEEING ("is this level of
+     * information visible to me"), never about DOING. The $action parameter
+     * is kept for call-site compatibility but deliberately ignored: every
+     * evaluation uses the level's canonical visibility rule set (the
+     * action='view' rows), so a visibility rule can never turn into an
+     * action gate and a missing per-action rule set can never silently
+     * deny a legitimately granted action. Scope containment is NOT checked
+     * here — the policy engine combines both answers.
      */
     public static function canSeeLevel(GovernanceContext $ctx, string $level, string $action = 'view'): bool
     {
@@ -51,7 +66,7 @@ final class VisibilityResolver
             return true;
         }
 
-        $rules = self::rules($level, $action);
+        $rules = self::rules($level, 'view');
 
         // A role-specific deny always refuses, even when another rule allows.
         foreach ($ctx->activeRoles() as $role) {

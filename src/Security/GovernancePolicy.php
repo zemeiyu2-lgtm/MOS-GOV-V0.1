@@ -17,7 +17,7 @@ use ChurchCRM\Plugins\MosGov\Data\GovRepository;
  *   5.  does the role hold the required permission?
  *   6.  is the appointment (when bound) active?
  *   7.  does the resource belong to the identity's scope?
- *   8.  does the information level allow this?
+ *   8.  is the information level visible to this identity?
  *   9.  is the action allowed?
  *   10. is there an explicit DENY?
  *   11. ALLOW
@@ -28,6 +28,16 @@ use ChurchCRM\Plugins\MosGov\Data\GovRepository;
  * The engine NEVER trusts hidden UI: routes, repositories and search all
  * call it; view != edit != approve != export is enforced by the permission
  * registry itself.
+ *
+ * Separation of concerns (V0.2 §10 vs §11):
+ *   - gov_visibility_rule expresses VISIBILITY — whether a given
+ *     information level (P1..P5) is visible to the identity at all. It is
+ *     evaluated with view semantics and NEVER gates which actions may run.
+ *   - the permission registry (steps 5/10) exclusively decides what the
+ *     identity may DO: edit, submit, approve, publish, close, export,
+ *     feedback, manage — each key independently.
+ *   - P5 remains DENY by default for every action and is unlocked only by
+ *     an explicit per-identity / per-role allow row.
  */
 final class GovernancePolicy
 {
@@ -128,9 +138,15 @@ final class GovernancePolicy
             }
         }
 
-        // 8. information level
+        // 8. information level — VISIBILITY semantics only. gov_visibility_rule
+        //    answers "is this level of information visible to this identity?"
+        //    (a question about SEEING, evaluated with view semantics). It
+        //    must never veto which ACTIONS may run — that question was
+        //    already settled by the permission registry in steps 5/10.
+        //    P5 stays DENY by default here and is unlocked only by an
+        //    explicit per-identity / per-role allow row.
         $level = VisibilityResolver::levelFor($resource, $row ?? []);
-        if (!VisibilityResolver::canSeeLevel($ctx, $level, $action)) {
+        if (!VisibilityResolver::canSeeLevel($ctx, $level)) {
             return AuthorizationDecision::deny(
                 $level === 'P5'
                     ? 'This information is protected (level P5).'
