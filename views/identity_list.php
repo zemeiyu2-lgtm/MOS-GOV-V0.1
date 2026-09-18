@@ -24,6 +24,7 @@ require __DIR__ . '/../../../../Include/Header.php';
 
 $activeSlug = 'identity';
 require __DIR__ . '/_tabs.php';
+require __DIR__ . '/_style.php';
 ?>
 
 <div class="card">

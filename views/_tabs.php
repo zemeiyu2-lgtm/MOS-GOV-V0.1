@@ -10,6 +10,9 @@
  *   治理身份  治理身份 · 权限注册表 · 治理搜索
  *   安全设置  安全设置
  *
+ * 呈现为一张安静的导航条：主入口加粗、分组以浅灰小标签引导、当前页高亮。
+ * 仅表现层 — 不改变任何路由、权限或数据。
+ *
  * Expected variables:
  * - $activeSlug  current URL slug, or null on the dashboard
  * - $esc         HTML-escaping closure
@@ -23,6 +26,7 @@ $activeSlug = $activeSlug ?? null;
 $mosGovNavSections = [
     [
         'header' => null,
+        'primary' => true,
         'items' => [
             'dashboard' => ['label' => '治理首页', 'url' => $mosGovRootPath],
             'my-governance' => ['label' => '我的治理中心', 'url' => $mosGovRootPath . '/my-governance'],
@@ -64,18 +68,23 @@ $mosGovNavSections = [
     ],
 ];
 ?>
-<div class="mb-3 d-print-none">
-    <?php foreach ($mosGovNavSections as $section): ?>
-        <?php if (!empty($section['header'])): ?>
-            <div class="text-secondary small mt-2 mb-1"><?= $esc($section['header']) ?></div>
-        <?php endif; ?>
-        <ul class="nav nav-pills flex-wrap gap-1 mb-1">
-            <?php foreach ($section['items'] as $slug => $item): ?>
-                <li class="nav-item">
-                    <a class="nav-link<?= $activeSlug === $slug || ($activeSlug === null && $slug === 'dashboard') ? ' active' : '' ?>"
-                       href="<?= $esc($item['url']) ?>"><?= $esc($item['label']) ?></a>
-                </li>
-            <?php endforeach; ?>
-        </ul>
-    <?php endforeach; ?>
+<div class="mb-3 d-print-none mos-gov">
+    <nav class="mg-nav" aria-label="MOS-GOV 导航">
+        <?php $mosGovFirstRow = true; ?>
+        <?php foreach ($mosGovNavSections as $mosGovSection): ?>
+            <div class="mg-nav-row<?= !empty($mosGovSection['primary']) ? ' mg-nav-primary' : '' ?>">
+                <?php if (!$mosGovFirstRow): ?>
+                    <span class="mg-nav-divider" aria-hidden="true"></span>
+                <?php endif; ?>
+                <?php if (!empty($mosGovSection['header'])): ?>
+                    <span class="mg-nav-label"><?= $esc($mosGovSection['header']) ?></span>
+                <?php endif; ?>
+                <?php foreach ($mosGovSection['items'] as $mosGovSlug => $mosGovItem): ?>
+                    <a class="mg-nav-link<?= $activeSlug === $mosGovSlug || ($activeSlug === null && $mosGovSlug === 'dashboard') ? ' active' : '' ?>"
+                       href="<?= $esc($mosGovItem['url']) ?>"><?= $esc($mosGovItem['label']) ?></a>
+                <?php endforeach; ?>
+            </div>
+            <?php $mosGovFirstRow = false; ?>
+        <?php endforeach; ?>
+    </nav>
 </div>

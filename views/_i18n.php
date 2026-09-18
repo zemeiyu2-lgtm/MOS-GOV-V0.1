@@ -282,3 +282,25 @@ $mosGovEntityLabel = static function (string $entity) use ($mosGovEntityLabels):
 $mosGovEntityLabelPlural = static function (string $entity) use ($mosGovEntityLabels): string {
     return $mosGovEntityLabels[$entity][1] ?? $entity;
 };
+
+/**
+ * 引用/装饰标签 → 中文显示（display only）。
+ *
+ * 路由层的装饰标签形如「名称 (#12)」或「角色 — 人员 (#12)」，名称来自数据库
+ * 原值（可能是英文种子名，如 Governance Role Registry）。此助手在不改动
+ * 数据与路由逻辑的前提下，仅对显示文本做映射：
+ *   - 末尾的「(#n)」内部编号保持原样；
+ *   - 名称部分先经枚举映射（committee → 委员会 等），再经短语映射
+ *     （Governance Administrator → 治理管理员 等）；
+ *   - 未知文本原样透出，绝不虚构翻译。
+ */
+$mosGovDecorLabel = static function ($label) use ($mosGovT, $mosGovValue): string {
+    $label = (string) $label;
+
+    // 尾部的「(#12)」或「[E01]」内部标识保持原样，仅映射名称部分。
+    if (preg_match('/^(.*\S)\s*([(\[])([^)\]]*)([)\]])$/u', $label, $m)) {
+        return $mosGovT($mosGovValue($m[1])) . ' ' . $m[2] . $m[3] . $m[4];
+    }
+
+    return $mosGovT($mosGovValue($label));
+};

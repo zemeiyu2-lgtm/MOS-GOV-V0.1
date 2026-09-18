@@ -35,7 +35,29 @@ require __DIR__ . '/../../../../Include/Header.php';
 
 $activeSlug = 'settings';
 require __DIR__ . '/_tabs.php';
+require __DIR__ . '/_style.php';
+
+/**
+ * 安全模式说明 → 中文显示（display only）。
+ * 原文由 src/Security/LocalSecureMode::describe() 提供（受保护层，不修改），
+ * 此处仅按已知文案映射显示语言；未知文案原样透出。
+ */
+$mosGovSecureModeDescZh = [
+    'LOCAL mode: localhost (127.0.0.1) and this container host only.'
+        => 'LOCAL 模式：仅允许本机回环地址（127.0.0.1 / ::1），以及 Docker 部署下本机浏览器经 bridge 网关的访问。',
+    'LAN mode: localhost and trusted private-network clients only.'
+        => 'LAN 模式：仅允许本机与可信内网（私有网段）客户端访问。',
+];
+$mosGovSecureModeDesc = $secureModeDescription ?? '';
+foreach ($mosGovSecureModeDescZh as $mosGovDescEn => $mosGovDescZh) {
+    if ($mosGovSecureModeDesc === $mosGovDescEn) {
+        $mosGovSecureModeDesc = $mosGovDescZh;
+        break;
+    }
+}
 ?>
+
+<div class="mos-gov">
 
 <?php if (!empty($statsError)): ?>
     <div class="alert alert-danger" role="alert">
@@ -137,7 +159,7 @@ require __DIR__ . '/_tabs.php';
             </div>
             <div class="datagrid-item">
                 <div class="datagrid-title">策略说明</div>
-                <div class="datagrid-content"><?= $esc($secureModeDescription ?? '') ?></div>
+                <div class="datagrid-content"><?= $esc($mosGovSecureModeDesc) ?></div>
             </div>
             <div class="datagrid-item">
                 <div class="datagrid-title">对外网络</div>
@@ -162,6 +184,8 @@ require __DIR__ . '/_tabs.php';
             CRM 收口指引见 <code>docs/V02-CRM-CUTDOWN.md</code>。
         </p>
     </div>
+</div>
+
 </div>
 
 <?php require __DIR__ . '/../../../../Include/Footer.php'; ?>

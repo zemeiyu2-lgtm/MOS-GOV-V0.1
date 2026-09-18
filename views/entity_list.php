@@ -39,14 +39,26 @@ require __DIR__ . '/../../../../Include/Header.php';
 
 $activeSlug = $slug;
 require __DIR__ . '/_tabs.php';
+require __DIR__ . '/_style.php';
+
+/** Status value → chip tone (display only). */
+$mosGovStatusChip = static function ($value): string {
+    return match ((string) $value) {
+        'active', 'held', 'resolved', 'approved', 'done', 'grant', 'allow' => 'mg-chip-green',
+        'inactive', 'archived', 'suspended', 'cancelled', 'rejected', 'deny' => 'mg-chip-gray',
+        'open', 'planned', 'proposed', 'in_progress' => 'mg-chip-blue',
+        'high', 'critical', 'end' => 'mg-chip-orange',
+        default => 'mg-chip-gray',
+    };
+};
 
 /** Format one list cell using the field spec and the resolved labels. */
-$mosGovCell = static function (array $cfg, string $field, array $row, array $dec) use ($esc, $mosGovValue): string {
+$mosGovCell = static function (array $cfg, string $field, array $row, array $dec) use ($esc, $mosGovValue, $mosGovT, $mosGovStatusChip, $mosGovDecorLabel): string {
     $value = $row[$field] ?? null;
     $type = $cfg['fields'][$field]['type'] ?? 'text';
 
     if ($type === 'ref') {
-        return $esc($dec['ref'][$field] ?? ($value === null ? '' : '#' . (int) $value));
+        return $esc($mosGovDecorLabel($dec['ref'][$field] ?? ($value === null ? '' : '#' . (int) $value)));
     }
     if ($type === 'person') {
         return $esc($dec['person'][$field] ?? ($value === null ? '' : '#' . (int) $value));
@@ -55,18 +67,24 @@ $mosGovCell = static function (array $cfg, string $field, array $row, array $dec
         return '<span class="text-secondary">&mdash;</span>';
     }
     if ($type === 'status' || $type === 'select') {
-        return $esc($mosGovValue($value));
+        return '<span class="mg-chip ' . $mosGovStatusChip($value) . '">'
+            . $esc($mosGovValue($value)) . '</span>';
     }
 
-    return $esc($value);
+    // Plain text cells: enum-like values (committee / system / active / …)
+    // are shown in Chinese; seed names (Governance Administrator / …) go
+    // through the phrase map; free text passes through unchanged.
+    return $esc($mosGovT($mosGovValue($value)));
 };
 ?>
+
+<div class="mos-gov">
 
 <?php if (!empty($error)): ?>
     <div class="alert alert-danger" role="alert"><?= $esc($error) ?></div>
 <?php endif; ?>
 
-<div class="card">
+<div class="card mg-card mb-3">
     <div class="card-header">
         <h3 class="card-title"><?= $esc($entityLabelPlural) ?></h3>
         <?php if (!empty($canWrite)): ?>
@@ -79,12 +97,12 @@ $mosGovCell = static function (array $cfg, string $field, array $row, array $dec
     </div>
     <div class="card-body">
         <?php if ($rows === []): ?>
-            <p class="text-secondary mb-0">
+            <div class="mg-empty">
                 尚无<?= $esc($entityLabelPlural) ?>记录。
                 <?php if (!empty($canWrite)): ?>
                     <a href="<?= $esc($mosGovRootPath . '/' . $slug . '/new') ?>">创建第一条</a>。
                 <?php endif; ?>
-            </p>
+            </div>
         <?php else: ?>
             <div class="table-responsive">
                 <table class="table table-vcenter card-table">
@@ -123,6 +141,8 @@ $mosGovCell = static function (array $cfg, string $field, array $row, array $dec
             </p>
         <?php endif; ?>
     </div>
+</div>
+
 </div>
 
 <?php require __DIR__ . '/../../../../Include/Footer.php'; ?>

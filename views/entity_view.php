@@ -47,16 +47,17 @@ require __DIR__ . '/../../../../Include/Header.php';
 
 $activeSlug = $slug;
 require __DIR__ . '/_tabs.php';
+require __DIR__ . '/_style.php';
 
 /** Format one value of the record for display. */
-$mosGovValue2 = static function (array $cfg, string $field, array $row, array $dec) use ($esc, $mosGovValue): string {
+$mosGovValue2 = static function (array $cfg, string $field, array $row, array $dec) use ($esc, $mosGovValue, $mosGovT, $mosGovDecorLabel): string {
     $value = $row[$field] ?? null;
     $type = $cfg['fields'][$field]['type'] ?? 'text';
 
     if ($type === 'ref') {
         $label = $dec['ref'][$field] ?? null;
 
-        return $label !== null ? $esc($label) : '<span class="text-secondary">&mdash;</span>';
+        return $label !== null ? $esc($mosGovDecorLabel($label)) : '<span class="text-secondary">&mdash;</span>';
     }
     if ($type === 'person') {
         $label = $dec['person'][$field] ?? null;
@@ -73,15 +74,18 @@ $mosGovValue2 = static function (array $cfg, string $field, array $row, array $d
         return $esc($mosGovValue($value));
     }
 
-    return $esc($value);
+    // Plain text cells: enum-like values (committee / system / active / …)
+    // are shown in Chinese; seed names go through the phrase map; free text
+    // passes through unchanged.
+    return $esc($mosGovT($mosGovValue($value)));
 };
 
 /** Format one cell of a related-collection row. */
-$mosGovRelatedCell = static function (array $fields, array $row, array $dec) use ($esc): string {
+$mosGovRelatedCell = static function (array $fields, array $row, array $dec) use ($esc, $mosGovDecorLabel): string {
     foreach ($fields as $field) {
         $value = $row[$field] ?? null;
         if ($value !== null && $value !== '') {
-            return $esc($dec['ref'][$field] ?? $dec['person'][$field] ?? $value);
+            return $esc($mosGovDecorLabel($dec['ref'][$field] ?? $dec['person'][$field] ?? $value));
         }
     }
 
@@ -89,6 +93,7 @@ $mosGovRelatedCell = static function (array $fields, array $row, array $dec) use
 };
 ?>
 
+<div class="mos-gov">
 <?php if (!empty($error)): ?>
     <div class="alert alert-danger" role="alert"><?= $esc($error) ?></div>
 <?php elseif ($row === null): ?>
@@ -128,7 +133,7 @@ $mosGovRelatedCell = static function (array $fields, array $row, array $dec) use
     </div>
 
     <?php foreach ($related as $group): ?>
-        <div class="card mt-3">
+        <div class="card mt-3 mg-card">
             <div class="card-header d-flex align-items-center">
                 <h3 class="card-title"><?= $esc($mosGovT($group['label'])) ?></h3>
                 <div class="ms-auto">
@@ -167,5 +172,7 @@ $mosGovRelatedCell = static function (array $fields, array $row, array $dec) use
         </div>
     <?php endforeach; ?>
 <?php endif; ?>
+
+</div>
 
 <?php require __DIR__ . '/../../../../Include/Footer.php'; ?>

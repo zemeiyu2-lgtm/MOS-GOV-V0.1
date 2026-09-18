@@ -36,17 +36,18 @@ require __DIR__ . '/../../../../Include/Header.php';
 
 $activeSlug = null;
 require __DIR__ . '/_tabs.php';
+require __DIR__ . '/_style.php';
 
 /** Render one counter tile. */
 $mosGovTile = static function (string $label, $value, string $href = '') use ($esc): void {
     ?>
     <div class="col-sm-6 col-lg-3">
-        <div class="card card-sm">
+        <div class="card card-sm mg-card">
             <div class="card-body">
                 <div class="text-secondary"><?= $esc($label) ?></div>
                 <div class="h2 mb-0"><?= $value === null ? '&mdash;' : (int) $value ?></div>
                 <?php if ($href !== ''): ?>
-                    <a class="small" href="<?= $esc($href) ?>">查看列表</a>
+                    <a class="stretched-link small text-decoration-none" href="<?= $esc($href) ?>">查看列表</a>
                 <?php endif; ?>
             </div>
         </div>
@@ -54,6 +55,8 @@ $mosGovTile = static function (string $label, $value, string $href = '') use ($e
     <?php
 };
 ?>
+
+<div class="mos-gov">
 
 <?php if (!empty($statsError)): ?>
     <div class="alert alert-danger" role="alert">
@@ -67,7 +70,7 @@ $mosGovTile = static function (string $label, $value, string $href = '') use ($e
     </div>
 <?php endif; ?>
 
-<div class="card mb-3">
+<div class="card mb-3 mg-card">
     <div class="card-body">
         <div class="d-flex flex-wrap align-items-center gap-2">
             <div>
@@ -202,7 +205,7 @@ $mosGovTile = static function (string $label, $value, string $href = '') use ($e
                                             <?= $esc($row['title'] ?? '') ?>
                                         </a>
                                     </td>
-                                    <td><?= $esc($dec['ref']['body_id'] ?? '') ?></td>
+                                    <td><?= $esc($mosGovDecorLabel($dec['ref']['body_id'] ?? '')) ?></td>
                                     <td><?= $esc($row['meeting_date'] ?? '') ?></td>
                                     <td>
                                         <span class="badge bg-secondary-lt"><?= $esc($mosGovValue($row['status'] ?? '')) ?></span>
@@ -243,7 +246,7 @@ $mosGovTile = static function (string $label, $value, string $href = '') use ($e
                                             <?= $esc($row['title'] ?? '') ?>
                                         </a>
                                     </td>
-                                    <td><?= $esc($dec['ref']['issue_id'] ?? '') ?></td>
+                                    <td><?= $esc($mosGovDecorLabel($dec['ref']['issue_id'] ?? '')) ?></td>
                                     <td>
                                         <span class="badge bg-secondary-lt"><?= $esc($mosGovValue($row['decision_status'] ?? '')) ?></span>
                                     </td>
@@ -271,6 +274,8 @@ $mosGovTile = static function (string $label, $value, string $href = '') use ($e
             MOS-GOV 页面仅呈现治理层，不替代 CRM 导航。
         </p>
     </div>
+</div>
+
 </div>
 
 <?php require __DIR__ . '/../../../../Include/Footer.php'; ?>

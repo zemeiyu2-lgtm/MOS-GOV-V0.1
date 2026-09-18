@@ -44,6 +44,7 @@ require __DIR__ . '/../../../../Include/Header.php';
 
 $activeSlug = $slug;
 require __DIR__ . '/_tabs.php';
+require __DIR__ . '/_style.php';
 
 /** Normalise a stored datetime for an <input type="datetime-local">. */
 $mosGovDateTimeInput = static function ($value): string {

@@ -27,6 +27,7 @@ require __DIR__ . '/../../../../Include/Header.php';
 
 $activeSlug = 'search';
 require __DIR__ . '/_tabs.php';
+require __DIR__ . '/_style.php';
 
 $mosGovEntityRoute = ['meeting' => 'meetings', 'issue' => 'issues', 'decision' => 'decisions', 'task' => 'tasks'];
 $mosGovLabels = ['meeting' => '会议', 'issue' => '议题', 'decision' => '决策', 'task' => '任务'];

@@ -29,6 +29,7 @@ require __DIR__ . '/../../../../Include/Header.php';
 
 $activeSlug = 'identity';
 require __DIR__ . '/_tabs.php';
+require __DIR__ . '/_style.php';
 
 // P5 protection: identity notes never render inline without an explicit grant.
 $notesVisible = false;
@@ -79,7 +80,7 @@ $notesVisible = false;
                         <tbody>
                         <?php foreach ($identityRoles as $ir): ?>
                             <tr>
-                                <td><?= $esc($roleLabels[(int) $ir['role_id']] ?? ('角色 #' . (int) $ir['role_id'])) ?></td>
+                                <td><?= $esc($mosGovDecorLabel($roleLabels[(int) $ir['role_id']] ?? ('角色 #' . (int) $ir['role_id']))) ?></td>
                                 <td><?= $esc($ir['appointment_id'] !== null ? ($appointmentLabels[(int) $ir['appointment_id']] ?? ('#' . (int) $ir['appointment_id'])) : '—') ?></td>
                                 <td><span class="badge <?= $ir['status'] === 'active' ? 'bg-success-lt' : 'bg-secondary-lt' ?>"><?= $esc($mosGovValue($ir['status'])) ?></span></td>
                                 <td><?= $esc($ir['start_date'] ?? '—') ?></td>
@@ -149,7 +150,7 @@ $notesVisible = false;
                                 <label class="form-label">挂接角色</label>
                                 <select class="form-select mb-2" name="role_id" required>
                                     <?php foreach ($roleLabels as $rid => $label): ?>
-                                        <option value="<?= (int) $rid ?>"><?= $esc($label) ?></option>
+                                        <option value="<?= (int) $rid ?>"><?= $esc($mosGovDecorLabel($label)) ?></option>
                                     <?php endforeach; ?>
                                 </select>
                                 <input class="form-control mb-2" type="text" name="appointment_id" placeholder="任命 ID（可选）">

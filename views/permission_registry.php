@@ -27,6 +27,7 @@ require __DIR__ . '/../../../../Include/Header.php';
 
 $activeSlug = 'permissions';
 require __DIR__ . '/_tabs.php';
+require __DIR__ . '/_style.php';
 
 $riskClass = ['low' => 'bg-secondary-lt', 'medium' => 'bg-info-lt', 'high' => 'bg-warning-lt', 'critical' => 'bg-danger-lt'];
 ?>
