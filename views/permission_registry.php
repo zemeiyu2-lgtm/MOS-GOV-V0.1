@@ -77,7 +77,7 @@ $riskClass = ['low' => 'bg-secondary-lt', 'medium' => 'bg-info-lt', 'high' => 'b
                         }
                         ?>
                         <tr>
-                            <td><?= $esc($role['name']) ?></td>
+                            <td><?= $esc($mosGovT($role['name'])) ?></td>
                             <td><code><?= $esc($role['role_code']) ?></code></td>
                             <td>
                                 <?php if ($grantedKeys === []): ?>
