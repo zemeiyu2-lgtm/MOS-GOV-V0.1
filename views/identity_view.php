@@ -103,7 +103,7 @@ $notesVisible = false;
                         <tbody>
                         <?php foreach ($identityScopes as $scope): ?>
                             <tr>
-                                <td><code><?= $esc($scope['scope_type']) ?></code></td>
+                                <td><span class="badge bg-secondary-lt"><?= $esc($mosGovValue($scope['scope_type'])) ?></span></td>
                                 <td><?= $esc($scope['scope_id'] ?? '—') ?></td>
                                 <td><?= $esc($mosGovValue($scope['source_type'])) ?></td>
                                 <td><?= $esc($mosGovValue($scope['status'])) ?></td>
@@ -162,7 +162,7 @@ $notesVisible = false;
                                 <label class="form-label">指派范围</label>
                                 <select class="form-select mb-2" name="scope_type" required>
                                     <?php foreach ($scopeTypes as $st): ?>
-                                        <option value="<?= $esc($st) ?>"><?= $esc($st) ?></option>
+                                        <option value="<?= $esc($st) ?>"><?= $esc($mosGovValue($st)) ?></option>
                                     <?php endforeach; ?>
                                 </select>
                                 <input class="form-control mb-2" type="text" name="scope_id" placeholder="范围 ID（global/church 无需填写）">
