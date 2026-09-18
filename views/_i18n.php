@@ -23,6 +23,7 @@
  * - $mosGovEntityLabel(string $entity): string  entity key → 中文单数
  * - $mosGovEntityLabelPlural(string $entity): string
  * - $mosGovValue(string $value): string         enum 值 → 中文显示（显示用，不改库）
+ * - $mosGovScopeLabel(string $label): string    scope label → 中文显示
  */
 
 /** Entity key => [singular, plural] — covers the V0.1 entities and V0.2 tables. */
@@ -71,6 +72,8 @@ $mosGovPhrases = [
     'Decisions' => '决策',
     'Task' => '任务',
     'Tasks' => '任务',
+    'Governance' => '教会治理',
+    'GOVERNANCE' => '教会治理',
     'Governance Identity' => '治理身份',
     'Governance Identities' => '治理身份',
     'Identity' => '治理身份',
@@ -91,6 +94,13 @@ $mosGovPhrases = [
     'Scopes' => '范围',
     'Visibility Rule' => '可见性规则',
     'Visibility Rules' => '可见性规则',
+
+    // visible seed / role names used by the V0.2 governance model
+    'Governance Administrator' => '治理管理员',
+    'Governance Role Registry' => '治理角色注册表',
+    'Role Registry' => '角色注册表',
+    'System' => '系统',
+    'SYSTEM' => '系统',
 
     // field labels
     'Action' => '动作',
@@ -146,6 +156,10 @@ $mosGovPhrases = [
     'To ID' => '终点 ID',
     'To type' => '终点类型',
     'Type' => '类型',
+
+    // common scope labels (the rest are normalized by $mosGovScopeLabel)
+    'Global (entire system)' => '全局（整个系统）',
+    'Church (whole congregation)' => '教会（全体会众）',
 ];
 
 /** Enum value => 中文（仅用于显示；提交值始终为英文原值）。 */
@@ -174,6 +188,8 @@ $mosGovValues = [
     'approved' => '已通过',
     'rejected' => '已否决',
     'superseded' => '已取代',
+    // appointment / workflow
+    'end' => '结束',
     // task
     'done' => '已完成',
     // risk
@@ -189,6 +205,9 @@ $mosGovValues = [
     'role' => '角色',
     'direct' => '直接',
     'inherit' => '继承',
+    'self' => '本人',
+    'system' => '系统',
+    'committee' => '委员会',
     // actions
     'view' => '查看',
     'create' => '新建',
@@ -214,6 +233,34 @@ $mosGovValue = static function ($value) use ($mosGovValues): string {
     $value = (string) $value;
 
     return $mosGovValues[$value] ?? $value;
+};
+
+/** Scope label → 中文显示（不改变底层 scope 值或 ID）。 */
+$mosGovScopeLabel = static function ($label) use ($mosGovPhrases): string {
+    $label = (string) $label;
+
+    if (isset($mosGovPhrases[$label])) {
+        return $mosGovPhrases[$label];
+    }
+
+    $prefixMap = [
+        'Structure: ' => '结构：',
+        'Body: ' => '治理主体：',
+        'Role: ' => '角色：',
+        'Person: ' => '人员：',
+        'Group #' => '小组 #',
+        'Ministry #' => '事工 #',
+        'Activity #' => '活动 #',
+        'Project #' => '项目 #',
+    ];
+
+    foreach ($prefixMap as $prefix => $translatedPrefix) {
+        if (str_starts_with($label, $prefix)) {
+            return $translatedPrefix . substr($label, strlen($prefix));
+        }
+    }
+
+    return $label;
 };
 
 /** Entity key → 中文单数标签. */
