@@ -84,7 +84,7 @@ require __DIR__ . '/_tabs.php';
                             <tbody>
                             <?php foreach ($data['roles'] as $role): ?>
                                 <tr>
-                                    <td><?= $esc($role['role_name']) ?></td>
+                                    <td><?= $esc($mosGovT($role['role_name'])) ?></td>
                                     <td><code><?= $esc($role['role_code']) ?></code></td>
                                     <td><?= $role['appointment_id'] !== null ? '#' . (int) $role['appointment_id'] : '—' ?></td>
                                     <td><?= $role['active'] ? '<span class="badge bg-success-lt">有效</span>' : '<span class="badge bg-secondary-lt">停用</span>' ?></td>
@@ -128,7 +128,7 @@ require __DIR__ . '/_tabs.php';
                         <ul class="list-unstyled mb-0">
                             <?php foreach ($data['scopes'] as $scope): ?>
                                 <li class="mb-1">
-                                    <span class="badge bg-blue-lt"><?= $esc($scope['label']) ?></span>
+                                    <span class="badge bg-blue-lt"><?= $esc($mosGovScopeLabel($scope['label'])) ?></span>
                                     <span class="text-secondary small">来源：<?= $esc($mosGovValue($scope['source_type'])) ?></span>
                                 </li>
                             <?php endforeach; ?>
@@ -203,9 +203,9 @@ require __DIR__ . '/_tabs.php';
                         <ul class="list-unstyled mb-0">
                             <?php foreach ($data['bodies'] as $body): ?>
                                 <li class="mb-1">
-                                    <a href="<?= $esc($mosGovRootPath . '/bodies/' . (int) $body['id']) ?>"><?= $esc($body['name']) ?></a>
+                                    <a href="<?= $esc($mosGovRootPath . '/bodies/' . (int) $body['id']) ?>"><?= $esc($mosGovT($body['name'])) ?></a>
                                     <?php if (!empty($body['body_type'])): ?>
-                                        <span class="badge bg-secondary-lt"><?= $esc($body['body_type']) ?></span>
+                                        <span class="badge bg-secondary-lt"><?= $esc($mosGovValue($body['body_type'])) ?></span>
                                     <?php endif; ?>
                                 </li>
                             <?php endforeach; ?>
