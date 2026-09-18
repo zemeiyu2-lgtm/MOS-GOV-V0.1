@@ -208,6 +208,16 @@ $mosGovValues = [
     'self' => '本人',
     'system' => '系统',
     'committee' => '委员会',
+    // scope types
+    'global' => '全局',
+    'church' => '教会',
+    'structure' => '结构',
+    'body' => '治理主体',
+    'ministry' => '事工',
+    'group' => '小组',
+    'activity' => '活动',
+    'project' => '项目',
+    'person' => '人员',
     // actions
     'view' => '查看',
     'create' => '新建',
