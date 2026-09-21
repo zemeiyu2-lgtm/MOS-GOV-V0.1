@@ -34,17 +34,23 @@ function Get-File([string]$Name,[string]$Url,[string]$Sha256) {
     $path
 }
 
-function Expand-Flat([string]$Archive,[string]$Destination) {
+function Expand-ArchiveSafe([string]$Archive,[string]$Destination) {
     New-Item -ItemType Directory -Force -Path $Destination | Out-Null
     Expand-Archive -LiteralPath $Archive -DestinationPath $Destination -Force
-    $items = @(Get-ChildItem $Destination -Force)
-    $dirs = @($items | Where-Object { $_.PSIsContainer })
-    $files = @($items | Where-Object { -not $_.PSIsContainer })
-    if ($dirs.Count -eq 1 -and $files.Count -eq 0) {
-        $inner = $dirs[0].FullName
-        Get-ChildItem $inner -Force | Move-Item -Destination $Destination
-        Remove-Item $inner -Recurse -Force
+}
+
+function Find-ComponentRoot([string]$Destination,[string]$RelativePath,[string]$ComponentName) {
+    $suffix = ($RelativePath -replace '/','\')
+    $matches = @(Get-ChildItem -LiteralPath $Destination -Recurse -File -Filter (Split-Path $suffix -Leaf) |
+        Where-Object { $_.FullName.EndsWith($suffix, [System.StringComparison]::OrdinalIgnoreCase) } |
+        Select-Object -First 2)
+    if ($matches.Count -eq 0) {
+        throw "$ComponentName root could not be located. Expected file: $RelativePath"
     }
+    if ($matches.Count -gt 1) {
+        throw "$ComponentName root is ambiguous; found multiple matches for $RelativePath."
+    }
+    return (Split-Path $matches[0].FullName -Parent)
 }
 
 $ccrmZip = Get-File "ChurchCRM-7.7.0.zip" $Manifest.churchcrm.url $Manifest.churchcrm.sha256
@@ -65,15 +71,20 @@ if ($sig.Status -ne "Valid" -or $sig.SignerCertificate.Subject -notmatch "Micros
     throw "Microsoft VC++ Redistributable Authenticode verification failed."
 }
 
-Expand-Flat $ccrmZip (Join-Path $ExtractRoot "churchcrm")
-Expand-Flat $phpZip (Join-Path $ExtractRoot "php")
-Expand-Flat $apacheZip (Join-Path $ExtractRoot "apache")
-Expand-Flat $mariaZip (Join-Path $ExtractRoot "mariadb")
+$churchExtract = Join-Path $ExtractRoot "churchcrm"
+$phpExtract = Join-Path $ExtractRoot "php"
+$apacheExtract = Join-Path $ExtractRoot "apache"
+$mariaExtract = Join-Path $ExtractRoot "mariadb"
 
-$church = Join-Path $ExtractRoot "churchcrm"
-if (-not (Test-Path (Join-Path $church "src/composer.json"))) {
-    throw "ChurchCRM release layout was not recognized."
-}
+Expand-ArchiveSafe $ccrmZip $churchExtract
+Expand-ArchiveSafe $phpZip $phpExtract
+Expand-ArchiveSafe $apacheZip $apacheExtract
+Expand-ArchiveSafe $mariaZip $mariaExtract
+
+$church = Find-ComponentRoot $churchExtract "src/composer.json" "ChurchCRM"
+$phpRoot = Find-ComponentRoot $phpExtract "php.exe" "PHP"
+$apacheRoot = Find-ComponentRoot $apacheExtract "bin/httpd.exe" "Apache"
+$mariaRoot = Find-ComponentRoot $mariaExtract "bin/mariadb.exe" "MariaDB"
 
 $payloadChurch = Join-Path $PayloadRoot "ChurchCRM"
 $payloadPhp = Join-Path $PayloadRoot "PHP"
@@ -84,9 +95,9 @@ $payloadPrereq = Join-Path $PayloadRoot "prereqs"
 New-Item -ItemType Directory -Force -Path $payloadChurch,$payloadPhp,$payloadApache,$payloadMaria,$payloadRuntime,$payloadPrereq | Out-Null
 
 Copy-Item (Join-Path $church "*") $payloadChurch -Recurse -Force
-Copy-Item (Join-Path (Join-Path $ExtractRoot "php") "*") $payloadPhp -Recurse -Force
-Copy-Item (Join-Path (Join-Path $ExtractRoot "apache") "*") $payloadApache -Recurse -Force
-Copy-Item (Join-Path (Join-Path $ExtractRoot "mariadb") "*") $payloadMaria -Recurse -Force
+Copy-Item (Join-Path $phpRoot "*") $payloadPhp -Recurse -Force
+Copy-Item (Join-Path $apacheRoot "*") $payloadApache -Recurse -Force
+Copy-Item (Join-Path $mariaRoot "*") $payloadMaria -Recurse -Force
 
 $mosDest = Join-Path $payloadChurch "src/plugins/community/mos-gov"
 New-Item -ItemType Directory -Force -Path $mosDest | Out-Null
