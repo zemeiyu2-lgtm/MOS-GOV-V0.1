@@ -334,6 +334,10 @@ Configure-ChurchCRM -Port $HttpPort -DbPort $DbPort -DbPassword $appPassword
 Configure-Apache -Port $HttpPort
 Install-Apache -Port $HttpPort
 
+# Initialize the official ChurchCRM schema and seed data first.
+# This creates the standard admin/changeme account used by ChurchCRM's fresh-install flow.
+Run-SqlFile (Join-Path $ChurchRoot "src/mysql/install/Install.sql") $rootPassword
+
 Wait-Http -Url "http://127.0.0.1:$HttpPort/" -TimeoutSeconds 180
 
 Run-SqlFile (Join-Path $ChurchRoot "src/plugins/community/mos-gov/database/001_initial.sql") $rootPassword
