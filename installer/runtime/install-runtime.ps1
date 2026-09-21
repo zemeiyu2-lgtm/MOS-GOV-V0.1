@@ -238,8 +238,16 @@ default-character-set=utf8mb4
 
 function Install-Apache([int]$Port) {
     $httpd = Join-Path $ApacheRoot "bin/httpd.exe"
-    & $httpd -t -f $ApacheConf
-    if ($LASTEXITCODE -ne 0) { throw "Apache configuration check failed." }
+    $testLog = Join-Path $LogRoot "apache-config-test.log"
+    $testOutput = & $httpd -t -f $ApacheConf 2>&1
+    $testCode = $LASTEXITCODE
+    Write-Utf8NoBom -Path $testLog -Content (($testOutput | ForEach-Object { [string]$_ }) -join [Environment]::NewLine)
+    if ($testCode -ne 0) {
+        if ($testOutput) {
+            $testOutput | ForEach-Object { Write-InstallLog ("Apache config test: {0}" -f $_) }
+        }
+        throw "Apache configuration check failed. See $testLog."
+    }
 
     if (Get-Service -Name $ApacheService -ErrorAction SilentlyContinue) {
         Stop-Service $ApacheService -Force
