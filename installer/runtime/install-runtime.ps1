@@ -335,13 +335,21 @@ Write-InstallLog "Using HTTP port $HttpPort and MariaDB port $DbPort."
 
 $vc = Join-Path $AppRoot "prereqs/vc_redist.x64.exe"
 if (Test-Path $vc) {
+    Write-InstallLog "Starting Microsoft VC++ Redistributable installation."
     $p = Start-Process $vc -ArgumentList "/install","/quiet","/norestart" -Wait -PassThru
+    Write-InstallLog "Microsoft VC++ Redistributable exit code: $($p.ExitCode)."
     if ($p.ExitCode -notin @(0,3010,1638)) { throw "VC++ Redistributable failed: $($p.ExitCode)" }
 }
 
+Write-InstallLog "Configuring PHP."
 Configure-PHP
+Write-InstallLog "PHP configuration completed."
+Write-InstallLog "Installing MariaDB."
 Install-MariaDb -Port $DbPort -RootPassword $rootPassword
+Write-InstallLog "MariaDB service installation completed."
+Write-InstallLog "Waiting for MariaDB."
 Wait-MariaDb -RootPassword $rootPassword
+Write-InstallLog "MariaDB is ready."
 
 Invoke-MariaClient -RootPassword $rootPassword -Sql @"
 CREATE DATABASE IF NOT EXISTS \`churchcrm\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -354,15 +362,22 @@ GRANT ALL PRIVILEGES ON \`churchcrm\`.* TO 'churchcrm_app'@'localhost';
 FLUSH PRIVILEGES;
 "@
 
+Write-InstallLog "Configuring ChurchCRM."
 Configure-ChurchCRM -Port $HttpPort -DbPort $DbPort -DbPassword $appPassword
+Write-InstallLog "Configuring Apache."
 Configure-Apache -Port $HttpPort
 Install-Apache -Port $HttpPort
+Write-InstallLog "Apache service installation completed."
 
 # Initialize the official ChurchCRM schema and seed data first.
 # This creates the standard admin/changeme account used by ChurchCRM's fresh-install flow.
+Write-InstallLog "Importing official ChurchCRM schema and seed data."
 Run-SqlFile (Join-Path $ChurchRoot "src/mysql/install/Install.sql") $rootPassword
+Write-InstallLog "Official ChurchCRM schema import completed."
 
+Write-InstallLog "Waiting for ChurchCRM HTTP endpoint."
 Wait-Http -Url "http://127.0.0.1:$HttpPort/" -TimeoutSeconds 180
+Write-InstallLog "ChurchCRM HTTP endpoint is reachable."
 
 Run-SqlFile (Join-Path $ChurchRoot "src/plugins/community/mos-gov/database/001_initial.sql") $rootPassword
 Run-SqlFile (Join-Path $ChurchRoot "src/plugins/community/mos-gov/database/002_v02_authorization.sql") $rootPassword
