@@ -95,7 +95,8 @@ Set-Content $issPath $iss -Encoding UTF8
 
 $iscc = (Get-Command iscc.exe -ErrorAction SilentlyContinue).Source
 if (-not $iscc) {
-    $default = Join-Path (Join-Path $env:ProgramFiles(x86) "Inno Setup 6") "ISCC.exe"
+    $pf86 = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
+    $default = Join-Path (Join-Path $pf86 "Inno Setup 6") "ISCC.exe"
     if (Test-Path $default) { $iscc = $default }
 }
 if (-not $iscc) { throw "ISCC.exe not found. Install Inno Setup 6." }
