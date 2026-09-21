@@ -47,7 +47,7 @@ function Get-File([string]$Name,[string]$Url,[string]$Sha256) {
             try {
                 Invoke-WebRequest -Uri $Url -OutFile $path -UseBasicParsing -MaximumRedirection 10
             } catch {
-                Write-Warning "Download failed for $Name: $($_.Exception.Message)"
+                Write-Warning ("Download failed for {0}: {1}" -f $Name, $_.Exception.Message)
                 continue
             }
         }
