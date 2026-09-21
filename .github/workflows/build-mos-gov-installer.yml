@@ -37,9 +37,24 @@ jobs:
           $exe = Join-Path $env:GITHUB_WORKSPACE "dist\MOS-GOV-V0.2-Setup.exe"
           if (-not (Test-Path $exe)) { throw "Installer not found." }
 
+          $setupLog = Join-Path $env:TEMP "MOS-GOV-Setup.log"
+          Remove-Item $setupLog -Force -ErrorAction SilentlyContinue
           Write-Host "Starting installer: $exe"
-          $p = Start-Process -FilePath $exe -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/SP-" -Wait -PassThru
+          $p = Start-Process -FilePath $exe -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/SP-","/LOG=$setupLog" -PassThru
+          if (-not $p.WaitForExit(480000)) {
+            Write-Host "Installer exceeded 8-minute smoke-test timeout; terminating process tree."
+            & taskkill.exe /PID $p.Id /T /F | Out-Host
+            throw "Installer exceeded 8-minute smoke-test timeout."
+          }
+          $p.Refresh()
           Write-Host "Installer exit code: $($p.ExitCode)"
+          
+          Write-Host "=== Inno Setup log ==="
+          if (Test-Path $setupLog) {
+            Get-Content $setupLog -Tail 300
+          } else {
+            Write-Host "Inno Setup log not found: $setupLog"
+          }
 
           Write-Host "=== MOS-GOV service diagnostics ==="
           Get-Service -Name "MOS-GOV-*" -ErrorAction SilentlyContinue |
