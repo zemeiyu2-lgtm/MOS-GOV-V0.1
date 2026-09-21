@@ -16,13 +16,13 @@
   "apache": {
     "version": "2.4.68",
     "build": "260610-Win64-VS18",
-    "url": "https://www.apachelounge.com/download/VS18/binaries/httpd-2.4.68-260610-Win64-VS18.zip",
-    "sha256": "c7b7d9361862e57c1919ecd07e26e3491c667c16fe53a29d775ebec5a30b0d16"
+    "url": "https://fossies.org/windows/www/httpd-2.4.68-260610-Win64-VS18.zip",
+    "sha256": "383a9c68407cb0b8e5fd8725c6f37493483ef94848642bea09bd1eed76044ae3"
   },
   "mariadb": {
     "version": "11.8.9",
-    "url": "https://downloads.mariadb.com/MariaDB/mariadb-11.8.9/winx64-packages/mariadb-11.8.9-winx64.zip",
-    "sha256": "d90b23063f36533342d5a12d91126242a42c71d4cc37ddbdb93942bc73d1bcee"
+    "url": "https://downloads.mariadb.org/rest-api/mariadb/11.8.9/mariadb-11.8.9-winx64.zip",
+    "sha256": "830c46727d9278eae212ae3eca44eeb9e71b2a68704e95f344a64fba7b1963f5"
   },
   "vcRuntime": {
     "name": "Microsoft Visual C++ Redistributable x64",
