@@ -27,9 +27,7 @@ CreateAppDir=yes
 MinVersion=10.0.17763
 PrivilegesRequiredOverridesAllowed=dialog
 
-[Languages]
-Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
-
+[Files]
 [Files]
 Source: "{{PAYLOAD_ROOT}}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
