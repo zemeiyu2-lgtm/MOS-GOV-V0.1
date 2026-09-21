@@ -172,7 +172,9 @@ foreach ($item in @("plugin.json","routes","src","views","database")) {
 }
 
 Copy-Item $vcPath (Join-Path $payloadPrereq "vc_redist.x64.exe") -Force
+Copy-Item (Join-Path $PSScriptRoot "runtime/install-runtime.cmd") (Join-Path $payloadRuntime "install-runtime.cmd") -Force
 Copy-Item (Join-Path $PSScriptRoot "runtime/install-runtime.ps1") (Join-Path $payloadRuntime "install-runtime.ps1") -Force
+Copy-Item (Join-Path $PSScriptRoot "runtime/uninstall-runtime.cmd") (Join-Path $payloadRuntime "uninstall-runtime.cmd") -Force
 Copy-Item (Join-Path $PSScriptRoot "runtime/uninstall-runtime.ps1") (Join-Path $payloadRuntime "uninstall-runtime.ps1") -Force
 Copy-Item (Join-Path $PSScriptRoot "runtime/enable-mosgov.php") (Join-Path $payloadRuntime "enable-mosgov.php") -Force
 
