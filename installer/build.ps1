@@ -140,7 +140,7 @@ Expand-ArchiveSafe $apacheZip $apacheExtract
 Expand-ArchiveSafe $mariaZip $mariaExtract
 
 $churchSrc = Find-ComponentRoot $churchExtract "Include/Config.php.example" "ChurchCRM"
-$church = Split-Path $churchSrc -Parent
+$church = $churchSrc
 if (-not (Test-Path (Join-Path $churchSrc "index.php"))) {
     throw "ChurchCRM application root did not contain index.php: $churchSrc"
 }
@@ -165,7 +165,7 @@ Copy-Item (Join-Path $phpRoot "*") $payloadPhp -Recurse -Force
 Copy-Item (Join-Path $apacheRoot "*") $payloadApache -Recurse -Force
 Copy-Item (Join-Path $mariaRoot "*") $payloadMaria -Recurse -Force
 
-$mosDest = Join-Path $payloadChurch "src/plugins/community/mos-gov"
+$mosDest = Join-Path $payloadChurch "plugins/community/mos-gov"
 New-Item -ItemType Directory -Force -Path $mosDest | Out-Null
 foreach ($item in @("plugin.json","routes","src","views","database")) {
     Copy-Item (Join-Path $RepoRoot $item) (Join-Path $mosDest $item) -Recurse -Force
