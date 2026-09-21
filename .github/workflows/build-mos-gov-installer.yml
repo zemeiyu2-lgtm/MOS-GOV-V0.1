@@ -1,5 +1,9 @@
 name: Build MOS-GOV V0.2 Windows Installer
 
+concurrency:
+  group: mos-gov-v0.2-installer
+  cancel-in-progress: true
+
 on:
   push:
     branches:
