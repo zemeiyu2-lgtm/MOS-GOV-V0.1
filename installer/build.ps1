@@ -84,12 +84,27 @@ function Expand-ArchiveSafe([string]$Archive,[string]$Destination) {
 }
 
 function Find-ComponentRoot([string]$Destination,[string]$RelativePath,[string]$ComponentName) {
-    $suffix = ($RelativePath -replace '/','\')
-    $matches = @(Get-ChildItem -LiteralPath $Destination -Recurse -File -Filter (Split-Path $suffix -Leaf) |
-        Where-Object { $_.FullName.EndsWith($suffix, [System.StringComparison]::OrdinalIgnoreCase) } |
-        Select-Object -First 2)
+    $suffix = ($RelativePath -replace '/','\').TrimStart('\')
+    $leaf = Split-Path $suffix -Leaf
+
+    $directCandidates = @(
+        (Join-Path $Destination $suffix),
+        (Join-Path (Join-Path $Destination $ComponentName) $suffix),
+        (Join-Path (Join-Path $Destination "ChurchCRM") $suffix)
+    )
+    foreach ($candidate in $directCandidates) {
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+            return (Split-Path $candidate -Parent)
+        }
+    }
+
+    $matches = @(Get-ChildItem -LiteralPath $Destination -Recurse -ErrorAction SilentlyContinue |
+        Where-Object { -not $_.PSIsContainer -and $_.Name -ieq $leaf -and $_.FullName -like "*\$suffix" } |
+        Select-Object -First 3)
+
     if ($matches.Count -eq 0) {
-        throw "$ComponentName root could not be located. Expected file: $RelativePath"
+        throw ("{0} root could not be located. Expected file: {1}. Extracted top level: {2}" -f
+            $ComponentName, $RelativePath, ((Get-ChildItem -LiteralPath $Destination -Force -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name) -join ', '))
     }
     if ($matches.Count -gt 1) {
         throw "$ComponentName root is ambiguous; found multiple matches for $RelativePath."
