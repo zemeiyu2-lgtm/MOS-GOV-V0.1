@@ -177,8 +177,8 @@ Copy-Item (Join-Path $PSScriptRoot "runtime/uninstall-runtime.ps1") (Join-Path $
 Copy-Item (Join-Path $PSScriptRoot "runtime/enable-mosgov.php") (Join-Path $payloadRuntime "enable-mosgov.php") -Force
 
 $iss = Get-Content (Join-Path $PSScriptRoot "MOS-GOV-V0.2.iss") -Raw
-$iss = $iss.Replace("{{PAYLOAD_ROOT}}",($PayloadRoot -replace '\','/'))
-$iss = $iss.Replace("{{OUTPUT_DIR}}",($DistRoot -replace '\','/'))
+$iss = $iss.Replace("{{PAYLOAD_ROOT}}",$PayloadRoot.Replace('\','/'))
+$iss = $iss.Replace("{{OUTPUT_DIR}}",$DistRoot.Replace('\','/'))
 $issPath = Join-Path $BuildRoot "MOS-GOV-V0.2.iss"
 Set-Content $issPath $iss -Encoding UTF8
 
