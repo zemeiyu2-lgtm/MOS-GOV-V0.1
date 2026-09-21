@@ -88,6 +88,21 @@ jobs:
                 Get-Content $_.FullName -Raw
               }
 
+            Write-Host "=== MariaDB diagnostic files after timeout ==="
+            $mariaData = Join-Path $env:ProgramData "MOS-GOV\\data"
+            if (Test-Path $mariaData) {
+              Get-ChildItem $mariaData -Recurse -File -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -match "\\.(err|log)$" -or $_.Name -eq "my.ini" } |
+                ForEach-Object {
+                  Write-Host "--- $($_.FullName) ---"
+                  if ($_.Name -eq "my.ini") { Get-Content $_.FullName -Raw } else { Get-Content $_.FullName -Tail 200 }
+                }
+            } else {
+              Write-Host "MariaDB data directory not found: $mariaData"
+            }
+
+            Write-Host "=== MariaDB service configuration ==="
+            sc.exe qc MOS-GOV-MariaDB
             Write-Host "=== sc.exe service queries after timeout ==="
             sc.exe query MOS-GOV-Apache
             sc.exe query MOS-GOV-MariaDB
