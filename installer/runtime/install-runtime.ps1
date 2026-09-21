@@ -314,6 +314,7 @@ default-character-set=utf8mb4
 }
 
 Ensure-Dir $ProgramDataRoot,$DataRoot,$ConfigRoot,$SecretRoot,$LogRoot
+Write-Utf8NoBom -Path (Join-Path $ConfigRoot "runtime-started.txt") -Content "$(Get-Date -Format o)"
 Protect-Directory $ProgramDataRoot
 Protect-Directory $SecretRoot
 Write-InstallLog "MOS-GOV one-click installation starting."
@@ -381,6 +382,7 @@ Write-Utf8NoBom -Path (Join-Path $ConfigRoot "install-state.json") -Content $sta
 $openCmd = "@echo off" + [Environment]::NewLine + "start """" ""http://127.0.0.1:$HttpPort/plugins/mos-gov""" + [Environment]::NewLine
 Set-Content (Join-Path $AppRoot "runtime/open-mosgov.cmd") $openCmd -Encoding ASCII
 
+Write-Utf8NoBom -Path (Join-Path $ConfigRoot "runtime-complete.txt") -Content "$(Get-Date -Format o)"
 Write-InstallLog "MOS-GOV installation completed."
 Start-Process (Join-Path $AppRoot "runtime/open-mosgov.cmd")
 exit 0
