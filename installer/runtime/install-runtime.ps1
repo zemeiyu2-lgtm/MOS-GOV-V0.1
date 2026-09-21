@@ -22,8 +22,15 @@ $PhpIni = Join-Path $PhpRoot "php.ini"
 $ApacheService = "MOS-GOV-Apache"
 $MariaService = "MOS-GOV-MariaDB"
 
-function Ensure-Dir([string]$Path) {
-    New-Item -ItemType Directory -Force -Path $Path | Out-Null
+function Ensure-Dir([string[]]$Paths) {
+    foreach ($path in $Paths) {
+        New-Item -ItemType Directory -Force -Path $path | Out-Null
+    }
+}
+
+function Write-Utf8NoBom([string]$Path,[string]$Content) {
+    $utf8 = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($Path,$Content,$utf8)
 }
 
 function Write-InstallLog([string]$Message) {
@@ -44,9 +51,14 @@ function Find-FreePort([int]$Start,[int]$End) {
 }
 
 function New-RandomPassword([int]$Length=32) {
-    $alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*-_=+"
+    $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*-_=+'
     $bytes = New-Object byte[] $Length
-    [System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+    $rng = New-Object System.Security.Cryptography.RNGCryptoServiceProvider
+    try {
+        $rng.GetBytes($bytes)
+    } finally {
+        $rng.Dispose()
+    }
     $chars = New-Object char[] $Length
     for ($i=0; $i -lt $Length; $i++) { $chars[$i] = $alphabet[$bytes[$i] % $alphabet.Length] }
     return -join $chars
@@ -122,7 +134,7 @@ function Configure-PHP {
     $text = [regex]::Replace($text,'(?m)^;?date\.timezone\s*=.*$','date.timezone=Asia/Shanghai')
     $phpLog = (Join-Path $LogRoot "php-error.log") -replace '\\','/'
     $text = [regex]::Replace($text,'(?m)^;?error_log\s*=.*$',"error_log=$phpLog")
-    Set-Content $PhpIni $text -Encoding UTF8
+    Write-Utf8NoBom -Path $PhpIni -Content $text
 }
 
 function Configure-Apache([int]$Port) {
@@ -181,7 +193,7 @@ EnableMMAP Off
 ServerTokens Prod
 ServerSignature Off
 "@
-    Set-Content $ApacheConf $conf -Encoding UTF8
+    Write-Utf8NoBom -Path $ApacheConf -Content $conf
 }
 
 function Install-MariaDb([int]$Port,[string]$RootPassword) {
@@ -211,7 +223,7 @@ max_connections=150
 host=127.0.0.1
 port=$Port
 default-character-set=utf8mb4
-"@ | Set-Content $myIni -Encoding UTF8
+"@ | Write-Utf8NoBom -Path $myIni -Content $my
     Start-Service $MariaService
 }
 
@@ -247,7 +259,7 @@ function Configure-ChurchCRM([int]$Port,[int]$DbPort,[string]$DbPassword) {
     )) {
         $text = $text.Replace($pair[0],$pair[1])
     }
-    Set-Content $ConfigPhp $text -Encoding UTF8
+    Write-Utf8NoBom -Path $ConfigPhp -Content $text
 }
 
 function Wait-Http([string]$Url,[int]$TimeoutSeconds=180) {
@@ -334,11 +346,12 @@ if ($LASTEXITCODE -ne 0) { throw "MOS-GOV enablement failed." }
 
 @"
 root-password=$rootPassword
-"@ | Set-Content (Join-Path $SecretRoot "mariadb-root.txt") -Encoding UTF8
+"@ | Write-Utf8NoBom -Path (Join-Path $SecretRoot "mariadb-root.txt") -Content "root-password=$rootPassword"
 Protect-Directory $SecretRoot
 
-@{ version="0.2.0"; httpPort=$HttpPort; dbPort=$DbPort; appUrl="http://127.0.0.1:$HttpPort/"; installedAtUtc=(Get-Date).ToUniversalTime().ToString("o") } |
-    ConvertTo-Json | Set-Content (Join-Path $ConfigRoot "install-state.json") -Encoding UTF8
+$stateJson = @{ version="0.2.0"; httpPort=$HttpPort; dbPort=$DbPort; appUrl="http://127.0.0.1:$HttpPort/"; installedAtUtc=(Get-Date).ToUniversalTime().ToString("o") } |
+    ConvertTo-Json
+Write-Utf8NoBom -Path (Join-Path $ConfigRoot "install-state.json") -Content $stateJson
 
 $openCmd = "@echo off" + [Environment]::NewLine + "start """" ""http://127.0.0.1:$HttpPort/plugins/mos-gov""" + [Environment]::NewLine
 Set-Content (Join-Path $AppRoot "runtime/open-mosgov.cmd") $openCmd -Encoding ASCII
