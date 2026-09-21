@@ -28,7 +28,6 @@ MinVersion=10.0.17763
 PrivilegesRequiredOverridesAllowed=dialog
 
 [Files]
-[Files]
 Source: "{{PAYLOAD_ROOT}}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
@@ -36,7 +35,7 @@ Name: "{group}\MOS-GOV 教会治理平台"; Filename: "{app}\runtime\open-mosgov
 Name: "{commondesktop}\MOS-GOV 教会治理平台"; Filename: "{app}\runtime\open-mosgov.cmd"; WorkingDir: "{app}"
 
 [Run]
-Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\runtime\install-runtime.ps1"""; Flags: runhidden waituntilterminated; StatusMsg: "正在配置 MOS-GOV 本地运行环境……"
+Filename: "{cmd}"; Parameters: "/c ""{app}\runtime\install-runtime.cmd"""; Flags: runhidden waituntilterminated logoutput; WorkingDir: "{app}\runtime"; StatusMsg: "正在配置 MOS-GOV 本地运行环境……"
 
 [UninstallRun]
-Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\runtime\uninstall-runtime.ps1"""; Flags: runhidden waituntilterminated
+Filename: "{cmd}"; Parameters: "/c ""{app}\runtime\uninstall-runtime.cmd"""; Flags: runhidden waituntilterminated logoutput; RunOnceId: "RemoveMOSGovServices"; WorkingDir: "{app}\runtime"
