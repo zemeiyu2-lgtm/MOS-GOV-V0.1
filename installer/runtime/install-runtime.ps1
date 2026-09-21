@@ -223,7 +223,7 @@ max_connections=150
 host=127.0.0.1
 port=$Port
 default-character-set=utf8mb4
-"@ | Write-Utf8NoBom -Path $myIni -Content $my
+"@ | Write-Utf8NoBom -Path $myIni -Content $myIni
     Start-Service $MariaService
     $deadline = (Get-Date).AddSeconds(45)
     do {
