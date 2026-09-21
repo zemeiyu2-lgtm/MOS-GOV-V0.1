@@ -34,8 +34,39 @@ Source: "{{PAYLOAD_ROOT}}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubd
 Name: "{group}\MOS-GOV 教会治理平台"; Filename: "{app}\runtime\open-mosgov.cmd"; WorkingDir: "{app}"
 Name: "{commondesktop}\MOS-GOV 教会治理平台"; Filename: "{app}\runtime\open-mosgov.cmd"; WorkingDir: "{app}"
 
-[Run]
-Filename: "{cmd}"; Parameters: "/c ""{app}\runtime\install-runtime.cmd"""; Flags: runhidden waituntilterminated logoutput; WorkingDir: "{app}\runtime"; StatusMsg: "正在配置 MOS-GOV 本地运行环境……"
+[Code]
+var
+  RuntimeResultCode: Integer;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssPostInstall then
+  begin
+    if not Exec(
+      ExpandConstant('{cmd}'),
+      '/c ""' + ExpandConstant('{app}\runtime\install-runtime.cmd') + '""',
+      ExpandConstant('{app}\runtime'),
+      SW_HIDE,
+      ewWaitUntilTerminated,
+      RuntimeResultCode
+    ) then
+    begin
+      MsgBox('MOS-GOV 运行环境启动失败，无法执行安装初始化脚本。', mbError, MB_OK);
+      Abort;
+    end;
+
+    if RuntimeResultCode <> 0 then
+    begin
+      MsgBox(
+        'MOS-GOV 运行环境初始化失败。安装程序返回码：' + IntToStr(RuntimeResultCode) +
+        '。请查看 C:\ProgramData\MOS-GOV\logs\installer.log。',
+        mbError,
+        MB_OK
+      );
+      Abort;
+    end;
+  end;
+end;
 
 [UninstallRun]
 Filename: "{cmd}"; Parameters: "/c ""{app}\runtime\uninstall-runtime.cmd"""; Flags: runhidden waituntilterminated logoutput; RunOnceId: "RemoveMOSGovServices"; WorkingDir: "{app}\runtime"
