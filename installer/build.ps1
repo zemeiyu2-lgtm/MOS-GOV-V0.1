@@ -20,7 +20,13 @@ New-Item -ItemType Directory -Force -Path $DownloadRoot,$ExtractRoot,$PayloadRoo
 function Get-File([string]$Name,[string]$Url,[string]$Sha256) {
     $path = Join-Path $DownloadRoot $Name
     Write-Host "Downloading $Name"
-    Invoke-WebRequest -Uri $Url -OutFile $path -UseBasicParsing
+    $curl = Get-Command curl.exe -ErrorAction SilentlyContinue
+    if ($curl) {
+        & $curl.Source -L --fail --retry 4 --retry-delay 2 --silent --show-error --output $path $Url
+        if ($LASTEXITCODE -ne 0) { throw "Download failed for $Name (curl exit $LASTEXITCODE)." }
+    } else {
+        Invoke-WebRequest -Uri $Url -OutFile $path -UseBasicParsing -MaximumRedirection 10
+    }
     $actual = (Get-FileHash $path -Algorithm SHA256).Hash.ToLowerInvariant()
     if ($actual -ne $Sha256.ToLowerInvariant()) {
         throw "SHA256 mismatch for $Name. Expected $Sha256, got $actual."
@@ -47,7 +53,13 @@ $apacheZip = Get-File "httpd-2.4.68-260610-Win64-VS18.zip" $Manifest.apache.url 
 $mariaZip = Get-File "mariadb-11.8.9-winx64.zip" $Manifest.mariadb.url $Manifest.mariadb.sha256
 
 $vcPath = Join-Path $DownloadRoot "vc_redist.x64.exe"
-Invoke-WebRequest -Uri $Manifest.vcRuntime.url -OutFile $vcPath -UseBasicParsing
+$curl = Get-Command curl.exe -ErrorAction SilentlyContinue
+if ($curl) {
+    & $curl.Source -L --fail --retry 4 --retry-delay 2 --silent --show-error --output $vcPath $Manifest.vcRuntime.url
+    if ($LASTEXITCODE -ne 0) { throw "Download failed for Microsoft VC++ Redistributable." }
+} else {
+    Invoke-WebRequest -Uri $Manifest.vcRuntime.url -OutFile $vcPath -UseBasicParsing -MaximumRedirection 10
+}
 $sig = Get-AuthenticodeSignature $vcPath
 if ($sig.Status -ne "Valid" -or $sig.SignerCertificate.Subject -notmatch "Microsoft") {
     throw "Microsoft VC++ Redistributable Authenticode verification failed."
