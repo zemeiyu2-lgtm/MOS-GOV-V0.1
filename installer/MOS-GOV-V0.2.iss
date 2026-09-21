@@ -51,13 +51,13 @@ begin
       RuntimeResultCode
     ) then
     begin
-      MsgBox('MOS-GOV 运行环境启动失败，无法执行安装初始化脚本。', mbError, MB_OK);
+      SuppressibleMsgBox('MOS-GOV 运行环境启动失败，无法执行安装初始化脚本。', mbError, MB_OK);
       Abort;
     end;
 
     if RuntimeResultCode <> 0 then
     begin
-      MsgBox(
+      SuppressibleMsgBox(
         'MOS-GOV 运行环境初始化失败。安装程序返回码：' + IntToStr(RuntimeResultCode) +
         '。请查看 C:\ProgramData\MOS-GOV\logs\installer.log。',
         mbError,
