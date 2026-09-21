@@ -17,21 +17,60 @@ Remove-Item $BuildRoot -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item $DistRoot -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $DownloadRoot,$ExtractRoot,$PayloadRoot,$DistRoot | Out-Null
 
+function Test-ZipReadable([string]$Path) {
+    try {
+        Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+        $archive = [System.IO.Compression.ZipFile]::OpenRead($Path)
+        try {
+            return $archive.Entries.Count -gt 0
+        } finally {
+            $archive.Dispose()
+        }
+    } catch {
+        return $false
+    }
+}
+
 function Get-File([string]$Name,[string]$Url,[string]$Sha256) {
     $path = Join-Path $DownloadRoot $Name
-    Write-Host "Downloading $Name"
     $curl = Get-Command curl.exe -ErrorAction SilentlyContinue
-    if ($curl) {
-        & $curl.Source -L --fail --retry 4 --retry-delay 2 --silent --show-error --output $path $Url
-        if ($LASTEXITCODE -ne 0) { throw "Download failed for $Name (curl exit $LASTEXITCODE)." }
-    } else {
-        Invoke-WebRequest -Uri $Url -OutFile $path -UseBasicParsing -MaximumRedirection 10
+    for ($attempt = 1; $attempt -le 3; $attempt++) {
+        Remove-Item $path -Force -ErrorAction SilentlyContinue
+        Write-Host "Downloading $Name (attempt $attempt/3)"
+        if ($curl) {
+            & $curl.Source -L --fail --retry 6 --retry-all-errors --retry-delay 2 --http1.1 --silent --show-error --output $path $Url
+            if ($LASTEXITCODE -ne 0) {
+                Write-Warning "Download failed for $Name (curl exit $LASTEXITCODE)."
+                continue
+            }
+        } else {
+            try {
+                Invoke-WebRequest -Uri $Url -OutFile $path -UseBasicParsing -MaximumRedirection 10
+            } catch {
+                Write-Warning "Download failed for $Name: $($_.Exception.Message)"
+                continue
+            }
+        }
+
+        if (-not (Test-Path $path)) {
+            Write-Warning "Downloaded file missing: $Name"
+            continue
+        }
+
+        if ($Name.EndsWith(".zip",[System.StringComparison]::OrdinalIgnoreCase) -and -not (Test-ZipReadable $path)) {
+            Write-Warning "Downloaded ZIP failed integrity check: $Name"
+            continue
+        }
+
+        $actual = (Get-FileHash $path -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($actual -eq $Sha256.ToLowerInvariant()) {
+            return $path
+        }
+
+        Write-Warning "SHA256 mismatch for $Name. Expected $Sha256, got $actual."
     }
-    $actual = (Get-FileHash $path -Algorithm SHA256).Hash.ToLowerInvariant()
-    if ($actual -ne $Sha256.ToLowerInvariant()) {
-        throw "SHA256 mismatch for $Name. Expected $Sha256, got $actual."
-    }
-    $path
+
+    throw "Unable to obtain a verified copy of $Name after 3 attempts."
 }
 
 function Expand-ArchiveSafe([string]$Archive,[string]$Destination) {
