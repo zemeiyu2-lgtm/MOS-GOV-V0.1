@@ -75,7 +75,12 @@ function Get-File([string]$Name,[string]$Url,[string]$Sha256) {
 
 function Expand-ArchiveSafe([string]$Archive,[string]$Destination) {
     New-Item -ItemType Directory -Force -Path $Destination | Out-Null
-    Expand-Archive -LiteralPath $Archive -DestinationPath $Destination -Force
+    Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+    try {
+        [System.IO.Compression.ZipFile]::ExtractToDirectory($Archive,$Destination)
+    } catch {
+        throw ("ZIP extraction failed for {0}: {1}" -f $Archive, $_.Exception.Message)
+    }
 }
 
 function Find-ComponentRoot([string]$Destination,[string]$RelativePath,[string]$ComponentName) {
