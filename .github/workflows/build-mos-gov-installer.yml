@@ -1,0 +1,97 @@
+name: Build MOS-GOV V0.2 Windows Installer
+
+on:
+  push:
+    branches:
+      - feature/mos-gov-v0.2-installer
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --yes --no-progress
+
+      - name: Build installer
+        shell: pwsh
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File installer/build.ps1
+
+      - name: Installer smoke test
+        shell: pwsh
+        timeout-minutes: 20
+        run: |
+          $exe = Join-Path $env:GITHUB_WORKSPACE "dist\MOS-GOV-V0.2-Setup.exe"
+          if (-not (Test-Path $exe)) { throw "Installer not found." }
+
+          $p = Start-Process -FilePath $exe -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/SP-" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Installer returned exit code $($p.ExitCode)." }
+
+          $apache = Get-Service -Name "MOS-GOV-Apache" -ErrorAction Stop
+          $maria = Get-Service -Name "MOS-GOV-MariaDB" -ErrorAction Stop
+          if ($apache.Status -ne "Running") { throw "MOS-GOV-Apache is not running." }
+          if ($maria.Status -ne "Running") { throw "MOS-GOV-MariaDB is not running." }
+
+          $statePath = Join-Path $env:ProgramData "MOS-GOV\config\install-state.json"
+          if (-not (Test-Path $statePath)) { throw "Install state not found." }
+          $state = Get-Content $statePath -Raw | ConvertFrom-Json
+
+          $url = $state.appUrl
+          $deadline = (Get-Date).AddMinutes(3)
+          do {
+            try {
+              $r = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 15
+              if ($r.StatusCode -ge 200 -and $r.StatusCode -lt 500) { break }
+            } catch {}
+            Start-Sleep -Seconds 3
+          } while ((Get-Date) -lt $deadline)
+
+          if ((Get-Date) -ge $deadline) { throw "ChurchCRM did not become reachable." }
+
+          $pluginUrl = "$($state.appUrl)plugins/mos-gov"
+          try {
+            $pr = Invoke-WebRequest -Uri $pluginUrl -UseBasicParsing -TimeoutSec 15 -MaximumRedirection 5
+            if ($pr.StatusCode -lt 200 -or $pr.StatusCode -ge 500) {
+              throw "MOS-GOV endpoint returned HTTP $($pr.StatusCode)."
+            }
+          } catch {
+            throw "MOS-GOV endpoint smoke test failed: $($_.Exception.Message)"
+          }
+
+          Write-Host "Installer smoke test passed."
+          Write-Host "Installed URL: $pluginUrl"
+
+      - name: Calculate installer hash
+        shell: pwsh
+        run: |
+          $exe = Join-Path $env:GITHUB_WORKSPACE "dist\MOS-GOV-V0.2-Setup.exe"
+          Get-FileHash $exe -Algorithm SHA256 | Format-List
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: MOS-GOV-V0.2-Windows-Installer
+          path: |
+            dist/MOS-GOV-V0.2-Setup.exe
+            dist/MOS-GOV-V0.2-Setup.sha256.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Cleanup installed services
+        if: always()
+        shell: pwsh
+        run: |
+          $clean = Join-Path $env:GITHUB_WORKSPACE "installer\runtime\uninstall-runtime.ps1"
+          if (Test-Path $clean) {
+            powershell -NoProfile -ExecutionPolicy Bypass -File $clean
+          }
+          Remove-Item "$env:ProgramData\MOS-GOV" -Recurse -Force -ErrorAction SilentlyContinue
