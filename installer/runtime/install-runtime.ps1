@@ -352,13 +352,13 @@ Wait-MariaDb -RootPassword $rootPassword
 Write-InstallLog "MariaDB is ready."
 
 Invoke-MariaClient -RootPassword $rootPassword -Sql @"
-CREATE DATABASE IF NOT EXISTS \`churchcrm\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS churchcrm CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER IF NOT EXISTS 'churchcrm_app'@'127.0.0.1' IDENTIFIED BY '$appPassword';
 CREATE USER IF NOT EXISTS 'churchcrm_app'@'localhost' IDENTIFIED BY '$appPassword';
 ALTER USER 'churchcrm_app'@'127.0.0.1' IDENTIFIED BY '$appPassword';
 ALTER USER 'churchcrm_app'@'localhost' IDENTIFIED BY '$appPassword';
-GRANT ALL PRIVILEGES ON \`churchcrm\`.* TO 'churchcrm_app'@'127.0.0.1';
-GRANT ALL PRIVILEGES ON \`churchcrm\`.* TO 'churchcrm_app'@'localhost';
+GRANT ALL PRIVILEGES ON churchcrm.* TO 'churchcrm_app'@'127.0.0.1';
+GRANT ALL PRIVILEGES ON churchcrm.* TO 'churchcrm_app'@'localhost';
 FLUSH PRIVILEGES;
 "@
 
