@@ -22,7 +22,7 @@
   "mariadb": {
     "version": "11.8.9",
     "url": "https://downloads.mariadb.com/MariaDB/mariadb-11.8.9/winx64-packages/mariadb-11.8.9-winx64.zip",
-    "sha256": "830c46727d9278eae212ae3eca44eeb9e71b2a68704e95f344a64fba7b1963f5"
+    "sha256": "d90b23063f36533342d5a12d91126242a42c71d4cc37ddbdb93942bc73d1bcee"
   },
   "vcRuntime": {
     "name": "Microsoft Visual C++ Redistributable x64",
