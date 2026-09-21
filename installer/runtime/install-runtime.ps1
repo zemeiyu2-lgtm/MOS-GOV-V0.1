@@ -16,7 +16,7 @@ $ChurchRoot = Join-Path $AppRoot "ChurchCRM"
 $PhpRoot = Join-Path $AppRoot "PHP"
 $ApacheRoot = Join-Path $AppRoot "Apache24"
 $MariaRoot = Join-Path $AppRoot "MariaDB"
-$ConfigPhp = Join-Path $ChurchRoot "src/Include/Config.php"
+$ConfigPhp = Join-Path $ChurchRoot "Include/Config.php"
 $ApacheConf = Join-Path $ApacheRoot "conf/httpd.conf"
 $PhpIni = Join-Path $PhpRoot "php.ini"
 $ApacheService = "MOS-GOV-Apache"
@@ -138,7 +138,7 @@ function Configure-PHP {
 }
 
 function Configure-Apache([int]$Port) {
-    $docRoot = (Join-Path $ChurchRoot "src") -replace '\\','/'
+    $docRoot = $ChurchRoot -replace '\\','/'
     $apacheRoot = $ApacheRoot -replace '\\','/'
     $php = $PhpRoot -replace '\\','/'
     $logs = $LogRoot -replace '\\','/'
@@ -262,7 +262,7 @@ function Install-Apache([int]$Port) {
 }
 
 function Configure-ChurchCRM([int]$Port,[int]$DbPort,[string]$DbPassword) {
-    $example = Join-Path $ChurchRoot "src/Include/Config.php.example"
+    $example = Join-Path $ChurchRoot "Include/Config.php.example"
     if (-not (Test-Path $example)) { throw "ChurchCRM Config.php.example not found." }
     $text = Get-Content $example -Raw
     $url = "http://127.0.0.1:$Port/"
@@ -372,15 +372,15 @@ Write-InstallLog "Apache service installation completed."
 # Initialize the official ChurchCRM schema and seed data first.
 # This creates the standard admin/changeme account used by ChurchCRM's fresh-install flow.
 Write-InstallLog "Importing official ChurchCRM schema and seed data."
-Run-SqlFile (Join-Path $ChurchRoot "src/mysql/install/Install.sql") $rootPassword
+Run-SqlFile (Join-Path $ChurchRoot "mysql/install/Install.sql") $rootPassword
 Write-InstallLog "Official ChurchCRM schema import completed."
 
 Write-InstallLog "Waiting for ChurchCRM HTTP endpoint."
 Wait-Http -Url "http://127.0.0.1:$HttpPort/" -TimeoutSeconds 180
 Write-InstallLog "ChurchCRM HTTP endpoint is reachable."
 
-Run-SqlFile (Join-Path $ChurchRoot "src/plugins/community/mos-gov/database/001_initial.sql") $rootPassword
-Run-SqlFile (Join-Path $ChurchRoot "src/plugins/community/mos-gov/database/002_v02_authorization.sql") $rootPassword
+Run-SqlFile (Join-Path $ChurchRoot "plugins/community/mos-gov/database/001_initial.sql") $rootPassword
+Run-SqlFile (Join-Path $ChurchRoot "plugins/community/mos-gov/database/002_v02_authorization.sql") $rootPassword
 
 $php = Join-Path $PhpRoot "php.exe"
 $enable = Join-Path $AppRoot "runtime/enable-mosgov.php"
