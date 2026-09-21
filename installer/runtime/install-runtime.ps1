@@ -225,6 +225,15 @@ port=$Port
 default-character-set=utf8mb4
 "@ | Write-Utf8NoBom -Path $myIni -Content $my
     Start-Service $MariaService
+    $deadline = (Get-Date).AddSeconds(45)
+    do {
+        $state = (Get-Service -Name $MariaService -ErrorAction SilentlyContinue).Status
+        if ($state -eq "Running") { break }
+        Start-Sleep -Seconds 1
+    } while ((Get-Date) -lt $deadline)
+    if ((Get-Service -Name $MariaService -ErrorAction SilentlyContinue).Status -ne "Running") {
+        throw "MariaDB Windows service did not reach Running state."
+    }
 }
 
 function Install-Apache([int]$Port) {
@@ -241,6 +250,15 @@ function Install-Apache([int]$Port) {
     & $httpd -k install -n $ApacheService -f $ApacheConf
     if ($LASTEXITCODE -ne 0) { throw "Apache service installation failed." }
     Start-Service $ApacheService
+    $deadline = (Get-Date).AddSeconds(45)
+    do {
+        $state = (Get-Service -Name $ApacheService -ErrorAction SilentlyContinue).Status
+        if ($state -eq "Running") { break }
+        Start-Sleep -Seconds 1
+    } while ((Get-Date) -lt $deadline)
+    if ((Get-Service -Name $ApacheService -ErrorAction SilentlyContinue).Status -ne "Running") {
+        throw "Apache Windows service did not reach Running state."
+    }
 }
 
 function Configure-ChurchCRM([int]$Port,[int]$DbPort,[string]$DbPassword) {
@@ -300,6 +318,11 @@ Protect-Directory $ProgramDataRoot
 Protect-Directory $SecretRoot
 Write-InstallLog "MOS-GOV one-click installation starting."
 
+trap {
+    try { Write-InstallLog ("FATAL: {0}" -f $_.Exception.Message) } catch {}
+    exit 1
+}
+
 if (-not [Environment]::Is64BitOperatingSystem) { throw "MOS-GOV requires Windows x64." }
 
 $script:HttpPort = Find-FreePort 8080 8099
@@ -348,9 +371,7 @@ $enable = Join-Path $AppRoot "runtime/enable-mosgov.php"
 & $php $enable
 if ($LASTEXITCODE -ne 0) { throw "MOS-GOV enablement failed." }
 
-@"
-root-password=$rootPassword
-"@ | Write-Utf8NoBom -Path (Join-Path $SecretRoot "mariadb-root.txt") -Content "root-password=$rootPassword"
+Write-Utf8NoBom -Path (Join-Path $SecretRoot "mariadb-root.txt") -Content "root-password=$rootPassword"
 Protect-Directory $SecretRoot
 
 $stateJson = @{ version="0.2.0"; httpPort=$HttpPort; dbPort=$DbPort; appUrl="http://127.0.0.1:$HttpPort/"; installedAtUtc=(Get-Date).ToUniversalTime().ToString("o") } |
