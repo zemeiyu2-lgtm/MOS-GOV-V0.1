@@ -84,7 +84,7 @@ function Expand-ArchiveSafe([string]$Archive,[string]$Destination) {
 }
 
 function Find-ComponentRoot([string]$Destination,[string]$RelativePath,[string]$ComponentName) {
-    $relative = ($RelativePath -replace '/','\').TrimStart('\')
+    $relative = $RelativePath.Replace('/','\').TrimStart('\')
     $roots = @()
     if (Test-Path -LiteralPath $Destination -PathType Container) {
         $roots += Get-Item -LiteralPath $Destination
