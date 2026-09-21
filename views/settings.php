@@ -61,7 +61,7 @@ foreach ($mosGovSecureModeDescZh as $mosGovDescEn => $mosGovDescZh) {
 
 <?php if (!empty($statsError)): ?>
     <div class="alert alert-danger" role="alert">
-        治理数据表不可读：<?= $esc($statsError) ?>
+        治理数据表不可读：<?= $esc($mosGovMsg($statsError)) ?>
     </div>
 <?php endif; ?>
 
@@ -163,11 +163,11 @@ foreach ($mosGovSecureModeDescZh as $mosGovDescEn => $mosGovDescZh) {
             </div>
             <div class="datagrid-item">
                 <div class="datagrid-title">对外网络</div>
-                <div class="datagrid-content">DENY —— MOS-GOV 不进行任何外部 API、云服务、统计、邮件或地图调用。</div>
+                <div class="datagrid-content">禁止 —— MOS-GOV 不进行任何外部 API、云服务、统计、邮件或地图调用。</div>
             </div>
             <div class="datagrid-item">
                 <div class="datagrid-title">公网绑定</div>
-                <div class="datagrid-content">DENY —— 仅部署在本机或可信内网，绝不暴露到公网。</div>
+                <div class="datagrid-content">禁止 —— 仅部署在本机或可信内网，绝不暴露到公网。</div>
             </div>
             <div class="datagrid-item">
                 <div class="datagrid-title">数据库</div>

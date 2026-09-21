@@ -48,7 +48,7 @@ $mosGovLabels = ['meeting' => '会议', 'issue' => '议题', 'decision' => '决�
 </div>
 
 <?php if (!empty($error)): ?>
-    <div class="alert alert-danger"><?= $esc($error) ?></div>
+    <div class="alert alert-danger"><?= $esc($mosGovMsg($error)) ?></div>
 <?php endif; ?>
 
 <?php if ($query !== ''): ?>

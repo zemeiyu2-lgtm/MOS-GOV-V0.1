@@ -10,6 +10,8 @@
 
 use ChurchCRM\dto\SystemURLs;
 
+require __DIR__ . '/_i18n.php';
+
 $mosGovRootPath = SystemURLs::getRootPath() . '/plugins/mos-gov';
 
 $sPageTitle = '访问被拒绝';
@@ -31,7 +33,7 @@ require __DIR__ . '/../../../../Include/Header.php';
             统一授权引擎判定：当前治理身份不满足读取该信息所需的条件。
         </p>
         <p class="text-secondary small mb-0">
-            引擎结论：<?= htmlspecialchars($decision->reason, ENT_QUOTES, 'UTF-8') ?>
+            引擎结论：<?= htmlspecialchars($mosGovMsg($decision->reason), ENT_QUOTES, 'UTF-8') ?>
         </p>
         <?php if (!empty($decision->informationLevel)): ?>
             <p class="text-secondary small mb-0">

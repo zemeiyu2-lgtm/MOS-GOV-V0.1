@@ -37,7 +37,7 @@ $mosGovNavSections = [
         'items' => [
             'structures' => ['label' => '结构', 'url' => $mosGovRootPath . '/structures'],
             'bodies' => ['label' => '治理主体', 'url' => $mosGovRootPath . '/bodies'],
-            'roles' => ['label' => '角色', 'url' => $mosGovRootPath . '/roles'],
+            'roles' => ['label' => '治理角色', 'url' => $mosGovRootPath . '/roles'],
             'appointments' => ['label' => '任命', 'url' => $mosGovRootPath . '/appointments'],
             'responsibilities' => ['label' => '职责', 'url' => $mosGovRootPath . '/responsibilities'],
         ],

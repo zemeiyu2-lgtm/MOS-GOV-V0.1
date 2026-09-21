@@ -58,7 +58,7 @@ $mosGovDateTimeInput = static function ($value): string {
 ?>
 
 <?php if (!empty($error)): ?>
-    <div class="alert alert-danger" role="alert"><?= $esc($error) ?></div>
+    <div class="alert alert-danger" role="alert"><?= $esc($mosGovMsg($error)) ?></div>
 <?php endif; ?>
 
 <?php if ($errors !== []): ?>
@@ -158,7 +158,7 @@ $mosGovDateTimeInput = static function ($value): string {
                         <?php endif; ?>
 
                         <?php if ($fieldError !== null): ?>
-                            <div class="text-danger small mt-1"><?= $esc($fieldError) ?></div>
+                            <div class="text-danger small mt-1"><?= $esc($mosGovMsg($fieldError)) ?></div>
                         <?php endif; ?>
                     </div>
                 <?php endforeach; ?>

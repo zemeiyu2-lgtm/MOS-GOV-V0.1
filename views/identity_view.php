@@ -100,7 +100,7 @@ $notesVisible = false;
                     <p class="text-secondary mb-0">没有显式范围记录。</p>
                 <?php else: ?>
                     <table class="table table-sm table-vcenter">
-                        <thead><tr><th>范围类型</th><th>范围 ID</th><th>来源</th><th>状态</th></tr></thead>
+                        <thead><tr><th>治理范围类型</th><th>治理范围 ID</th><th>来源</th><th>状态</th></tr></thead>
                         <tbody>
                         <?php foreach ($identityScopes as $scope): ?>
                             <tr>
@@ -166,7 +166,7 @@ $notesVisible = false;
                                         <option value="<?= $esc($st) ?>"><?= $esc($mosGovValue($st)) ?></option>
                                     <?php endforeach; ?>
                                 </select>
-                                <input class="form-control mb-2" type="text" name="scope_id" placeholder="范围 ID（global/church 无需填写）">
+                                <input class="form-control mb-2" type="text" name="scope_id" placeholder="治理范围 ID（全局 / 教会 无需填写）">
                                 <button class="btn btn-sm btn-primary" type="submit">指派</button>
                             </form>
                         </div>

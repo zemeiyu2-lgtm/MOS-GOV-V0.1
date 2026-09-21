@@ -53,6 +53,11 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 
 $mosGovBase = SystemURLs::getRootPath() . '/plugins/mos-gov';
 
+// Presentation-layer Chinese mapping (views/_i18n.php). Used only to display
+// frozen-layer English messages (e.g. authorization deny reasons) in Chinese;
+// internal values, permission keys and stored data are never translated.
+require_once __DIR__ . '/../views/_i18n.php';
+
 /** URL slug => entity key, shared with the views through the registry. */
 $mosGovEntityBySlug = GovRepository::SLUG_TO_ENTITY;
 $mosGovSlugByEntity = array_flip($mosGovEntityBySlug);
@@ -673,7 +678,7 @@ $app->get('/mos-gov/search', function (Request $request, Response $response) use
 // §24: view and export are separate permissions. Default member = DENY,
 // P5 = DENY; only explicit grants (governance.export / meeting.export) may
 // export, and every export is audit-logged.
-$app->get('/mos-gov/{entity:' . $mosGovSlugPattern . '}/export', function (Request $request, Response $response, array $args) use ($mosGovRepo, $mosGovEntityBySlug, $mosGovErrorPage): Response {
+$app->get('/mos-gov/{entity:' . $mosGovSlugPattern . '}/export', function (Request $request, Response $response, array $args) use ($mosGovRepo, $mosGovEntityBySlug, $mosGovErrorPage, $mosGovMsg): Response {
     $entity = $mosGovEntityBySlug[$args['entity']];
     $user = GovAuthorization::currentUser();
     $ctx = GovAuthorization::context();
@@ -683,7 +688,7 @@ $app->get('/mos-gov/{entity:' . $mosGovSlugPattern . '}/export', function (Reque
     if (!$decision->allowed) {
         AuditService::auditCurrent('export-denied', $entity, null, 'DENY', $decision->reason);
 
-        return $mosGovErrorPage($response, '不允许导出：' . $decision->reason, 403);
+        return $mosGovErrorPage($response, '不允许导出：' . $mosGovMsg($decision->reason), 403);
     }
 
     $repo = $mosGovRepo();

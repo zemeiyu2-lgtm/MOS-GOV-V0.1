@@ -15,6 +15,8 @@ use ChurchCRM\dto\SystemURLs;
 
 $mosGovRootPath = SystemURLs::getRootPath() . '/plugins/mos-gov';
 $status = $status ?? 400;
+
+require __DIR__ . '/_i18n.php';
 ?>
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -31,7 +33,7 @@ $status = $status ?? 400;
             <div class="card-body text-center">
                 <div class="display-6 mb-2">MOS-GOV</div>
                 <div class="text-secondary mb-3">教会治理平台 · 请求被拒绝（HTTP <?= (int) $status ?>）</div>
-                <p><?= htmlspecialchars((string) $message, ENT_QUOTES, 'UTF-8') ?></p>
+                <p><?= htmlspecialchars($mosGovMsg((string) $message), ENT_QUOTES, 'UTF-8') ?></p>
                 <div class="btn-list justify-content-center mt-4">
                     <a class="btn btn-outline-secondary" href="javascript:history.back()">返回上一页</a>
                     <a class="btn btn-primary"

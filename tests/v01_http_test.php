@@ -288,7 +288,7 @@ try {
     $check(
         'invalid submission re-renders the form with 400 and field errors',
         $invalid['status'] === 400
-        && str_contains($invalid['body'], 'is required')
+        && str_contains($invalid['body'], '为必填项')
         && str_contains($invalid['body'], '请修正标红'),
         (string) $invalid['status']
     );
@@ -312,7 +312,7 @@ try {
     ]);
     $check(
         'appointment with unknown role/person is refused',
-        $badPerson['status'] === 400 && str_contains($badPerson['body'], 'does not exist'),
+        $badPerson['status'] === 400 && str_contains($badPerson['body'], '不存在'),
         (string) $badPerson['status']
     );
 

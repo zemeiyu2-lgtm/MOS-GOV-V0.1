@@ -95,7 +95,7 @@ $mosGovRelatedCell = static function (array $fields, array $row, array $dec) use
 
 <div class="mos-gov">
 <?php if (!empty($error)): ?>
-    <div class="alert alert-danger" role="alert"><?= $esc($error) ?></div>
+    <div class="alert alert-danger" role="alert"><?= $esc($mosGovMsg($error)) ?></div>
 <?php elseif ($row === null): ?>
     <div class="alert alert-warning" role="alert">
         该<?= $esc($entityLabel) ?>不存在（可能已被删除）。

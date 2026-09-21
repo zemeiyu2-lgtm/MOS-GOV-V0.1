@@ -179,7 +179,7 @@ if ($member !== null) {
     $detail = $http('GET', $baseUrl . $basePath . '/tasks/' . $outOfScopeTask, $memberJar, $memberKey);
     $mosGovCheck('out-of-scope detail is DENIED with 403 (not 500)', $detail['status'] === 403, (string) $detail['status']);
     $mosGovCheck('denial renders the protected-information page', str_contains($detail['body'], '此信息受权限保护'));
-    $mosGovCheck('denial states the scope boundary', str_contains($detail['body'], 'outside your governance scope'));
+    $mosGovCheck('denial states the scope boundary', str_contains($detail['body'], '不在你的治理范围内'));
     $mosGovCheck('denial leaks no protected content', !str_contains($detail['body'], 'OUT-OF-SCOPE-TASK-MARKER'));
 
     $list = $http('GET', $baseUrl . $basePath . '/tasks', $memberJar, $memberKey);

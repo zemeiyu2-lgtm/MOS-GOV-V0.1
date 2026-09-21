@@ -44,9 +44,9 @@ $mosGovEntityLabels = [
     'identity_permission' => ['身份权限', '身份权限'],
     'permission' => ['权限', '权限'],
     'role_permission' => ['角色权限', '角色权限'],
-    'role_scope' => ['角色范围', '角色范围'],
-    'scope' => ['范围', '范围'],
-    'visibility_rule' => ['可见性规则', '可见性规则'],
+    'role_scope' => ['角色治理范围', '角色治理范围'],
+    'scope' => ['治理范围', '治理范围'],
+    'visibility_rule' => ['信息可见性规则', '信息可见性规则'],
 ];
 
 /** English label / phrase => 中文. Keys are the registry's own label strings. */
@@ -144,9 +144,9 @@ $mosGovPhrases = [
     'Review date' => '复核日期',
     'Risk level' => '风险等级',
     'Rule type' => '规则类型',
-    'Scope ID' => '范围 ID',
-    'Scope mode' => '范围模式',
-    'Scope type' => '范围类型',
+    'Scope ID' => '治理范围 ID',
+    'Scope mode' => '治理范围模式',
+    'Scope type' => '治理范围类型',
     'Sort order' => '排序',
     'Source' => '来源',
     'Source ID' => '来源 ID',
@@ -185,8 +185,8 @@ $mosGovValues = [
     'closed' => '已关闭',
     // decision
     'proposed' => '提案中',
-    'approved' => '已通过',
-    'rejected' => '已否决',
+    'approved' => '已批准',
+    'rejected' => '已拒绝',
     'superseded' => '已取代',
     // appointment / workflow
     'end' => '结束',
@@ -303,4 +303,179 @@ $mosGovDecorLabel = static function ($label) use ($mosGovT, $mosGovValue): strin
     }
 
     return $mosGovT($mosGovValue($label));
+};
+
+/**
+ * 冻结层用户可见消息 → 中文（display only）。
+ *
+ * src/Data（GovRepository / GovDataException）、src/Security（GovernancePolicy
+ * 拒绝理由）与 src/Governance（IdentityService）属于冻结边界，内部消息保持
+ * 英文原值不变；本映射只在其文本到达用户眼前时转换为中文。
+ *
+ * 处理顺序：精确匹配 → 已知中文前缀递归 → 模板正则（其中标签部分
+ * 复用 $mosGovT，枚举值复用 $mosGovValue）→ 原样透出（绝不虚构翻译）。
+ *
+ * Provided:
+ * - $mosGovMsg(string $message): string
+ */
+
+$mosGovMessages = [
+    // --- GovernancePolicy deny reasons（拒绝页「引擎结论」） ---
+    'You must be signed in.' => '请先登录。',
+    'No active governance identity is linked to your account.'
+        => '你的账号尚未挂接生效的治理身份。',
+    'Unsupported action.' => '不支持的操作。',
+    'This action is not defined in the permission registry.'
+        => '该操作不在权限注册表白名单内。',
+    'An explicit authorization denial applies to this permission.'
+        => '该权限存在一条显式拒绝授权。',
+    'Your governance roles do not include this permission.'
+        => '你的治理角色不包含此权限。',
+    'None of your appointments is currently active.' => '你当前没有生效的任命。',
+    'This record is outside your governance scope.' => '该记录不在你的治理范围内。',
+    'This information is protected (level P5).' => '此信息受权限保护（P5 级）。',
+    'Your information level does not allow this.' => '你的信息分级不允许查看此内容。',
+    'Manage actions are reserved for the governance administrator role.'
+        => '管理类操作仅限治理管理员角色使用。',
+
+    // --- GovAuthorization::writeDeniedMessage() ---
+    'Modifying MOS-GOV governance data requires ChurchCRM administrator rights.'
+        => '修改 MOS-GOV 治理数据需要 ChurchCRM 管理员权限。',
+
+    // --- GovRepository（src/Data，冻结层） ---
+    'Unknown governance entity.' => '未知的治理数据类型。',
+    'Governance data is currently unavailable.' => '治理数据当前不可用。',
+    'Please correct the highlighted fields.' => '请修正标红的字段后重新提交。',
+
+    // --- 校验消息（固定文案 + 跨字段语义约束） ---
+    'End date cannot be before the start date.' => '结束日期不能早于开始日期。',
+    'A responsibility must belong to a role or to an appointment.'
+        => '职责必须归属于某个治理角色或任命。',
+    'A decision must reference an issue or a meeting.'
+        => '决策必须关联一个议题或会议。',
+    'Selected ChurchCRM person does not exist.' => '所选 ChurchCRM 人员不存在。',
+
+    // --- IdentityService（src/Governance，冻结层） ---
+    'The ChurchCRM person does not exist.' => '该 ChurchCRM 人员不存在。',
+    'The governance identity does not exist.' => '该治理身份不存在。',
+    'The governance role does not exist.' => '该治理角色不存在。',
+    'The appointment does not exist.' => '该任命不存在。',
+    'This identity already holds this role.' => '该治理身份已挂接此治理角色。',
+    'Grant mode must be grant or deny.' => '授予方式必须为「授予（grant）」或「拒绝（deny）」。',
+    'Unknown permission.' => '未知权限。',
+    'Critical permissions cannot be granted as a personal override.'
+        => '紧急（critical）级别权限不能以个人覆盖方式授予。',
+    'Unknown scope type.' => '未知治理范围类型。',
+    'Unknown scope source type.' => '未知治理范围来源类型。',
+
+    // --- IdentityService 逐字段校验 ---
+    'Unknown person.' => '人员不存在。',
+    'Unknown identity.' => '治理身份不存在。',
+    'Unknown role.' => '治理角色不存在。',
+    'Unknown appointment.' => '任命不存在。',
+    'Role already attached.' => '该治理角色已挂接。',
+    'Risk level critical.' => '风险等级为紧急（critical）。',
+];
+
+$mosGovMsg = null; // 占位，随后以自引用闭包赋值（支持「不允许导出：」前缀递归）。
+
+$mosGovMsg = static function ($message) use ($mosGovT, $mosGovValue, $mosGovMessages, &$mosGovMsg): string {
+    $message = (string) $message;
+
+    if (isset($mosGovMessages[$message])) {
+        return $mosGovMessages[$message];
+    }
+
+    // 已知中文前缀 + 英文原因（如导出拒绝页）。
+    if (str_starts_with($message, '不允许导出：')) {
+        return '不允许导出：' . $mosGovMsg(mb_substr($message, 6));
+    }
+
+    // --- GovRepository 顶层消息模板 ---
+    if (preg_match('/^Unable to load (.+) records\.$/', $message, $m)) {
+        return '无法加载「' . $mosGovT($m[1]) . '」记录列表。';
+    }
+    if (preg_match('/^Unable to load (.+) record\.$/', $message, $m)) {
+        return '无法加载「' . $mosGovT($m[1]) . '」记录。';
+    }
+    if (preg_match('/^Unable to save the (.+) record\.$/', $message, $m)) {
+        return '无法保存「' . $mosGovT($m[1]) . '」记录。';
+    }
+    if (preg_match('/^Unable to delete the (.+) record\.$/', $message, $m)) {
+        return '无法删除「' . $mosGovT($m[1]) . '」记录。';
+    }
+    if (preg_match('/^Unsupported filter on (.+)\.$/', $message, $m)) {
+        return '不支持对「' . $mosGovT($m[1]) . '」使用该筛选条件。';
+    }
+    if (preg_match('/^Unsupported sort on (.+)\.$/', $message, $m)) {
+        return '不支持对「' . $mosGovT($m[1]) . '」按该字段排序。';
+    }
+    if (preg_match('/^Unsupported sort direction on (.+)\.$/', $message, $m)) {
+        return '不支持对「' . $mosGovT($m[1]) . '」使用该排序方向。';
+    }
+
+    // --- 逐字段校验模板（{Label} is required. 等） ---
+    if (preg_match('/^(.+?) is required\.$/', $message, $m)) {
+        return '「' . $mosGovT($m[1]) . '」为必填项。';
+    }
+    if (preg_match('/^(.+?) is invalid\.$/', $message, $m)) {
+        return '「' . $mosGovT($m[1]) . '」填写无效。';
+    }
+    if (preg_match('/^(.+?) is too long\.$/', $message, $m)) {
+        return '「' . $mosGovT($m[1]) . '」内容过长。';
+    }
+    if (preg_match('/^(.+?) must be a whole number of (\d+) or greater\.$/', $message, $m)) {
+        return '「' . $mosGovT($m[1]) . '」必须是不小于 ' . $m[2] . ' 的整数。';
+    }
+    if (preg_match('/^(.+?) must have the format YYYY-MM-DD\.$/', $message, $m)) {
+        return '「' . $mosGovT($m[1]) . '」必须采用 YYYY-MM-DD 日期格式。';
+    }
+    if (preg_match('/^(.+?) is not a valid calendar date\.$/', $message, $m)) {
+        return '「' . $mosGovT($m[1]) . '」不是有效的日历日期。';
+    }
+    if (preg_match('/^(.+?) must be a valid date and time\.$/', $message, $m)) {
+        return '「' . $mosGovT($m[1]) . '」必须是有效的日期时间。';
+    }
+    if (preg_match('/^(.+?) cannot contain HTML tags\.$/', $message, $m)) {
+        return '「' . $mosGovT($m[1]) . '」不能包含 HTML 标签。';
+    }
+    if (preg_match('/^(.+?) contains invalid characters\.$/', $message, $m)) {
+        return '「' . $mosGovT($m[1]) . '」包含无效字符。';
+    }
+    if (preg_match('/^(.+?) must be a ChurchCRM person ID\.$/', $message, $m)) {
+        return '「' . $mosGovT($m[1]) . '」必须填写 ChurchCRM 人员 ID（数字编号）。';
+    }
+    if (preg_match('/^(.+?) must be one of: (.+)\.$/', $message, $m)) {
+        $options = array_map(
+            static fn ($opt) => $mosGovValue(trim($opt)),
+            explode(', ', $m[2])
+        );
+
+        return '「' . $mosGovT($m[1]) . '」必须是以下之一：' . implode('、', $options) . '。';
+    }
+    if (preg_match('/^Selected (.+) does not exist\.$/', $message, $m)) {
+        return '所选' . $mosGovT(ucwords($m[1])) . '不存在。';
+    }
+
+    // --- 语义约束（scope / permission 白名单） ---
+    if (preg_match('/^A (\w+) scope must not carry a numeric scope ID\.$/', $message, $m)) {
+        return $mosGovValue($m[1]) . '范围的治理范围 ID 必须留空。';
+    }
+    if (preg_match('/^Scope type "([^"]+)" requires a numeric scope ID\.$/', $message, $m)) {
+        return '治理范围类型「' . $mosGovValue($m[1]) . '」需要填写治理范围 ID（数字编号）。';
+    }
+    if (preg_match('/^Scope type "([^"]+)" must not carry a numeric scope ID\.$/', $message, $m)) {
+        return '治理范围类型「' . $mosGovValue($m[1]) . '」不能填写治理范围 ID。';
+    }
+    if (preg_match('/^Resource type must be "([^"]+)" for this permission key\.$/', $message, $m)) {
+        return '该权限键下，资源类型必须为「' . $mosGovT(ucwords($m[1])) . '」。';
+    }
+    if (preg_match('/^Action must be "([^"]+)" for this permission key\.$/', $message, $m)) {
+        return '该权限键下，动作必须为「' . $mosGovValue($m[1]) . '」。';
+    }
+    if (preg_match('/^Risk level must be "([^"]+)" for this permission key\.$/', $message, $m)) {
+        return '该权限键下，风险等级必须为「' . $mosGovValue($m[1]) . '」。';
+    }
+
+    return $message;
 };

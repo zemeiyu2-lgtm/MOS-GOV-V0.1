@@ -81,7 +81,7 @@ $mosGovCell = static function (array $cfg, string $field, array $row, array $dec
 <div class="mos-gov">
 
 <?php if (!empty($error)): ?>
-    <div class="alert alert-danger" role="alert"><?= $esc($error) ?></div>
+    <div class="alert alert-danger" role="alert"><?= $esc($mosGovMsg($error)) ?></div>
 <?php endif; ?>
 
 <div class="card mg-card mb-3">

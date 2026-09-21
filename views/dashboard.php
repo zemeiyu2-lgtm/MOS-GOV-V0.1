@@ -60,7 +60,7 @@ $mosGovTile = static function (string $label, $value, string $href = '') use ($e
 
 <?php if (!empty($statsError)): ?>
     <div class="alert alert-danger" role="alert">
-        治理数据暂不可用：<?= $esc($statsError) ?>
+        治理数据暂不可用：<?= $esc($mosGovMsg($statsError)) ?>
     </div>
 <?php endif; ?>
 
@@ -84,7 +84,7 @@ $mosGovTile = static function (string $label, $value, string $href = '') use ($e
             </div>
         </div>
         <p class="text-secondary mb-0 mt-3">
-            MOS-GOV 在 ChurchCRM 之上承载教会治理：治理身份、角色、任命、职责、范围、
+            MOS-GOV 在 ChurchCRM 之上承载教会治理：治理身份、治理角色、任命、职责、治理范围、
             权限与信息分级。人员、家庭、小组与活动等事实数据仍由 ChurchCRM 保存，
             MOS-GOV 仅通过 ID 引用，不复制、不替代。
         </p>
@@ -266,7 +266,7 @@ $mosGovTile = static function (string $label, $value, string $href = '') use ($e
     <div class="card-body">
         <p class="text-secondary mb-2">治理运行主链路：</p>
         <p class="mb-0">
-            <code>结构 → 治理主体 → 角色 → 任命 → 职责</code><br>
+            <code>结构 → 治理主体 → 治理角色 → 任命 → 职责</code><br>
             <code>会议 → 议题 → 决策 → 任务</code>
         </p>
         <p class="text-secondary small mb-0 mt-3">

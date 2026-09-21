@@ -1,7 +1,7 @@
 {
   "id": "mos-gov",
   "name": "MOS-GOV",
-  "description": "MOS church governance layer for ChurchCRM. Stores governance data separately from ChurchCRM core.",
+  "description": "MOS 教会治理层（ChurchCRM 插件）。治理数据与 ChurchCRM 核心数据分开存储。",
   "version": "0.2.0",
   "author": "MOS",
   "authorUrl": "https://github.com/zemeiyu2-lgtm/MOS-GOV-V0.1",
@@ -14,10 +14,10 @@
   "settings": [
     {
       "key": "enabled",
-      "label": "Enable MOS-GOV",
+      "label": "启用 MOS-GOV",
       "type": "boolean",
       "required": false,
-      "help": "Enable the MOS governance layer."
+      "help": "启用 MOS 教会治理层。"
     }
   ],
   "menuItems": [],

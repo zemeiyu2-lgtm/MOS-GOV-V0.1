@@ -117,7 +117,7 @@ $mosGovOpenTaskCount = count($mosGovData['open_tasks'] ?? []);
                 <div class="mg-stat-value"><?= count($data['roles']) ?><small>个</small></div>
             </a>
             <a class="mg-stat" href="<?= $esc($mosGovRootPath . '/my-governance#mg-sec-scopes') ?>">
-                <div class="mg-stat-label">我的范围</div>
+                <div class="mg-stat-label">我的治理范围</div>
                 <div class="mg-stat-value"><?= count($data['scopes']) ?><small>个</small></div>
             </a>
             <a class="mg-stat mg-stat-todo" href="<?= $esc($mosGovRootPath . '/my-governance#mg-sec-tasks') ?>">
@@ -174,7 +174,7 @@ $mosGovOpenTaskCount = count($mosGovData['open_tasks'] ?? []);
                                         <div class="mg-meta-line mg-internal">角色编码 <code><?= $esc($role['role_code']) ?></code> · 角色 #<?= (int) $role['role_id'] ?></div>
                                     </div>
                                     <span class="mg-chip <?= $role['active'] ? 'mg-chip-green' : 'mg-chip-gray' ?>">
-                                        <?= $role['active'] ? '有效' : '停用' ?>
+                                        <?= $role['active'] ? '生效' : '停用' ?>
                                     </span>
                                 </div>
                             <?php endforeach; ?>
@@ -245,7 +245,7 @@ $mosGovOpenTaskCount = count($mosGovData['open_tasks'] ?? []);
                                     <div class="mg-item-main">
                                         <div class="mg-item-title"><?= $esc($mosGovScopeLabel($scope['label'])) ?></div>
                                         <div class="mg-meta-line">来源：<?= $esc($mosGovScopeSource($scope['source_type'])) ?></div>
-                                        <div class="mg-meta-line mg-internal">范围类型 <?= $esc($mosGovValue($scope['scope_type'])) ?><?= $scope['scope_id'] !== null ? ' · #' . (int) $scope['scope_id'] : '' ?></div>
+                                        <div class="mg-meta-line mg-internal">治理范围类型 <?= $esc($mosGovValue($scope['scope_type'])) ?><?= $scope['scope_id'] !== null ? ' · #' . (int) $scope['scope_id'] : '' ?></div>
                                     </div>
                                 </div>
                             <?php endforeach; ?>

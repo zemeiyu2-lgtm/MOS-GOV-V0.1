@@ -49,7 +49,7 @@ $row = $row ?? [];
                         </option>
                     <?php endforeach; ?>
                 </select>
-                <?php if (isset($errors['person_id'])): ?><div class="text-danger small"><?= $esc($errors['person_id']) ?></div><?php endif; ?>
+                <?php if (isset($errors['person_id'])): ?><div class="text-danger small"><?= $esc($mosGovMsg($errors['person_id'])) ?></div><?php endif; ?>
             </div>
             <div class="mb-3">
                 <label class="form-label" for="identity_status">身份状态</label>
