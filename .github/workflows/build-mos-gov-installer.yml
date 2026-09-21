@@ -44,6 +44,54 @@ jobs:
           if (-not $p.WaitForExit(480000)) {
             Write-Host "Installer exceeded 8-minute smoke-test timeout; terminating process tree."
             & taskkill.exe /PID $p.Id /T /F | Out-Host
+
+            Write-Host "=== Inno Setup log after timeout ==="
+            if (Test-Path $setupLog) {
+              Get-Content $setupLog -Tail 500
+            } else {
+              Write-Host "Inno Setup log not found: $setupLog"
+            }
+
+            Write-Host "=== MOS-GOV service diagnostics after timeout ==="
+            Get-Service -Name "MOS-GOV-*" -ErrorAction SilentlyContinue |
+              Select-Object Name, Status, StartType |
+              Format-Table -AutoSize
+
+            Write-Host "=== installer.log after timeout ==="
+            $installerLog = Join-Path $env:ProgramData "MOS-GOV\\logs\\installer.log"
+            if (Test-Path $installerLog) {
+              Get-Content $installerLog -Raw
+            } else {
+              Write-Host "installer.log not found: $installerLog"
+            }
+
+            Write-Host "=== apache-error.log after timeout ==="
+            $apacheLog = Join-Path $env:ProgramData "MOS-GOV\\logs\\apache-error.log"
+            if (Test-Path $apacheLog) {
+              Get-Content $apacheLog -Tail 300
+            } else {
+              Write-Host "apache-error.log not found: $apacheLog"
+            }
+
+            Write-Host "=== install-state.json after timeout ==="
+            $statePath = Join-Path $env:ProgramData "MOS-GOV\\config\\install-state.json"
+            if (Test-Path $statePath) {
+              Get-Content $statePath -Raw
+            } else {
+              Write-Host "install-state.json not found: $statePath"
+            }
+
+            Write-Host "=== runtime markers after timeout ==="
+            Get-ChildItem (Join-Path $env:ProgramData "MOS-GOV\\config") -Filter "runtime-*.txt" -ErrorAction SilentlyContinue |
+              ForEach-Object {
+                Write-Host "--- $($_.FullName) ---"
+                Get-Content $_.FullName -Raw
+              }
+
+            Write-Host "=== sc.exe service queries after timeout ==="
+            sc.exe query MOS-GOV-Apache
+            sc.exe query MOS-GOV-MariaDB
+
             throw "Installer exceeded 8-minute smoke-test timeout."
           }
           $p.Refresh()
