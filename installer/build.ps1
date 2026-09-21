@@ -84,32 +84,31 @@ function Expand-ArchiveSafe([string]$Archive,[string]$Destination) {
 }
 
 function Find-ComponentRoot([string]$Destination,[string]$RelativePath,[string]$ComponentName) {
-    $suffix = ($RelativePath -replace '/','\').TrimStart('\')
-    $leaf = Split-Path $suffix -Leaf
+    $relative = ($RelativePath -replace '/','\').TrimStart('\')
+    $roots = @()
+    if (Test-Path -LiteralPath $Destination -PathType Container) {
+        $roots += Get-Item -LiteralPath $Destination
+        $roots += @(Get-ChildItem -LiteralPath $Destination -Directory -Recurse -ErrorAction SilentlyContinue)
+    }
 
-    $directCandidates = @(
-        (Join-Path $Destination $suffix),
-        (Join-Path (Join-Path $Destination $ComponentName) $suffix),
-        (Join-Path (Join-Path $Destination "ChurchCRM") $suffix)
-    )
-    foreach ($candidate in $directCandidates) {
+    $matches = @()
+    foreach ($root in $roots) {
+        $candidate = Join-Path $root.FullName $relative
         if (Test-Path -LiteralPath $candidate -PathType Leaf) {
-            return (Split-Path $candidate -Parent)
+            $matches += $root.FullName
+            if ($matches.Count -gt 1) { break }
         }
     }
 
-    $matches = @(Get-ChildItem -LiteralPath $Destination -Recurse -ErrorAction SilentlyContinue |
-        Where-Object { -not $_.PSIsContainer -and $_.Name -ieq $leaf -and $_.FullName -like "*\$suffix" } |
-        Select-Object -First 3)
-
     if ($matches.Count -eq 0) {
+        $names = @(Get-ChildItem -LiteralPath $Destination -Force -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name)
         throw ("{0} root could not be located. Expected file: {1}. Extracted top level: {2}" -f
-            $ComponentName, $RelativePath, ((Get-ChildItem -LiteralPath $Destination -Force -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name) -join ', '))
+            $ComponentName,$RelativePath,($names -join ', '))
     }
     if ($matches.Count -gt 1) {
         throw "$ComponentName root is ambiguous; found multiple matches for $RelativePath."
     }
-    return (Split-Path $matches[0].FullName -Parent)
+    return $matches[0]
 }
 
 $ccrmZip = Get-File "ChurchCRM-7.7.0.zip" $Manifest.churchcrm.url $Manifest.churchcrm.sha256
