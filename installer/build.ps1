@@ -139,7 +139,15 @@ Expand-ArchiveSafe $phpZip $phpExtract
 Expand-ArchiveSafe $apacheZip $apacheExtract
 Expand-ArchiveSafe $mariaZip $mariaExtract
 
-$church = Find-ComponentRoot $churchExtract "src/composer.json" "ChurchCRM"
+$churchSrc = Find-ComponentRoot $churchExtract "Include/Config.php.example" "ChurchCRM"
+$church = Split-Path $churchSrc -Parent
+if (-not (Test-Path (Join-Path $churchSrc "index.php"))) {
+    throw "ChurchCRM application root did not contain index.php: $churchSrc"
+}
+if (-not (Test-Path (Join-Path $churchSrc "vendor/autoload.php"))) {
+    throw "ChurchCRM release does not contain packaged Composer dependencies: $churchSrc"
+}
+
 $phpRoot = Find-ComponentRoot $phpExtract "php.exe" "PHP"
 $apacheRoot = Find-ComponentRoot $apacheExtract "bin/httpd.exe" "Apache"
 $mariaRoot = Find-ComponentRoot $mariaExtract "bin/mariadb.exe" "MariaDB"
