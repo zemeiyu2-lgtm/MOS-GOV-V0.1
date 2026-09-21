@@ -37,7 +37,50 @@ jobs:
           $exe = Join-Path $env:GITHUB_WORKSPACE "dist\MOS-GOV-V0.2-Setup.exe"
           if (-not (Test-Path $exe)) { throw "Installer not found." }
 
+          Write-Host "Starting installer: $exe"
           $p = Start-Process -FilePath $exe -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/SP-" -Wait -PassThru
+          Write-Host "Installer exit code: $($p.ExitCode)"
+
+          Write-Host "=== MOS-GOV service diagnostics ==="
+          Get-Service -Name "MOS-GOV-*" -ErrorAction SilentlyContinue |
+            Select-Object Name, Status, StartType |
+            Format-Table -AutoSize
+
+          Write-Host "=== installer.log ==="
+          $installerLog = Join-Path $env:ProgramData "MOS-GOV\logs\installer.log"
+          if (Test-Path $installerLog) {
+            Get-Content $installerLog -Raw
+          } else {
+            Write-Host "installer.log not found: $installerLog"
+          }
+
+          Write-Host "=== apache-error.log ==="
+          $apacheLog = Join-Path $env:ProgramData "MOS-GOV\logs\apache-error.log"
+          if (Test-Path $apacheLog) {
+            Get-Content $apacheLog -Tail 200
+          } else {
+            Write-Host "apache-error.log not found: $apacheLog"
+          }
+
+          Write-Host "=== install-state.json ==="
+          $statePath = Join-Path $env:ProgramData "MOS-GOV\config\install-state.json"
+          if (Test-Path $statePath) {
+            Get-Content $statePath -Raw
+          } else {
+            Write-Host "install-state.json not found: $statePath"
+          }
+
+          Write-Host "=== runtime markers ==="
+          Get-ChildItem (Join-Path $env:ProgramData "MOS-GOV\config") -Filter "runtime-*.txt" -ErrorAction SilentlyContinue |
+            ForEach-Object {
+              Write-Host "--- $($_.FullName) ---"
+              Get-Content $_.FullName -Raw
+            }
+
+          Write-Host "=== sc.exe service queries ==="
+          sc.exe query MOS-GOV-Apache
+          sc.exe query MOS-GOV-MariaDB
+
           if ($p.ExitCode -ne 0) { throw "Installer returned exit code $($p.ExitCode)." }
 
           $apache = Get-Service -Name "MOS-GOV-Apache" -ErrorAction Stop
@@ -45,7 +88,6 @@ jobs:
           if ($apache.Status -ne "Running") { throw "MOS-GOV-Apache is not running." }
           if ($maria.Status -ne "Running") { throw "MOS-GOV-MariaDB is not running." }
 
-          $statePath = Join-Path $env:ProgramData "MOS-GOV\config\install-state.json"
           if (-not (Test-Path $statePath)) { throw "Install state not found." }
           $state = Get-Content $statePath -Raw | ConvertFrom-Json
 
