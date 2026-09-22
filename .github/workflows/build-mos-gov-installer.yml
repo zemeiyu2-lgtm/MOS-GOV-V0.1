@@ -41,7 +41,7 @@ jobs:
             [ref]$errors
           )
           if ($errors.Count -gt 0) {
-            $errors | ForEach-Object { Write-Host $_.Message }
+            $errors | ForEach-Object { Write-Host ("ParserError: " + $_.Message); Write-Host ("Extent: " + $_.Extent.Text); Write-Host ("Start: line " + $_.Extent.StartScriptPosition.StartLineNumber + ", col " + $_.Extent.StartScriptPosition.StartColumnNumber) }
             throw "PowerShell parser found $($errors.Count) error(s) in install-runtime.ps1."
           }
           Write-Host "PowerShell runtime script syntax is valid."
