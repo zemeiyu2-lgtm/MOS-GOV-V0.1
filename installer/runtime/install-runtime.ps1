@@ -107,36 +107,27 @@ function Configure-PHP {
     $template = Join-Path $PhpRoot "php.ini-production"
     if (-not (Test-Path $template)) { throw "php.ini-production not found." }
     Copy-Item $template $PhpIni -Force
-    $text = Get-Content $PhpIni -Raw
+
     $phpExtDir = (Join-Path $PhpRoot "ext") -replace '\\','/'
-    $text = [regex]::Replace($text,'(?m)^;?extension_dir\s*=.*
-
-    foreach ($ext in @("bcmath","curl","exif","fileinfo","gd","gettext","intl","mbstring","mysqli","pdo_mysql","zip")) {
-        $pattern = "(?m)^;?extension\s*=\s*php_$([regex]::Escape($ext))\.dll\s*$"
-        if ($text -match $pattern) {
-            $text = [regex]::Replace($text,$pattern,"extension=php_$ext.dll")
-        } elseif ($text -notmatch "(?m)^extension=php_$([regex]::Escape($ext))\.dll\s*$") {
-            $text += [Environment]::NewLine + "extension=php_$ext.dll" + [Environment]::NewLine
-        }
-    }
-
-    $phpSettings = @{
-        'memory_limit'='memory_limit=512M'
-        'upload_max_filesize'='upload_max_filesize=32M'
-        'post_max_size'='post_max_size=32M'
-        'max_execution_time'='max_execution_time=120'
-        'display_errors'='display_errors=Off'
-        'log_errors'='log_errors=On'
-        'session.cookie_httponly'='session.cookie_httponly=1'
-        'session.cookie_samesite'='session.cookie_samesite=Lax'
-    }
-    foreach ($key in $phpSettings.Keys) {
-        $text = [regex]::Replace($text,"(?m)^;?"+[regex]::Escape($key)+"\s*=.*$",$phpSettings[$key])
-    }
-
-    $text = [regex]::Replace($text,'(?m)^;?date\.timezone\s*=.*$','date.timezone=Asia/Shanghai')
     $phpLog = (Join-Path $LogRoot "php-error.log") -replace '\\','/'
-    $text = [regex]::Replace($text,'(?m)^;?error_log\s*=.*$',"error_log=$phpLog")
+
+    $text = Get-Content $PhpIni -Raw
+    $text += [Environment]::NewLine
+    $text += "extension_dir=""" + $phpExtDir + """" + [Environment]::NewLine
+    foreach ($ext in @("bcmath","curl","exif","fileinfo","gd","gettext","intl","mbstring","mysqli","pdo_mysql","zip")) {
+        $text += "extension=$ext" + [Environment]::NewLine
+    }
+    $text += "memory_limit=512M" + [Environment]::NewLine
+    $text += "upload_max_filesize=32M" + [Environment]::NewLine
+    $text += "post_max_size=32M" + [Environment]::NewLine
+    $text += "max_execution_time=120" + [Environment]::NewLine
+    $text += "display_errors=Off" + [Environment]::NewLine
+    $text += "log_errors=On" + [Environment]::NewLine
+    $text += "error_log=""" + $phpLog + """" + [Environment]::NewLine
+    $text += "session.cookie_httponly=1" + [Environment]::NewLine
+    $text += "session.cookie_samesite=Lax" + [Environment]::NewLine
+    $text += "date.timezone=Asia/Shanghai" + [Environment]::NewLine
+
     Write-Utf8NoBom -Path $PhpIni -Content $text
 }
 
