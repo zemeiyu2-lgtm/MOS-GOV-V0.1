@@ -145,7 +145,6 @@ function Configure-Apache([int]$Port) {
     $modules = "$apacheRoot/modules"
 
     foreach ($module in @(
-        "mod_mpm_winnt.so",
         "mod_authn_core.so",
         "mod_authz_core.so",
         "mod_authz_host.so",
@@ -174,7 +173,6 @@ ServerRoot "$apacheRoot"
 Listen 127.0.0.1:$Port
 ServerName 127.0.0.1:$Port
 
-LoadModule mpm_winnt_module "$modules/mod_mpm_winnt.so"
 LoadModule authn_core_module "$modules/mod_authn_core.so"
 LoadModule authz_core_module "$modules/mod_authz_core.so"
 LoadModule authz_host_module "$modules/mod_authz_host.so"
