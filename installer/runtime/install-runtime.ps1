@@ -262,7 +262,7 @@ function Install-Apache([int]$Port) {
 }
 
 function Configure-ChurchCRM([int]$Port,[int]$DbPort,[string]$DbPassword) {
-    $example = Join-Path $ChurchRoot "src/Include/Config.php.example"
+    $example = Join-Path $ChurchRoot "Include/Config.php.example"
     if (-not (Test-Path $example)) { throw "ChurchCRM Config.php.example not found." }
     $text = Get-Content $example -Raw
     $url = "http://127.0.0.1:$Port/"
