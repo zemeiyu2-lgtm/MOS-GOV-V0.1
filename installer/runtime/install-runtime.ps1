@@ -16,7 +16,7 @@ $ChurchRoot = Join-Path $AppRoot "ChurchCRM"
 $PhpRoot = Join-Path $AppRoot "PHP"
 $ApacheRoot = Join-Path $AppRoot "Apache24"
 $MariaRoot = Join-Path $AppRoot "MariaDB"
-$ConfigPhp = Join-Path $ChurchRoot "Include/Config.php"
+$ConfigPhp = Join-Path $ChurchRoot "src/Include/Config.php"
 $ApacheConf = Join-Path $ApacheRoot "conf/httpd.conf"
 $PhpIni = Join-Path $PhpRoot "php.ini"
 $ApacheService = "MOS-GOV-Apache"
@@ -109,7 +109,7 @@ function Configure-PHP {
     Copy-Item $template $PhpIni -Force
     $text = Get-Content $PhpIni -Raw
     $phpExtDir = (Join-Path $PhpRoot "ext") -replace '\\','/'
-    $text = [regex]::Replace($text,'(?m)^;?extension_dir\s*=.*$','extension_dir="' + $phpExtDir + '"' )
+    $text = [regex]::Replace($text,'(?m)^;?extension_dir\s*=.*
 
     foreach ($ext in @("bcmath","curl","exif","fileinfo","gd","gettext","intl","mbstring","mysqli","pdo_mysql","zip")) {
         $pattern = "(?m)^;?extension\s*=\s*php_$([regex]::Escape($ext))\.dll\s*$"
@@ -139,7 +139,7 @@ function Configure-PHP {
 }
 
 function Configure-Apache([int]$Port) {
-    $docRoot = $ChurchRoot -replace '\\','/'
+    $docRoot = (Join-Path $ChurchRoot "src") -replace '\\','/'
     $apacheRoot = $ApacheRoot -replace '\\','/'
     $php = $PhpRoot -replace '\\','/'
     $logs = $LogRoot -replace '\\','/'
@@ -148,10 +148,10 @@ ServerRoot "$apacheRoot"
 Listen 127.0.0.1:$Port
 ServerName 127.0.0.1:$Port
 
+LoadModule mpm_winnt_module modules/mod_mpm_winnt.so
 LoadModule authn_core_module modules/mod_authn_core.so
 LoadModule authz_core_module modules/mod_authz_core.so
 LoadModule authz_host_module modules/mod_authz_host.so
-LoadModule access_compat_module modules/mod_access_compat.so
 LoadModule dir_module modules/mod_dir.so
 LoadModule mime_module modules/mod_mime.so
 LoadModule rewrite_module modules/mod_rewrite.so
@@ -237,51 +237,10 @@ default-character-set=utf8mb4
     }
 }
 
-function Invoke-NativeProcess {
-    param(
-        [string]$FileName,
-        [string]$Arguments
-    )
-
-    $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = $FileName
-    $psi.Arguments = $Arguments
-    $psi.UseShellExecute = $false
-    $psi.CreateNoWindow = $true
-    $psi.RedirectStandardOutput = $true
-    $psi.RedirectStandardError = $true
-
-    $process = New-Object System.Diagnostics.Process
-    $process.StartInfo = $psi
-    if (-not $process.Start()) {
-        throw "Could not start native process: $FileName"
-    }
-
-    $stdout = $process.StandardOutput.ReadToEnd()
-    $stderr = $process.StandardError.ReadToEnd()
-    $process.WaitForExit()
-
-    [pscustomobject]@{
-        ExitCode = $process.ExitCode
-        StdOut = $stdout
-        StdErr = $stderr
-        Output = (($stdout, $stderr | Where-Object { $_ -and $_.Trim() }) -join [Environment]::NewLine)
-    }
-}
-
 function Install-Apache([int]$Port) {
     $httpd = Join-Path $ApacheRoot "bin/httpd.exe"
-    $testLog = Join-Path $LogRoot "apache-config-test.log"
-    $test = Invoke-NativeProcess -FileName $httpd -Arguments ('-t -f "' + $ApacheConf + '"')
-    Write-Utf8NoBom -Path $testLog -Content $test.Output
-    if ($test.ExitCode -ne 0) {
-        foreach ($line in ($test.Output -split [Environment]::NewLine)) {
-            if ($line.Trim()) {
-                Write-InstallLog ("Apache config test: {0}" -f $line)
-            }
-        }
-        throw "Apache configuration check failed. See $testLog."
-    }
+    & $httpd -t -f $ApacheConf
+    if ($LASTEXITCODE -ne 0) { throw "Apache configuration check failed." }
 
     if (Get-Service -Name $ApacheService -ErrorAction SilentlyContinue) {
         Stop-Service $ApacheService -Force
@@ -289,13 +248,8 @@ function Install-Apache([int]$Port) {
         Start-Sleep -Seconds 2
     }
 
-    $install = Invoke-NativeProcess -FileName $httpd -Arguments ('-k install -n "' + $ApacheService + '" -f "' + $ApacheConf + '"')
-    if ($install.ExitCode -ne 0) {
-        $installLog = Join-Path $LogRoot "apache-service-install.log"
-        Write-Utf8NoBom -Path $installLog -Content $install.Output
-        throw "Apache service installation failed. See $installLog."
-    }
-
+    & $httpd -k install -n $ApacheService -f $ApacheConf
+    if ($LASTEXITCODE -ne 0) { throw "Apache service installation failed." }
     Start-Service $ApacheService
     $deadline = (Get-Date).AddSeconds(45)
     do {
@@ -309,7 +263,7 @@ function Install-Apache([int]$Port) {
 }
 
 function Configure-ChurchCRM([int]$Port,[int]$DbPort,[string]$DbPassword) {
-    $example = Join-Path $ChurchRoot "Include/Config.php.example"
+    $example = Join-Path $ChurchRoot "src/Include/Config.php.example"
     if (-not (Test-Path $example)) { throw "ChurchCRM Config.php.example not found." }
     $text = Get-Content $example -Raw
     $url = "http://127.0.0.1:$Port/"
@@ -329,51 +283,14 @@ function Configure-ChurchCRM([int]$Port,[int]$DbPort,[string]$DbPassword) {
 
 function Wait-Http([string]$Url,[int]$TimeoutSeconds=180) {
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
-    $probeLog = Join-Path $LogRoot "http-readiness.log"
-    Write-Utf8NoBom -Path $probeLog -Content ("URL: {0}{1}" -f $Url,[Environment]::NewLine)
-
     while ((Get-Date) -lt $deadline) {
-        $request = [System.Net.WebRequest]::Create($Url)
-        $request.Method = "GET"
-        $request.Timeout = 10000
-        $request.ReadWriteTimeout = 10000
-        $request.AllowAutoRedirect = $true
         try {
-            $response = $request.GetResponse()
-            try {
-                $body = (New-Object System.IO.StreamReader($response.GetResponseStream())).ReadToEnd()
-                $status = [int]$response.StatusCode
-                Add-Content -Path $probeLog -Value ("$(Get-Date -Format s) HTTP $status; body: $($body.Substring(0,[Math]::Min(2000,$body.Length)))")
-                if ($status -ge 200 -and $status -lt 500) {
-                    return
-                }
-            } finally {
-                $response.Close()
-            }
-        } catch [System.Net.WebException] {
-            $status = "NO_RESPONSE"
-            $body = ""
-            if ($_.Exception.Response) {
-                $resp = [System.Net.HttpWebResponse]$_.Exception.Response
-                try {
-                    $status = [int]$resp.StatusCode
-                    $reader = New-Object System.IO.StreamReader($resp.GetResponseStream())
-                    try {
-                        $body = $reader.ReadToEnd()
-                    } finally {
-                        $reader.Dispose()
-                    }
-                } finally {
-                    $resp.Close()
-                }
-            }
-            Add-Content -Path $probeLog -Value ("$(Get-Date -Format s) HTTP $status; error: {0}; body: {1}" -f $_.Exception.Message,$body.Substring(0,[Math]::Min(2000,$body.Length)))
-        } catch {
-            Add-Content -Path $probeLog -Value ("$(Get-Date -Format s) Probe error: {0}" -f $_.Exception.Message)
-        }
+            $r = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 10
+            if ($r.StatusCode -ge 200 -and $r.StatusCode -lt 500) { return }
+        } catch {}
         Start-Sleep -Seconds 2
     }
-    throw "ChurchCRM did not become ready. See $probeLog."
+    throw "ChurchCRM did not become ready."
 }
 
 function Run-SqlFile([string]$File,[string]$RootPassword) {
@@ -456,15 +373,15 @@ Write-InstallLog "Apache service installation completed."
 # Initialize the official ChurchCRM schema and seed data first.
 # This creates the standard admin/changeme account used by ChurchCRM's fresh-install flow.
 Write-InstallLog "Importing official ChurchCRM schema and seed data."
-Run-SqlFile (Join-Path $ChurchRoot "mysql/install/Install.sql") $rootPassword
+Run-SqlFile (Join-Path $ChurchRoot "src/mysql/install/Install.sql") $rootPassword
 Write-InstallLog "Official ChurchCRM schema import completed."
 
 Write-InstallLog "Waiting for ChurchCRM HTTP endpoint."
 Wait-Http -Url "http://127.0.0.1:$HttpPort/" -TimeoutSeconds 180
 Write-InstallLog "ChurchCRM HTTP endpoint is reachable."
 
-Run-SqlFile (Join-Path $ChurchRoot "plugins/community/mos-gov/database/001_initial.sql") $rootPassword
-Run-SqlFile (Join-Path $ChurchRoot "plugins/community/mos-gov/database/002_v02_authorization.sql") $rootPassword
+Run-SqlFile (Join-Path $ChurchRoot "src/plugins/community/mos-gov/database/001_initial.sql") $rootPassword
+Run-SqlFile (Join-Path $ChurchRoot "src/plugins/community/mos-gov/database/002_v02_authorization.sql") $rootPassword
 
 $php = Join-Path $PhpRoot "php.exe"
 $enable = Join-Path $AppRoot "runtime/enable-mosgov.php"
@@ -485,7 +402,7 @@ Write-Utf8NoBom -Path (Join-Path $ConfigRoot "runtime-complete.txt") -Content "$
 Write-InstallLog "MOS-GOV installation completed."
 Start-Process (Join-Path $AppRoot "runtime/open-mosgov.cmd")
 exit 0
-,"extension_dir=\"$phpExtDir\"")
+,'extension_dir="' + $phpExtDir + '"')
 
     foreach ($ext in @("bcmath","curl","exif","fileinfo","gd","gettext","mbstring","mysqli","pdo_mysql","zip")) {
         $pattern = "(?m)^;?extension\s*=\s*php_$([regex]::Escape($ext))\.dll\s*$"
@@ -515,7 +432,7 @@ exit 0
 }
 
 function Configure-Apache([int]$Port) {
-    $docRoot = $ChurchRoot -replace '\\','/'
+    $docRoot = (Join-Path $ChurchRoot "src") -replace '\\','/'
     $apacheRoot = $ApacheRoot -replace '\\','/'
     $php = $PhpRoot -replace '\\','/'
     $logs = $LogRoot -replace '\\','/'
@@ -524,10 +441,10 @@ ServerRoot "$apacheRoot"
 Listen 127.0.0.1:$Port
 ServerName 127.0.0.1:$Port
 
+LoadModule mpm_winnt_module modules/mod_mpm_winnt.so
 LoadModule authn_core_module modules/mod_authn_core.so
 LoadModule authz_core_module modules/mod_authz_core.so
 LoadModule authz_host_module modules/mod_authz_host.so
-LoadModule access_compat_module modules/mod_access_compat.so
 LoadModule dir_module modules/mod_dir.so
 LoadModule mime_module modules/mod_mime.so
 LoadModule rewrite_module modules/mod_rewrite.so
@@ -613,51 +530,10 @@ default-character-set=utf8mb4
     }
 }
 
-function Invoke-NativeProcess {
-    param(
-        [string]$FileName,
-        [string]$Arguments
-    )
-
-    $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = $FileName
-    $psi.Arguments = $Arguments
-    $psi.UseShellExecute = $false
-    $psi.CreateNoWindow = $true
-    $psi.RedirectStandardOutput = $true
-    $psi.RedirectStandardError = $true
-
-    $process = New-Object System.Diagnostics.Process
-    $process.StartInfo = $psi
-    if (-not $process.Start()) {
-        throw "Could not start native process: $FileName"
-    }
-
-    $stdout = $process.StandardOutput.ReadToEnd()
-    $stderr = $process.StandardError.ReadToEnd()
-    $process.WaitForExit()
-
-    [pscustomobject]@{
-        ExitCode = $process.ExitCode
-        StdOut = $stdout
-        StdErr = $stderr
-        Output = (($stdout, $stderr | Where-Object { $_ -and $_.Trim() }) -join [Environment]::NewLine)
-    }
-}
-
 function Install-Apache([int]$Port) {
     $httpd = Join-Path $ApacheRoot "bin/httpd.exe"
-    $testLog = Join-Path $LogRoot "apache-config-test.log"
-    $test = Invoke-NativeProcess -FileName $httpd -Arguments ('-t -f "' + $ApacheConf + '"')
-    Write-Utf8NoBom -Path $testLog -Content $test.Output
-    if ($test.ExitCode -ne 0) {
-        foreach ($line in ($test.Output -split [Environment]::NewLine)) {
-            if ($line.Trim()) {
-                Write-InstallLog ("Apache config test: {0}" -f $line)
-            }
-        }
-        throw "Apache configuration check failed. See $testLog."
-    }
+    & $httpd -t -f $ApacheConf
+    if ($LASTEXITCODE -ne 0) { throw "Apache configuration check failed." }
 
     if (Get-Service -Name $ApacheService -ErrorAction SilentlyContinue) {
         Stop-Service $ApacheService -Force
@@ -665,13 +541,8 @@ function Install-Apache([int]$Port) {
         Start-Sleep -Seconds 2
     }
 
-    $install = Invoke-NativeProcess -FileName $httpd -Arguments ('-k install -n "' + $ApacheService + '" -f "' + $ApacheConf + '"')
-    if ($install.ExitCode -ne 0) {
-        $installLog = Join-Path $LogRoot "apache-service-install.log"
-        Write-Utf8NoBom -Path $installLog -Content $install.Output
-        throw "Apache service installation failed. See $installLog."
-    }
-
+    & $httpd -k install -n $ApacheService -f $ApacheConf
+    if ($LASTEXITCODE -ne 0) { throw "Apache service installation failed." }
     Start-Service $ApacheService
     $deadline = (Get-Date).AddSeconds(45)
     do {
@@ -685,7 +556,7 @@ function Install-Apache([int]$Port) {
 }
 
 function Configure-ChurchCRM([int]$Port,[int]$DbPort,[string]$DbPassword) {
-    $example = Join-Path $ChurchRoot "Include/Config.php.example"
+    $example = Join-Path $ChurchRoot "src/Include/Config.php.example"
     if (-not (Test-Path $example)) { throw "ChurchCRM Config.php.example not found." }
     $text = Get-Content $example -Raw
     $url = "http://127.0.0.1:$Port/"
@@ -705,51 +576,14 @@ function Configure-ChurchCRM([int]$Port,[int]$DbPort,[string]$DbPassword) {
 
 function Wait-Http([string]$Url,[int]$TimeoutSeconds=180) {
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
-    $probeLog = Join-Path $LogRoot "http-readiness.log"
-    Write-Utf8NoBom -Path $probeLog -Content ("URL: {0}{1}" -f $Url,[Environment]::NewLine)
-
     while ((Get-Date) -lt $deadline) {
-        $request = [System.Net.WebRequest]::Create($Url)
-        $request.Method = "GET"
-        $request.Timeout = 10000
-        $request.ReadWriteTimeout = 10000
-        $request.AllowAutoRedirect = $true
         try {
-            $response = $request.GetResponse()
-            try {
-                $body = (New-Object System.IO.StreamReader($response.GetResponseStream())).ReadToEnd()
-                $status = [int]$response.StatusCode
-                Add-Content -Path $probeLog -Value ("$(Get-Date -Format s) HTTP $status; body: $($body.Substring(0,[Math]::Min(2000,$body.Length)))")
-                if ($status -ge 200 -and $status -lt 500) {
-                    return
-                }
-            } finally {
-                $response.Close()
-            }
-        } catch [System.Net.WebException] {
-            $status = "NO_RESPONSE"
-            $body = ""
-            if ($_.Exception.Response) {
-                $resp = [System.Net.HttpWebResponse]$_.Exception.Response
-                try {
-                    $status = [int]$resp.StatusCode
-                    $reader = New-Object System.IO.StreamReader($resp.GetResponseStream())
-                    try {
-                        $body = $reader.ReadToEnd()
-                    } finally {
-                        $reader.Dispose()
-                    }
-                } finally {
-                    $resp.Close()
-                }
-            }
-            Add-Content -Path $probeLog -Value ("$(Get-Date -Format s) HTTP $status; error: {0}; body: {1}" -f $_.Exception.Message,$body.Substring(0,[Math]::Min(2000,$body.Length)))
-        } catch {
-            Add-Content -Path $probeLog -Value ("$(Get-Date -Format s) Probe error: {0}" -f $_.Exception.Message)
-        }
+            $r = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 10
+            if ($r.StatusCode -ge 200 -and $r.StatusCode -lt 500) { return }
+        } catch {}
         Start-Sleep -Seconds 2
     }
-    throw "ChurchCRM did not become ready. See $probeLog."
+    throw "ChurchCRM did not become ready."
 }
 
 function Run-SqlFile([string]$File,[string]$RootPassword) {
@@ -832,15 +666,15 @@ Write-InstallLog "Apache service installation completed."
 # Initialize the official ChurchCRM schema and seed data first.
 # This creates the standard admin/changeme account used by ChurchCRM's fresh-install flow.
 Write-InstallLog "Importing official ChurchCRM schema and seed data."
-Run-SqlFile (Join-Path $ChurchRoot "mysql/install/Install.sql") $rootPassword
+Run-SqlFile (Join-Path $ChurchRoot "src/mysql/install/Install.sql") $rootPassword
 Write-InstallLog "Official ChurchCRM schema import completed."
 
 Write-InstallLog "Waiting for ChurchCRM HTTP endpoint."
 Wait-Http -Url "http://127.0.0.1:$HttpPort/" -TimeoutSeconds 180
 Write-InstallLog "ChurchCRM HTTP endpoint is reachable."
 
-Run-SqlFile (Join-Path $ChurchRoot "plugins/community/mos-gov/database/001_initial.sql") $rootPassword
-Run-SqlFile (Join-Path $ChurchRoot "plugins/community/mos-gov/database/002_v02_authorization.sql") $rootPassword
+Run-SqlFile (Join-Path $ChurchRoot "src/plugins/community/mos-gov/database/001_initial.sql") $rootPassword
+Run-SqlFile (Join-Path $ChurchRoot "src/plugins/community/mos-gov/database/002_v02_authorization.sql") $rootPassword
 
 $php = Join-Path $PhpRoot "php.exe"
 $enable = Join-Path $AppRoot "runtime/enable-mosgov.php"
