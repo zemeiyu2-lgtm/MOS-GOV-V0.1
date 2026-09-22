@@ -150,6 +150,7 @@ ServerName 127.0.0.1:$Port
 LoadModule authn_core_module modules/mod_authn_core.so
 LoadModule authz_core_module modules/mod_authz_core.so
 LoadModule authz_host_module modules/mod_authz_host.so
+LoadModule access_compat_module modules/mod_access_compat.so
 LoadModule dir_module modules/mod_dir.so
 LoadModule mime_module modules/mod_mime.so
 LoadModule rewrite_module modules/mod_rewrite.so
