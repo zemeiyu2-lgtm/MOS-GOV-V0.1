@@ -30,6 +30,22 @@ jobs:
         shell: pwsh
         run: powershell -NoProfile -ExecutionPolicy Bypass -File installer/build.ps1
 
+      - name: Validate PowerShell runtime script
+        shell: pwsh
+        run: |
+          $path = Join-Path $env:GITHUB_WORKSPACE "installer\runtime\install-runtime.ps1"
+          $errors = @()
+          [void][System.Management.Automation.Language.Parser]::ParseFile(
+            $path,
+            [ref]$null,
+            [ref]$errors
+          )
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Host $_.Message }
+            throw "PowerShell parser found $($errors.Count) error(s) in install-runtime.ps1."
+          }
+          Write-Host "PowerShell runtime script syntax is valid."
+
       - name: Installer smoke test
         shell: pwsh
         timeout-minutes: 20
@@ -81,7 +97,7 @@ jobs:
             Write-Host "apache-access.log not found: $apacheAccessLog"
           }
 
-          Write-Host "=== php-error.log after timeout ==="
+          Write-Host "=== runtime-entry.txt after timeout ==="\n          $runtimeEntry = Join-Path $env:ProgramData "MOS-GOV\\logs\\runtime-entry.txt"\n          if (Test-Path $runtimeEntry) { Get-Content $runtimeEntry -Raw } else { Write-Host "runtime-entry.txt not found: $runtimeEntry" }\n\n          Write-Host "=== runtime-console.log after timeout ==="\n          $runtimeConsole = Join-Path $env:ProgramData "MOS-GOV\\logs\\runtime-console.log"\n          if (Test-Path $runtimeConsole) { Get-Content $runtimeConsole -Tail 300 } else { Write-Host "runtime-console.log not found: $runtimeConsole" }\n\n          Write-Host "=== php-error.log after timeout ==="
           $phpErrorLog = Join-Path $env:ProgramData "MOS-GOV\\logs\\php-error.log"
           if (Test-Path $phpErrorLog) {
             Get-Content $phpErrorLog -Tail 300
