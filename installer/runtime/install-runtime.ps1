@@ -235,15 +235,48 @@ default-character-set=utf8mb4
     }
 }
 
+function Invoke-NativeProcess {
+    param(
+        [string]$FileName,
+        [string]$Arguments
+    )
+
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = $FileName
+    $psi.Arguments = $Arguments
+    $psi.UseShellExecute = $false
+    $psi.CreateNoWindow = $true
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $psi
+    if (-not $process.Start()) {
+        throw "Could not start native process: $FileName"
+    }
+
+    $stdout = $process.StandardOutput.ReadToEnd()
+    $stderr = $process.StandardError.ReadToEnd()
+    $process.WaitForExit()
+
+    [pscustomobject]@{
+        ExitCode = $process.ExitCode
+        StdOut = $stdout
+        StdErr = $stderr
+        Output = (($stdout, $stderr | Where-Object { $_ -and $_.Trim() }) -join [Environment]::NewLine)
+    }
+}
+
 function Install-Apache([int]$Port) {
     $httpd = Join-Path $ApacheRoot "bin/httpd.exe"
     $testLog = Join-Path $LogRoot "apache-config-test.log"
-    $testOutput = & $httpd -t -f $ApacheConf 2>&1
-    $testCode = $LASTEXITCODE
-    Write-Utf8NoBom -Path $testLog -Content (($testOutput | ForEach-Object { [string]$_ }) -join [Environment]::NewLine)
-    if ($testCode -ne 0) {
-        if ($testOutput) {
-            $testOutput | ForEach-Object { Write-InstallLog ("Apache config test: {0}" -f $_) }
+    $test = Invoke-NativeProcess -FileName $httpd -Arguments ('-t -f "' + $ApacheConf + '"')
+    Write-Utf8NoBom -Path $testLog -Content $test.Output
+    if ($test.ExitCode -ne 0) {
+        foreach ($line in ($test.Output -split [Environment]::NewLine)) {
+            if ($line.Trim()) {
+                Write-InstallLog ("Apache config test: {0}" -f $line)
+            }
         }
         throw "Apache configuration check failed. See $testLog."
     }
@@ -254,8 +287,13 @@ function Install-Apache([int]$Port) {
         Start-Sleep -Seconds 2
     }
 
-    & $httpd -k install -n $ApacheService -f $ApacheConf
-    if ($LASTEXITCODE -ne 0) { throw "Apache service installation failed." }
+    $install = Invoke-NativeProcess -FileName $httpd -Arguments ('-k install -n "' + $ApacheService + '" -f "' + $ApacheConf + '"')
+    if ($install.ExitCode -ne 0) {
+        $installLog = Join-Path $LogRoot "apache-service-install.log"
+        Write-Utf8NoBom -Path $installLog -Content $install.Output
+        throw "Apache service installation failed. See $installLog."
+    }
+
     Start-Service $ApacheService
     $deadline = (Get-Date).AddSeconds(45)
     do {
