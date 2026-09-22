@@ -16,7 +16,7 @@ $ChurchRoot = Join-Path $AppRoot "ChurchCRM"
 $PhpRoot = Join-Path $AppRoot "PHP"
 $ApacheRoot = Join-Path $AppRoot "Apache24"
 $MariaRoot = Join-Path $AppRoot "MariaDB"
-$ConfigPhp = Join-Path $ChurchRoot "src/Include/Config.php"
+$ConfigPhp = Join-Path $ChurchRoot "Include/Config.php"
 $ApacheConf = Join-Path $ApacheRoot "conf/httpd.conf"
 $PhpIni = Join-Path $PhpRoot "php.ini"
 $ApacheService = "MOS-GOV-Apache"
@@ -112,7 +112,7 @@ function Configure-PHP {
     $phpLog = (Join-Path $LogRoot "php-error.log") -replace '\\','/'
 
     $text = Get-Content $PhpIni -Raw
-    $text = [regex]::Replace($text,'(?m)^;?extension_dir\s*=.*
+    $text = [regex]::Replace($text,'(?m)^;?extension_dir\s*=.*$','extension_dir="' + $phpExtDir + '"' )
 
     foreach ($ext in @("bcmath","curl","exif","fileinfo","gd","gettext","intl","mbstring","mysqli","pdo_mysql","zip")) {
         $pattern = "(?m)^;?extension\s*=\s*php_$([regex]::Escape($ext))\.dll\s*$"
