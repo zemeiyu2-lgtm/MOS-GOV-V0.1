@@ -120,7 +120,7 @@ function Configure-PHP {
         }
     }
 
-    foreach ($pair in @{
+    $phpSettings = @{
         'memory_limit'='memory_limit=512M'
         'upload_max_filesize'='upload_max_filesize=32M'
         'post_max_size'='post_max_size=32M'
@@ -129,9 +129,11 @@ function Configure-PHP {
         'log_errors'='log_errors=On'
         'session.cookie_httponly'='session.cookie_httponly=1'
         'session.cookie_samesite'='session.cookie_samesite=Lax'
-    }.GetEnumerator()) {
-        $text = [regex]::Replace($text,"(?m)^;?"+[regex]::Escape($pair.Key)+"\s*=.*$",$pair.Value)
     }
+    foreach ($key in $phpSettings.Keys) {
+        $text = [regex]::Replace($text,"(?m)^;?"+[regex]::Escape($key)+"\s*=.*$",$phpSettings[$key])
+    }
+
     $text = [regex]::Replace($text,'(?m)^;?date\.timezone\s*=.*$','date.timezone=Asia/Shanghai')
     $phpLog = (Join-Path $LogRoot "php-error.log") -replace '\\','/'
     $text = [regex]::Replace($text,'(?m)^;?error_log\s*=.*$',"error_log=$phpLog")
