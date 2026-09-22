@@ -328,14 +328,51 @@ function Configure-ChurchCRM([int]$Port,[int]$DbPort,[string]$DbPassword) {
 
 function Wait-Http([string]$Url,[int]$TimeoutSeconds=180) {
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    $probeLog = Join-Path $LogRoot "http-readiness.log"
+    Write-Utf8NoBom -Path $probeLog -Content ("URL: {0}{1}" -f $Url,[Environment]::NewLine)
+
     while ((Get-Date) -lt $deadline) {
+        $request = [System.Net.WebRequest]::Create($Url)
+        $request.Method = "GET"
+        $request.Timeout = 10000
+        $request.ReadWriteTimeout = 10000
+        $request.AllowAutoRedirect = $true
         try {
-            $r = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 10
-            if ($r.StatusCode -ge 200 -and $r.StatusCode -lt 500) { return }
-        } catch {}
+            $response = $request.GetResponse()
+            try {
+                $body = (New-Object System.IO.StreamReader($response.GetResponseStream())).ReadToEnd()
+                $status = [int]$response.StatusCode
+                Add-Content -Path $probeLog -Value ("$(Get-Date -Format s) HTTP $status; body: $($body.Substring(0,[Math]::Min(2000,$body.Length)))")
+                if ($status -ge 200 -and $status -lt 500) {
+                    return
+                }
+            } finally {
+                $response.Close()
+            }
+        } catch [System.Net.WebException] {
+            $status = "NO_RESPONSE"
+            $body = ""
+            if ($_.Exception.Response) {
+                $resp = [System.Net.HttpWebResponse]$_.Exception.Response
+                try {
+                    $status = [int]$resp.StatusCode
+                    $reader = New-Object System.IO.StreamReader($resp.GetResponseStream())
+                    try {
+                        $body = $reader.ReadToEnd()
+                    } finally {
+                        $reader.Dispose()
+                    }
+                } finally {
+                    $resp.Close()
+                }
+            }
+            Add-Content -Path $probeLog -Value ("$(Get-Date -Format s) HTTP $status; error: {0}; body: {1}" -f $_.Exception.Message,$body.Substring(0,[Math]::Min(2000,$body.Length)))
+        } catch {
+            Add-Content -Path $probeLog -Value ("$(Get-Date -Format s) Probe error: {0}" -f $_.Exception.Message)
+        }
         Start-Sleep -Seconds 2
     }
-    throw "ChurchCRM did not become ready."
+    throw "ChurchCRM did not become ready. See $probeLog."
 }
 
 function Run-SqlFile([string]$File,[string]$RootPassword) {
