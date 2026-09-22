@@ -111,32 +111,28 @@ function Configure-PHP {
     $phpExtDir = (Join-Path $PhpRoot "ext") -replace '\\','/'
     $phpLog = (Join-Path $LogRoot "php-error.log") -replace '\\','/'
 
-    $additions = @(
-        ('extension_dir="' + $phpExtDir + '"')
-        "extension=bcmath"
-        "extension=curl"
-        "extension=exif"
-        "extension=fileinfo"
-        "extension=gd"
-        "extension=gettext"
-        "extension=intl"
-        "extension=mbstring"
-        "extension=mysqli"
-        "extension=pdo_mysql"
-        "extension=zip"
-        "memory_limit=512M"
-        "upload_max_filesize=32M"
-        "post_max_size=32M"
-        "max_execution_time=120"
-        "display_errors=Off"
-        "log_errors=On"
-        ('error_log="' + $phpLog + '"')
-        "session.cookie_httponly=1"
-        "session.cookie_samesite=Lax"
-        "date.timezone=Asia/Shanghai"
-    )
-
-    Add-Content -Path $PhpIni -Value ($additions -join [Environment]::NewLine)
+    Add-Content -Path $PhpIni -Value ('extension_dir="' + $phpExtDir + '"')
+    Add-Content -Path $PhpIni -Value "extension=bcmath"
+    Add-Content -Path $PhpIni -Value "extension=curl"
+    Add-Content -Path $PhpIni -Value "extension=exif"
+    Add-Content -Path $PhpIni -Value "extension=fileinfo"
+    Add-Content -Path $PhpIni -Value "extension=gd"
+    Add-Content -Path $PhpIni -Value "extension=gettext"
+    Add-Content -Path $PhpIni -Value "extension=intl"
+    Add-Content -Path $PhpIni -Value "extension=mbstring"
+    Add-Content -Path $PhpIni -Value "extension=mysqli"
+    Add-Content -Path $PhpIni -Value "extension=pdo_mysql"
+    Add-Content -Path $PhpIni -Value "extension=zip"
+    Add-Content -Path $PhpIni -Value "memory_limit=512M"
+    Add-Content -Path $PhpIni -Value "upload_max_filesize=32M"
+    Add-Content -Path $PhpIni -Value "post_max_size=32M"
+    Add-Content -Path $PhpIni -Value "max_execution_time=120"
+    Add-Content -Path $PhpIni -Value "display_errors=Off"
+    Add-Content -Path $PhpIni -Value "log_errors=On"
+    Add-Content -Path $PhpIni -Value ('error_log="' + $phpLog + '"')
+    Add-Content -Path $PhpIni -Value "session.cookie_httponly=1"
+    Add-Content -Path $PhpIni -Value "session.cookie_samesite=Lax"
+    Add-Content -Path $PhpIni -Value "date.timezone=Asia/Shanghai"
 }
 
 function Configure-Apache([int]$Port) {
