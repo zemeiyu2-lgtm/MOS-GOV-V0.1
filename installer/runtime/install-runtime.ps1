@@ -238,8 +238,11 @@ default-character-set=utf8mb4
 
 function Install-Apache([int]$Port) {
     $httpd = Join-Path $ApacheRoot "bin/httpd.exe"
-    & $httpd -t -f $ApacheConf
+    Write-InstallLog "Validating Apache configuration."
+    $apacheTest = @(& $httpd -t -f $ApacheConf 2>&1)
+    foreach ($line in $apacheTest) { Write-InstallLog ("Apache httpd -t: " + [string]$line) }
     if ($LASTEXITCODE -ne 0) { throw "Apache configuration check failed." }
+    Write-InstallLog "Apache configuration is valid."
 
     if (Get-Service -Name $ApacheService -ErrorAction SilentlyContinue) {
         Stop-Service $ApacheService -Force
