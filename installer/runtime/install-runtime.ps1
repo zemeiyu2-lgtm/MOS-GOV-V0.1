@@ -132,8 +132,8 @@ function Configure-PHP {
     $text = $text -replace '(?m)^;?session\.cookie_httponly\s*=.*$','session.cookie_httponly=1'
     $text = $text -replace '(?m)^;?session\.cookie_samesite\s*=.*$','session.cookie_samesite=Lax'
     $text = $text -replace '(?m)^;?date\.timezone\s*=.*$','date.timezone=Asia/Shanghai'
-    $text = $text -replace '(?m)^;?error_log\s*=.*$',('error_log="' + $phpLog + '"')
-
+    $phpErrorLogLine = 'error_log="' + $phpLog + '"'
+    $text = $text -replace '(?m)^;?error_log\s*=.*$', $phpErrorLogLine
     Write-Utf8NoBom -Path $PhpIni -Content $text
 }
 
