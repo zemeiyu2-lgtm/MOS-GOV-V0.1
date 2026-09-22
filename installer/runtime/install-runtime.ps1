@@ -112,7 +112,7 @@ function Configure-PHP {
     $phpLog = (Join-Path $LogRoot "php-error.log") -replace '\\','/'
 
     $text = Get-Content $PhpIni -Raw
-    $text = [regex]::Replace($text,'(?m)^;?extension_dir\s*=.*$','extension_dir="' + $phpExtDir + '"' )
+    $text = $text -replace '(?m)^;?extension_dir\s*=.*$', ('extension_dir="' + $phpExtDir + '"' )
 
     foreach ($ext in @("bcmath","curl","exif","fileinfo","gd","gettext","intl","mbstring","mysqli","pdo_mysql","zip")) {
         $pattern = "(?m)^;?extension\s*=\s*php_$([regex]::Escape($ext))\.dll\s*$"
