@@ -138,7 +138,7 @@ function Configure-PHP {
 }
 
 function Configure-Apache([int]$Port) {
-    $docRoot = (Join-Path $ChurchRoot "src") -replace '\\','/'
+    $docRoot = $ChurchRoot -replace "\\","/"
     $apacheRoot = $ApacheRoot -replace '\\','/'
     $php = $PhpRoot -replace '\\','/'
     $logs = $LogRoot -replace '\\','/'
@@ -372,15 +372,15 @@ Write-InstallLog "Apache service installation completed."
 # Initialize the official ChurchCRM schema and seed data first.
 # This creates the standard admin/changeme account used by ChurchCRM's fresh-install flow.
 Write-InstallLog "Importing official ChurchCRM schema and seed data."
-Run-SqlFile (Join-Path $ChurchRoot "src/mysql/install/Install.sql") $rootPassword
+Run-SqlFile (Join-Path $ChurchRoot "mysql/install/Install.sql") $rootPassword
 Write-InstallLog "Official ChurchCRM schema import completed."
 
 Write-InstallLog "Waiting for ChurchCRM HTTP endpoint."
 Wait-Http -Url "http://127.0.0.1:$HttpPort/" -TimeoutSeconds 180
 Write-InstallLog "ChurchCRM HTTP endpoint is reachable."
 
-Run-SqlFile (Join-Path $ChurchRoot "src/plugins/community/mos-gov/database/001_initial.sql") $rootPassword
-Run-SqlFile (Join-Path $ChurchRoot "src/plugins/community/mos-gov/database/002_v02_authorization.sql") $rootPassword
+Run-SqlFile (Join-Path $ChurchRoot "plugins/community/mos-gov/database/001_initial.sql") $rootPassword
+Run-SqlFile (Join-Path $ChurchRoot "plugins/community/mos-gov/database/002_v02_authorization.sql") $rootPassword
 
 $php = Join-Path $PhpRoot "php.exe"
 $enable = Join-Path $AppRoot "runtime/enable-mosgov.php"
@@ -427,7 +427,7 @@ exit 0
 }
 
 function Configure-Apache([int]$Port) {
-    $docRoot = (Join-Path $ChurchRoot "src") -replace '\\','/'
+    $docRoot = $ChurchRoot -replace "\\","/"
     $apacheRoot = $ApacheRoot -replace '\\','/'
     $php = $PhpRoot -replace '\\','/'
     $logs = $LogRoot -replace '\\','/'
@@ -661,15 +661,15 @@ Write-InstallLog "Apache service installation completed."
 # Initialize the official ChurchCRM schema and seed data first.
 # This creates the standard admin/changeme account used by ChurchCRM's fresh-install flow.
 Write-InstallLog "Importing official ChurchCRM schema and seed data."
-Run-SqlFile (Join-Path $ChurchRoot "src/mysql/install/Install.sql") $rootPassword
+Run-SqlFile (Join-Path $ChurchRoot "mysql/install/Install.sql") $rootPassword
 Write-InstallLog "Official ChurchCRM schema import completed."
 
 Write-InstallLog "Waiting for ChurchCRM HTTP endpoint."
 Wait-Http -Url "http://127.0.0.1:$HttpPort/" -TimeoutSeconds 180
 Write-InstallLog "ChurchCRM HTTP endpoint is reachable."
 
-Run-SqlFile (Join-Path $ChurchRoot "src/plugins/community/mos-gov/database/001_initial.sql") $rootPassword
-Run-SqlFile (Join-Path $ChurchRoot "src/plugins/community/mos-gov/database/002_v02_authorization.sql") $rootPassword
+Run-SqlFile (Join-Path $ChurchRoot "plugins/community/mos-gov/database/001_initial.sql") $rootPassword
+Run-SqlFile (Join-Path $ChurchRoot "plugins/community/mos-gov/database/002_v02_authorization.sql") $rootPassword
 
 $php = Join-Path $PhpRoot "php.exe"
 $enable = Join-Path $AppRoot "runtime/enable-mosgov.php"
