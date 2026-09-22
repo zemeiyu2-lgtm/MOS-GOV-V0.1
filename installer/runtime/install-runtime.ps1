@@ -142,30 +142,53 @@ function Configure-Apache([int]$Port) {
     $apacheRoot = $ApacheRoot -replace '\\','/'
     $php = $PhpRoot -replace '\\','/'
     $logs = $LogRoot -replace '\\','/'
+    $modules = "$apacheRoot/modules"
+
+    foreach ($module in @(
+        "mod_mpm_winnt.so",
+        "mod_authn_core.so",
+        "mod_authz_core.so",
+        "mod_authz_host.so",
+        "mod_dir.so",
+        "mod_mime.so",
+        "mod_rewrite.so",
+        "mod_log_config.so",
+        "mod_env.so",
+        "mod_setenvif.so"
+    )) {
+        $modulePath = Join-Path $ApacheRoot ("modules/" + $module)
+        if (-not (Test-Path $modulePath)) {
+            throw "Apache module not found: $modulePath"
+        }
+    }
+
+    if (-not (Test-Path (Join-Path $PhpRoot "php8ts.dll"))) {
+        throw "PHP runtime DLL not found: $(Join-Path $PhpRoot "php8ts.dll")"
+    }
+    if (-not (Test-Path (Join-Path $PhpRoot "php8apache2_4.dll"))) {
+        throw "PHP Apache module not found: $(Join-Path $PhpRoot "php8apache2_4.dll")"
+    }
+
     $conf = @"
 ServerRoot "$apacheRoot"
 Listen 127.0.0.1:$Port
 ServerName 127.0.0.1:$Port
 
-LoadModule mpm_winnt_module modules/mod_mpm_winnt.so
-LoadModule authn_core_module modules/mod_authn_core.so
-LoadModule authz_core_module modules/mod_authz_core.so
-LoadModule authz_host_module modules/mod_authz_host.so
-LoadModule dir_module modules/mod_dir.so
-LoadModule mime_module modules/mod_mime.so
-LoadModule rewrite_module modules/mod_rewrite.so
-LoadModule headers_module modules/mod_headers.so
-LoadModule env_module modules/mod_env.so
-LoadModule setenvif_module modules/mod_setenvif.so
-LoadModule log_config_module modules/mod_log_config.so
-LoadModule alias_module modules/mod_alias.so
-LoadModule filter_module modules/mod_filter.so
-LoadModule version_module modules/mod_version.so
-LoadModule reqtimeout_module modules/mod_reqtimeout.so
+LoadModule mpm_winnt_module "$modules/mod_mpm_winnt.so"
+LoadModule authn_core_module "$modules/mod_authn_core.so"
+LoadModule authz_core_module "$modules/mod_authz_core.so"
+LoadModule authz_host_module "$modules/mod_authz_host.so"
+LoadModule dir_module "$modules/mod_dir.so"
+LoadModule mime_module "$modules/mod_mime.so"
+LoadModule rewrite_module "$modules/mod_rewrite.so"
+LoadModule log_config_module "$modules/mod_log_config.so"
+LoadModule env_module "$modules/mod_env.so"
+LoadModule setenvif_module "$modules/mod_setenvif.so"
+LoadFile "$php/php8ts.dll"
 LoadModule php_module "$php/php8apache2_4.dll"
 
 PHPIniDir "$php"
-TypesConfig conf/mime.types
+TypesConfig "$apacheRoot/conf/mime.types"
 DirectoryIndex index.php index.html
 AddDefaultCharset UTF-8
 AddHandler application/x-httpd-php .php
