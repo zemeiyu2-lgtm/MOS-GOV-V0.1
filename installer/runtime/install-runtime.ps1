@@ -114,7 +114,7 @@ function Configure-PHP {
     $text = Get-Content $PhpIni -Raw
     $text = $text -replace '(?m)^;?extension_dir\s*=.*$', "extension_dir=`"$phpExtDir`""
 
-    foreach ($ext in @("bcmath","curl","exif","fileinfo","gd","gettext","intl","mbstring","mysqli","pdo_mysql","zip")) {
+    foreach ($ext in @("curl","exif","fileinfo","gd","gettext","intl","mbstring","mysqli","pdo_mysql","zip")) {
         $pattern = "(?m)^;?extension\s*=\s*php_$([regex]::Escape($ext))\.dll\s*$"
         if ($text -match $pattern) {
             $text = [regex]::Replace($text,$pattern,"extension=php_$ext.dll")
@@ -148,6 +148,7 @@ function Configure-Apache([int]$Port) {
         "mod_authn_core.so",
         "mod_authz_core.so",
         "mod_authz_host.so",
+        "mod_access_compat.so",
         "mod_dir.so",
         "mod_mime.so",
         "mod_rewrite.so",
@@ -176,6 +177,7 @@ ServerName 127.0.0.1:$Port
 LoadModule authn_core_module "$modules/mod_authn_core.so"
 LoadModule authz_core_module "$modules/mod_authz_core.so"
 LoadModule authz_host_module "$modules/mod_authz_host.so"
+LoadModule access_compat_module "$modules/mod_access_compat.so"
 LoadModule dir_module "$modules/mod_dir.so"
 LoadModule mime_module "$modules/mod_mime.so"
 LoadModule rewrite_module "$modules/mod_rewrite.so"
@@ -375,6 +377,10 @@ if (Test-Path $vc) {
 Write-InstallLog "Configuring PHP."
 Configure-PHP
 Write-InstallLog "PHP configuration completed."
+$phpCheck = Join-Path $PhpRoot "php.exe"
+& $phpCheck -r "if (!extension_loaded('bcmath')) { exit(1); }"
+if ($LASTEXITCODE -ne 0) { throw "PHP BCMath support is unavailable; ChurchCRM requires ext-bcmath." }
+Write-InstallLog "PHP BCMath support verified."
 Write-InstallLog "Installing MariaDB."
 Install-MariaDb -Port $DbPort -RootPassword $rootPassword
 Write-InstallLog "MariaDB service installation completed."
