@@ -260,9 +260,16 @@ default-character-set=utf8mb4
 function Install-Apache([int]$Port) {
     $httpd = Join-Path $ApacheRoot "bin/httpd.exe"
     Write-InstallLog "Validating Apache configuration."
-    $apacheTest = @(& $httpd -t -f $ApacheConf 2>&1)
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        $apacheTest = @(& $httpd -t -f $ApacheConf 2>&1)
+        $apacheExitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
     foreach ($line in $apacheTest) { Write-InstallLog ("Apache httpd -t: " + [string]$line) }
-    if ($LASTEXITCODE -ne 0) { throw "Apache configuration check failed." }
+    if ($apacheExitCode -ne 0) { throw "Apache configuration check failed with exit code $apacheExitCode." }
     Write-InstallLog "Apache configuration is valid."
 
     if (Get-Service -Name $ApacheService -ErrorAction SilentlyContinue) {
