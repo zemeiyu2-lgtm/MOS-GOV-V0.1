@@ -109,7 +109,7 @@ function Configure-PHP {
     Copy-Item $template $PhpIni -Force
     $text = Get-Content $PhpIni -Raw
     $phpExtDir = (Join-Path $PhpRoot "ext") -replace '\\','/'
-    $text = [regex]::Replace($text,'(?m)^;?extension_dir\s*=.*
+    $text = [regex]::Replace($text,'(?m)^;?extension_dir\s*=.*$','extension_dir="' + $phpExtDir + '"' )
 
     foreach ($ext in @("bcmath","curl","exif","fileinfo","gd","gettext","intl","mbstring","mysqli","pdo_mysql","zip")) {
         $pattern = "(?m)^;?extension\s*=\s*php_$([regex]::Escape($ext))\.dll\s*$"
