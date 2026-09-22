@@ -73,6 +73,30 @@ jobs:
               Write-Host "apache-error.log not found: $apacheLog"
             }
 
+          Write-Host "=== apache-access.log after timeout ==="
+          $apacheAccessLog = Join-Path $env:ProgramData "MOS-GOV\\logs\\apache-access.log"
+          if (Test-Path $apacheAccessLog) {
+            Get-Content $apacheAccessLog -Tail 100
+          } else {
+            Write-Host "apache-access.log not found: $apacheAccessLog"
+          }
+
+          Write-Host "=== php-error.log after timeout ==="
+          $phpErrorLog = Join-Path $env:ProgramData "MOS-GOV\\logs\\php-error.log"
+          if (Test-Path $phpErrorLog) {
+            Get-Content $phpErrorLog -Tail 300
+          } else {
+            Write-Host "php-error.log not found: $phpErrorLog"
+          }
+
+          Write-Host "=== http-readiness.log after timeout ==="
+          $httpProbeLog = Join-Path $env:ProgramData "MOS-GOV\\logs\\http-readiness.log"
+          if (Test-Path $httpProbeLog) {
+            Get-Content $httpProbeLog -Tail 100
+          } else {
+            Write-Host "http-readiness.log not found: $httpProbeLog"
+          }
+
             Write-Host "=== install-state.json after timeout ==="
             $statePath = Join-Path $env:ProgramData "MOS-GOV\\config\\install-state.json"
             if (Test-Path $statePath) {
@@ -130,6 +154,30 @@ jobs:
             Get-Content $installerLog -Raw
           } else {
             Write-Host "installer.log not found: $installerLog"
+          }
+
+          Write-Host "=== apache-access.log ==="
+          $apacheAccessLog = Join-Path $env:ProgramData "MOS-GOV\logs\apache-access.log"
+          if (Test-Path $apacheAccessLog) {
+            Get-Content $apacheAccessLog -Tail 100
+          } else {
+            Write-Host "apache-access.log not found: $apacheAccessLog"
+          }
+
+          Write-Host "=== php-error.log ==="
+          $phpErrorLog = Join-Path $env:ProgramData "MOS-GOV\logs\php-error.log"
+          if (Test-Path $phpErrorLog) {
+            Get-Content $phpErrorLog -Tail 300
+          } else {
+            Write-Host "php-error.log not found: $phpErrorLog"
+          }
+
+          Write-Host "=== http-readiness.log ==="
+          $httpProbeLog = Join-Path $env:ProgramData "MOS-GOV\logs\http-readiness.log"
+          if (Test-Path $httpProbeLog) {
+            Get-Content $httpProbeLog -Tail 100
+          } else {
+            Write-Host "http-readiness.log not found: $httpProbeLog"
           }
 
           Write-Host "=== apache-error.log ==="
