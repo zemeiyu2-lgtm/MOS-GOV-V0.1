@@ -176,6 +176,8 @@ Copy-Item (Join-Path $PSScriptRoot "runtime/install-runtime.cmd") (Join-Path $pa
 Copy-Item (Join-Path $PSScriptRoot "runtime/install-runtime.ps1") (Join-Path $payloadRuntime "install-runtime.ps1") -Force
 Copy-Item (Join-Path $PSScriptRoot "runtime/uninstall-runtime.cmd") (Join-Path $payloadRuntime "uninstall-runtime.cmd") -Force
 Copy-Item (Join-Path $PSScriptRoot "runtime/uninstall-runtime.ps1") (Join-Path $payloadRuntime "uninstall-runtime.ps1") -Force
+Copy-Item (Join-Path $PSScriptRoot "runtime/reset-church.cmd") (Join-Path $payloadRuntime "reset-church.cmd") -Force
+Copy-Item (Join-Path $PSScriptRoot "runtime/reset-church.ps1") (Join-Path $payloadRuntime "reset-church.ps1") -Force
 Copy-Item (Join-Path $PSScriptRoot "runtime/enable-mosgov.php") (Join-Path $payloadRuntime "enable-mosgov.php") -Force
 
 $iss = Get-Content (Join-Path $PSScriptRoot "MOS-GOV-V0.2.iss") -Raw
