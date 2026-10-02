@@ -47,6 +47,242 @@ final class GovRepository
     /** Governance node types addressable by gov_relationship.from_type / to_type. */
     public const RELATIONSHIP_ENTITY_TYPES = ['structure', 'body', 'role', 'appointment', 'meeting', 'person'];
 
+    // ------------------------------------------------- V0.2 security model
+    // All security vocabularies below are CLOSED whitelists. User input can
+    // never introduce a new scope type, grant mode, information level,
+    // action or permission key: every value is validated against these
+    // constants before it reaches the database.
+
+    /** Fixed scope-type whitelist (V0.2 design §9.3). */
+    public const SCOPE_TYPES = ['global', 'church', 'structure', 'body', 'ministry', 'group', 'activity', 'project', 'person'];
+
+    /** Scope types that address the whole system (no numeric scope_id). */
+    public const GLOBAL_SCOPE_TYPES = ['global', 'church'];
+
+    /** gov_role_scope.scope_mode whitelist. */
+    public const ROLE_SCOPE_MODES = ['direct', 'inherit'];
+
+    /** gov_identity_scope.source_type whitelist. */
+    public const SCOPE_SOURCE_TYPES = ['appointment', 'manual_assignment', 'inherited'];
+
+    /** grant / deny modes (gov_identity_permission, gov_role_permission). */
+    public const GRANT_MODES = ['grant', 'deny'];
+
+    /** Information levels (V0.2 design §10). P5 defaults to DENY. */
+    public const INFORMATION_LEVELS = ['P1', 'P2', 'P3', 'P4', 'P5'];
+
+    /** Default information level of every governed resource type. */
+    public const INFORMATION_LEVELS_BY_RESOURCE = [
+        'structure' => 'P2',
+        'body' => 'P2',
+        'role' => 'P2',
+        'appointment' => 'P4',
+        'responsibility' => 'P3',
+        'relationship' => 'P3',
+        'meeting' => 'P3',
+        'issue' => 'P3',
+        'decision' => 'P3',
+        'task' => 'P3',
+        'identity' => 'P4',
+        'permission' => 'P4',
+    ];
+
+    /** Fields whose content is P5 (sensitive) regardless of the row level. */
+    public const P5_FIELDS = [
+        'identity' => ['notes'],
+        'appointment' => ['notes'],
+        'meeting' => ['minutes'],
+        'issue' => ['description'],
+        'decision' => ['decision_text'],
+    ];
+
+    /** Governance actions (V0.2 design §11). Deliberately richer than CRUD. */
+    public const ACTIONS = ['view', 'create', 'edit', 'submit', 'approve', 'publish', 'close', 'export', 'feedback', 'manage'];
+
+    /**
+     * Permission registry whitelist (V0.2 design §12). permission_key =>
+     * [resource_type, action, risk_level]. The database may not contain any
+     * permission key outside this registry; admin UIs and the data layer
+     * both refuse unknown keys.
+     */
+    public const PERMISSIONS = [
+        'governance.view' => ['governance', 'view', 'low'],
+        'governance.create' => ['governance', 'create', 'medium'],
+        'governance.edit' => ['governance', 'edit', 'medium'],
+        'governance.submit' => ['governance', 'submit', 'medium'],
+        'governance.approve' => ['governance', 'approve', 'high'],
+        'governance.publish' => ['governance', 'publish', 'high'],
+        'governance.close' => ['governance', 'close', 'medium'],
+        'governance.export' => ['governance', 'export', 'high'],
+        'governance.feedback' => ['governance', 'feedback', 'low'],
+        'governance.manage' => ['governance', 'manage', 'high'],
+        'meeting.view' => ['meeting', 'view', 'low'],
+        'meeting.create' => ['meeting', 'create', 'medium'],
+        'meeting.edit' => ['meeting', 'edit', 'medium'],
+        'meeting.submit' => ['meeting', 'submit', 'medium'],
+        'meeting.export' => ['meeting', 'export', 'high'],
+        'issue.view' => ['issue', 'view', 'low'],
+        'issue.create' => ['issue', 'create', 'medium'],
+        'issue.edit' => ['issue', 'edit', 'medium'],
+        'decision.view' => ['decision', 'view', 'low'],
+        'decision.create' => ['decision', 'create', 'medium'],
+        'decision.edit' => ['decision', 'edit', 'medium'],
+        'decision.approve' => ['decision', 'approve', 'high'],
+        'decision.publish' => ['decision', 'publish', 'high'],
+        'task.view' => ['task', 'view', 'low'],
+        'task.create' => ['task', 'create', 'medium'],
+        'task.edit' => ['task', 'edit', 'medium'],
+        'task.close' => ['task', 'close', 'medium'],
+        'identity.view' => ['identity', 'view', 'medium'],
+        'identity.edit' => ['identity', 'edit', 'high'],
+        'role.view' => ['role', 'view', 'low'],
+        'role.manage' => ['role', 'manage', 'high'],
+        'appointment.view' => ['appointment', 'view', 'low'],
+        'appointment.create' => ['appointment', 'create', 'high'],
+        'appointment.end' => ['appointment', 'end', 'high'],
+        'permission.manage' => ['permission', 'manage', 'critical'],
+    ];
+
+    /** Identity lifecycle statuses. */
+    public const IDENTITY_STATUSES = ['active', 'inactive', 'suspended', 'archived'];
+
+    /** Risk levels for gov_permission. */
+    public const RISK_LEVELS = ['low', 'medium', 'high', 'critical'];
+
+    /**
+     * V0.2 security registry: single source of truth for the nine
+     * authorization tables (identity / scope / permission / visibility).
+     * Kept separate from ENTITIES so the ten V0.1 governance entities and
+     * their slug map stay untouched; getEntity() resolves both registries,
+     * so the whitelisted prepared-statement CRUD machinery serves them too.
+     */
+    public const SECURITY_ENTITIES = [
+        'identity' => [
+            'table' => 'gov_identity',
+            'label' => 'Governance Identity',
+            'labelPlural' => 'Governance Identities',
+            'listFields' => ['person_id', 'identity_status', 'member_since', 'display_name_override'],
+            'fields' => [
+                'person_id' => ['type' => 'person', 'required' => true, 'label' => 'Person'],
+                'identity_status' => ['type' => 'select', 'required' => true, 'options' => self::IDENTITY_STATUSES, 'default' => 'active', 'label' => 'Identity status'],
+                'member_since' => ['type' => 'date', 'required' => false, 'label' => 'Member since'],
+                'display_name_override' => ['type' => 'text', 'required' => false, 'max' => 190, 'label' => 'Display name override'],
+                'notes' => ['type' => 'textlong', 'required' => false, 'label' => 'Notes'],
+            ],
+        ],
+        'identity_role' => [
+            'table' => 'gov_identity_role',
+            'label' => 'Identity Role',
+            'labelPlural' => 'Identity Roles',
+            'listFields' => ['identity_id', 'role_id', 'appointment_id', 'status', 'start_date'],
+            'fields' => [
+                'identity_id' => ['type' => 'ref', 'ref' => 'identity', 'required' => true, 'label' => 'Identity'],
+                'role_id' => ['type' => 'ref', 'ref' => 'role', 'required' => true, 'label' => 'Role'],
+                'appointment_id' => ['type' => 'ref', 'ref' => 'appointment', 'required' => false, 'label' => 'Appointment'],
+                'status' => ['type' => 'status', 'required' => true, 'options' => self::STATUSES, 'default' => 'active', 'label' => 'Status'],
+                'start_date' => ['type' => 'date', 'required' => false, 'label' => 'Start date'],
+                'end_date' => ['type' => 'date', 'required' => false, 'label' => 'End date'],
+            ],
+        ],
+        'scope' => [
+            'table' => 'gov_scope',
+            'label' => 'Scope',
+            'labelPlural' => 'Scopes',
+            'listFields' => ['scope_type', 'scope_id', 'name', 'status'],
+            'fields' => [
+                'scope_type' => ['type' => 'select', 'required' => true, 'options' => self::SCOPE_TYPES, 'label' => 'Scope type'],
+                'scope_id' => ['type' => 'int', 'required' => false, 'min' => 1, 'label' => 'Scope ID'],
+                'name' => ['type' => 'text', 'required' => true, 'max' => 190, 'label' => 'Name'],
+                'description' => ['type' => 'textlong', 'required' => false, 'label' => 'Description'],
+                'status' => ['type' => 'status', 'required' => true, 'options' => self::STATUSES, 'default' => 'active', 'label' => 'Status'],
+            ],
+        ],
+        'role_scope' => [
+            'table' => 'gov_role_scope',
+            'label' => 'Role Scope',
+            'labelPlural' => 'Role Scopes',
+            'listFields' => ['role_id', 'scope_type', 'scope_id', 'scope_mode'],
+            'fields' => [
+                'role_id' => ['type' => 'ref', 'ref' => 'role', 'required' => true, 'label' => 'Role'],
+                'scope_type' => ['type' => 'select', 'required' => true, 'options' => self::SCOPE_TYPES, 'label' => 'Scope type'],
+                'scope_id' => ['type' => 'int', 'required' => false, 'min' => 1, 'label' => 'Scope ID'],
+                'scope_mode' => ['type' => 'select', 'required' => true, 'options' => self::ROLE_SCOPE_MODES, 'default' => 'direct', 'label' => 'Scope mode'],
+            ],
+        ],
+        'identity_scope' => [
+            'table' => 'gov_identity_scope',
+            'label' => 'Identity Scope',
+            'labelPlural' => 'Identity Scopes',
+            'listFields' => ['identity_id', 'scope_type', 'scope_id', 'source_type', 'status'],
+            'fields' => [
+                'identity_id' => ['type' => 'ref', 'ref' => 'identity', 'required' => true, 'label' => 'Identity'],
+                'scope_type' => ['type' => 'select', 'required' => true, 'options' => self::SCOPE_TYPES, 'label' => 'Scope type'],
+                'scope_id' => ['type' => 'int', 'required' => false, 'min' => 1, 'label' => 'Scope ID'],
+                'source_type' => ['type' => 'select', 'required' => true, 'options' => self::SCOPE_SOURCE_TYPES, 'default' => 'manual_assignment', 'label' => 'Source'],
+                'source_id' => ['type' => 'int', 'required' => false, 'min' => 1, 'label' => 'Source ID'],
+                'start_date' => ['type' => 'date', 'required' => false, 'label' => 'Start date'],
+                'end_date' => ['type' => 'date', 'required' => false, 'label' => 'End date'],
+                'status' => ['type' => 'status', 'required' => true, 'options' => self::STATUSES, 'default' => 'active', 'label' => 'Status'],
+            ],
+        ],
+        'permission' => [
+            'table' => 'gov_permission',
+            'label' => 'Permission',
+            'labelPlural' => 'Permissions',
+            'listFields' => ['permission_key', 'resource_type', 'action', 'risk_level', 'status'],
+            'fields' => [
+                'permission_key' => ['type' => 'text', 'required' => true, 'max' => 100, 'label' => 'Permission key'],
+                'resource_type' => ['type' => 'text', 'required' => true, 'max' => 40, 'label' => 'Resource type'],
+                'action' => ['type' => 'text', 'required' => true, 'max' => 30, 'label' => 'Action'],
+                'description' => ['type' => 'text', 'required' => false, 'max' => 255, 'label' => 'Description'],
+                'risk_level' => ['type' => 'select', 'required' => true, 'options' => self::RISK_LEVELS, 'default' => 'low', 'label' => 'Risk level'],
+                'status' => ['type' => 'status', 'required' => true, 'options' => self::STATUSES, 'default' => 'active', 'label' => 'Status'],
+            ],
+        ],
+        'role_permission' => [
+            'table' => 'gov_role_permission',
+            'label' => 'Role Permission',
+            'labelPlural' => 'Role Permissions',
+            'listFields' => ['role_id', 'permission_id', 'grant_mode'],
+            'fields' => [
+                'role_id' => ['type' => 'ref', 'ref' => 'role', 'required' => true, 'label' => 'Role'],
+                'permission_id' => ['type' => 'ref', 'ref' => 'permission', 'required' => true, 'label' => 'Permission'],
+                'grant_mode' => ['type' => 'select', 'required' => true, 'options' => ['allow'], 'default' => 'allow', 'label' => 'Grant mode'],
+            ],
+        ],
+        'identity_permission' => [
+            'table' => 'gov_identity_permission',
+            'label' => 'Identity Permission',
+            'labelPlural' => 'Identity Permissions',
+            'listFields' => ['identity_id', 'permission_id', 'grant_mode', 'status', 'end_date'],
+            'fields' => [
+                'identity_id' => ['type' => 'ref', 'ref' => 'identity', 'required' => true, 'label' => 'Identity'],
+                'permission_id' => ['type' => 'ref', 'ref' => 'permission', 'required' => true, 'label' => 'Permission'],
+                'grant_mode' => ['type' => 'select', 'required' => true, 'options' => self::GRANT_MODES, 'default' => 'grant', 'label' => 'Grant mode'],
+                'start_date' => ['type' => 'date', 'required' => false, 'label' => 'Start date'],
+                'end_date' => ['type' => 'date', 'required' => false, 'label' => 'End date'],
+                'reason' => ['type' => 'text', 'required' => false, 'max' => 255, 'label' => 'Reason'],
+                'authorized_by' => ['type' => 'person', 'required' => false, 'label' => 'Authorized by'],
+                'status' => ['type' => 'status', 'required' => true, 'options' => self::STATUSES, 'default' => 'active', 'label' => 'Status'],
+            ],
+        ],
+        'visibility_rule' => [
+            'table' => 'gov_visibility_rule',
+            'label' => 'Visibility Rule',
+            'labelPlural' => 'Visibility Rules',
+            'listFields' => ['resource_type', 'information_level', 'role_id', 'action', 'rule_type'],
+            'fields' => [
+                'resource_type' => ['type' => 'select', 'required' => true, 'options' => ['*', 'governance', 'identity', 'permission', 'structure', 'body', 'role', 'appointment', 'responsibility', 'relationship', 'meeting', 'issue', 'decision', 'task'], 'label' => 'Resource type'],
+                'information_level' => ['type' => 'select', 'required' => true, 'options' => self::INFORMATION_LEVELS, 'label' => 'Information level'],
+                'role_id' => ['type' => 'ref', 'ref' => 'role', 'required' => false, 'label' => 'Role'],
+                'scope_type' => ['type' => 'select', 'required' => false, 'options' => self::SCOPE_TYPES, 'label' => 'Scope type'],
+                'action' => ['type' => 'select', 'required' => true, 'options' => self::ACTIONS, 'default' => 'view', 'label' => 'Action'],
+                'rule_type' => ['type' => 'select', 'required' => true, 'options' => ['allow', 'deny'], 'default' => 'allow', 'label' => 'Rule type'],
+                'status' => ['type' => 'status', 'required' => true, 'options' => self::STATUSES, 'default' => 'active', 'label' => 'Status'],
+            ],
+        ],
+    ];
+
     /** Columns that always exist on every gov_* table. */
     private const COMMON_COLUMNS = ['id', 'created_at', 'updated_at'];
 
@@ -361,15 +597,22 @@ final class GovRepository
     }
 
     /**
-     * @param string $entity one of the ENTITIES keys
+     * @param string $entity one of the ENTITIES or SECURITY_ENTITIES keys
      */
     public function getEntity(string $entity): array
     {
-        if (!isset(self::ENTITIES[$entity])) {
+        $cfg = self::ENTITIES[$entity] ?? self::SECURITY_ENTITIES[$entity] ?? null;
+        if ($cfg === null) {
             throw new GovDataException('Unknown governance entity.');
         }
 
-        return self::ENTITIES[$entity];
+        return $cfg;
+    }
+
+    /** True when the key belongs to the V0.2 security registry. */
+    public static function isSecurityEntity(string $entity): bool
+    {
+        return isset(self::SECURITY_ENTITIES[$entity]);
     }
 
     /**
@@ -820,6 +1063,50 @@ final class GovRepository
                 && preg_match('/^\d{4}-\d{2}-\d{2}$/', $start) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $end)
                 && $end < $start) {
                 $errors['end_date'] = 'End date cannot be before the start date.';
+            }
+        }
+
+        // V0.2 semantic constraints (design §39): a governance record must
+        // carry its context — no free-floating responsibilities, no
+        // context-free decisions.
+        if ($entity === 'responsibility' && $this->isEmptyValue($data['role_id'] ?? null) && $this->isEmptyValue($data['appointment_id'] ?? null)) {
+            $errors['role_id'] = 'A responsibility must belong to a role or to an appointment.';
+        }
+        if ($entity === 'decision' && $this->isEmptyValue($data['issue_id'] ?? null) && $this->isEmptyValue($data['meeting_id'] ?? null)) {
+            $errors['issue_id'] = 'A decision must reference an issue or a meeting.';
+        }
+
+        // V0.2 scope whitelist semantics: global/church scopes carry no
+        // numeric id; every other scope type requires one.
+        if (in_array($entity, ['scope', 'role_scope', 'identity_scope'], true)) {
+            $scopeType = $data['scope_type'] ?? null;
+            $scopeId = $data['scope_id'] ?? null;
+            if (is_string($scopeType) && in_array($scopeType, self::SCOPE_TYPES, true)) {
+                if (in_array($scopeType, self::GLOBAL_SCOPE_TYPES, true)) {
+                    if (!$this->isEmptyValue($scopeId)) {
+                        $errors['scope_id'] = 'A ' . $scopeType . ' scope must not carry a numeric scope ID.';
+                    }
+                } elseif ($this->isEmptyValue($scopeId)) {
+                    $errors['scope_id'] = 'Scope type "' . $scopeType . '" requires a numeric scope ID.';
+                }
+            }
+        }
+
+        // V0.2 permission registry whitelist: no unknown permission keys can
+        // enter the system through any page or API.
+        if ($entity === 'permission') {
+            $key = $data['permission_key'] ?? null;
+            if (is_string($key) && $key !== '' && isset(self::PERMISSIONS[$key])) {
+                [$rt, $act, $risk] = self::PERMISSIONS[$key];
+                if (($data['resource_type'] ?? null) !== $rt) {
+                    $errors['resource_type'] = 'Resource type must be "' . $rt . '" for this permission key.';
+                }
+                if (($data['action'] ?? null) !== $act) {
+                    $errors['action'] = 'Action must be "' . $act . '" for this permission key.';
+                }
+                if (($data['risk_level'] ?? null) !== $risk) {
+                    $errors['risk_level'] = 'Risk level must be "' . $risk . '" for this permission key.';
+                }
             }
         }
 

@@ -21,6 +21,15 @@ $suites = [
     'Phase 3 data layer regression' => 'phase3_test.php',
     'V0.1 data layer (ten entities)' => 'v01_data_test.php',
     'V0.1 HTTP end-to-end' => 'v01_http_test.php',
+    // V0.2
+    'V0.2 migration (authorization model)' => 'v02_migrate.php',
+    'V0.2 governance identity' => 'v02_identity_test.php',
+    'V0.2 scope containment' => 'v02_scope_test.php',
+    'V0.2 permission registry' => 'v02_permission_test.php',
+    'V0.2 information visibility' => 'v02_visibility_test.php',
+    'V0.2 authorization engine' => 'v02_authorization_test.php',
+    'V0.2 security mode + scans' => 'v02_security_test.php',
+    'V0.2 my governance + HTTP' => 'v02_my_governance_test.php',
 ];
 
 $results = [];
@@ -54,7 +63,7 @@ foreach ($suites as $label => $script) {
 }
 
 echo PHP_EOL . str_repeat('=', 72) . PHP_EOL;
-echo 'MOS-GOV V0.1 TEST SUITE SUMMARY' . PHP_EOL;
+echo 'MOS-GOV TEST SUITE SUMMARY (V0.1 + V0.2)' . PHP_EOL;
 echo str_repeat('=', 72) . PHP_EOL;
 foreach ($results as $label => $result) {
     printf("%-40s %s%s", $label, $result, PHP_EOL);

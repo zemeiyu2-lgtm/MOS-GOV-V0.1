@@ -1,7 +1,7 @@
 <?php
 
 /**
- * MOS-GOV shared entity list view.
+ * MOS-GOV 通用实体列表视图.
  *
  * Expected variables (provided by the route):
  * - $cfg          entity config from GovRepository::ENTITIES
@@ -14,33 +14,51 @@
  */
 
 use ChurchCRM\dto\SystemURLs;
+use ChurchCRM\Plugins\MosGov\Data\GovRepository;
 
 $mosGovRootPath = SystemURLs::getRootPath() . '/plugins/mos-gov';
 
-$sPageTitle = $cfg['labelPlural'];
-$sPageSubtitle = 'MOS-GOV governance data';
+require __DIR__ . '/_i18n.php';
+
+$entityLabel = $mosGovEntityLabel((string) (GovRepository::entityForSlug($slug) ?? $slug));
+$entityLabelPlural = $mosGovEntityLabelPlural((string) (GovRepository::entityForSlug($slug) ?? $slug));
+
+$sPageTitle = $entityLabelPlural;
+$sPageSubtitle = 'MOS-GOV 治理数据';
 $aBreadcrumbs = [
-    ['label' => 'Plugins', 'url' => SystemURLs::getRootPath() . '/plugins/management'],
+    ['label' => '插件', 'url' => SystemURLs::getRootPath() . '/plugins/management'],
     ['label' => 'MOS-GOV', 'url' => $mosGovRootPath],
-    ['label' => $cfg['labelPlural'], 'active' => true],
+    ['label' => $entityLabelPlural, 'active' => true],
 ];
 if (!empty($canWrite)) {
     $sPageHeaderButtons = '<a class="btn btn-primary" href="'
-        . $esc($mosGovRootPath . '/' . $slug . '/new') . '">New ' . $esc($cfg['label']) . '</a>';
+        . $esc($mosGovRootPath . '/' . $slug . '/new') . '">新建' . $esc($entityLabel) . '</a>';
 }
 
 require __DIR__ . '/../../../../Include/Header.php';
 
 $activeSlug = $slug;
 require __DIR__ . '/_tabs.php';
+require __DIR__ . '/_style.php';
+
+/** Status value → chip tone (display only). */
+$mosGovStatusChip = static function ($value): string {
+    return match ((string) $value) {
+        'active', 'held', 'resolved', 'approved', 'done', 'grant', 'allow' => 'mg-chip-green',
+        'inactive', 'archived', 'suspended', 'cancelled', 'rejected', 'deny' => 'mg-chip-gray',
+        'open', 'planned', 'proposed', 'in_progress' => 'mg-chip-blue',
+        'high', 'critical', 'end' => 'mg-chip-orange',
+        default => 'mg-chip-gray',
+    };
+};
 
 /** Format one list cell using the field spec and the resolved labels. */
-$mosGovCell = static function (array $cfg, string $field, array $row, array $dec) use ($esc): string {
+$mosGovCell = static function (array $cfg, string $field, array $row, array $dec) use ($esc, $mosGovValue, $mosGovT, $mosGovStatusChip, $mosGovDecorLabel): string {
     $value = $row[$field] ?? null;
     $type = $cfg['fields'][$field]['type'] ?? 'text';
 
     if ($type === 'ref') {
-        return $esc($dec['ref'][$field] ?? ($value === null ? '' : '#' . (int) $value));
+        return $esc($mosGovDecorLabel($dec['ref'][$field] ?? ($value === null ? '' : '#' . (int) $value)));
     }
     if ($type === 'person') {
         return $esc($dec['person'][$field] ?? ($value === null ? '' : '#' . (int) $value));
@@ -48,34 +66,43 @@ $mosGovCell = static function (array $cfg, string $field, array $row, array $dec
     if ($value === null || $value === '') {
         return '<span class="text-secondary">&mdash;</span>';
     }
+    if ($type === 'status' || $type === 'select') {
+        return '<span class="mg-chip ' . $mosGovStatusChip($value) . '">'
+            . $esc($mosGovValue($value)) . '</span>';
+    }
 
-    return $esc($value);
+    // Plain text cells: enum-like values (committee / system / active / …)
+    // are shown in Chinese; seed names (Governance Administrator / …) go
+    // through the phrase map; free text passes through unchanged.
+    return $esc($mosGovT($mosGovValue($value)));
 };
 ?>
 
+<div class="mos-gov">
+
 <?php if (!empty($error)): ?>
-    <div class="alert alert-danger" role="alert"><?= $esc($error) ?></div>
+    <div class="alert alert-danger" role="alert"><?= $esc($mosGovMsg($error)) ?></div>
 <?php endif; ?>
 
-<div class="card">
+<div class="card mg-card mb-3">
     <div class="card-header">
-        <h3 class="card-title"><?= $esc($cfg['labelPlural']) ?></h3>
+        <h3 class="card-title"><?= $esc($entityLabelPlural) ?></h3>
         <?php if (!empty($canWrite)): ?>
             <div class="ms-auto">
                 <a class="btn btn-sm btn-primary" href="<?= $esc($mosGovRootPath . '/' . $slug . '/new') ?>">
-                    New <?= $esc($cfg['label']) ?>
+                    新建<?= $esc($entityLabel) ?>
                 </a>
             </div>
         <?php endif; ?>
     </div>
     <div class="card-body">
         <?php if ($rows === []): ?>
-            <p class="text-secondary mb-0">
-                No <?= $esc(strtolower($cfg['labelPlural'])) ?> recorded yet.
+            <div class="mg-empty">
+                尚无<?= $esc($entityLabelPlural) ?>记录。
                 <?php if (!empty($canWrite)): ?>
-                    <a href="<?= $esc($mosGovRootPath . '/' . $slug . '/new') ?>">Create the first one</a>.
+                    <a href="<?= $esc($mosGovRootPath . '/' . $slug . '/new') ?>">创建第一条</a>。
                 <?php endif; ?>
-            </p>
+            </div>
         <?php else: ?>
             <div class="table-responsive">
                 <table class="table table-vcenter card-table">
@@ -83,7 +110,7 @@ $mosGovCell = static function (array $cfg, string $field, array $row, array $dec
                         <tr>
                             <th class="w-1">ID</th>
                             <?php foreach ($cfg['listFields'] as $field): ?>
-                                <th><?= $esc($cfg['fields'][$field]['label'] ?? $field) ?></th>
+                                <th><?= $esc($mosGovT($cfg['fields'][$field]['label'] ?? $field)) ?></th>
                             <?php endforeach; ?>
                             <th class="w-1"></th>
                         </tr>
@@ -98,10 +125,10 @@ $mosGovCell = static function (array $cfg, string $field, array $row, array $dec
                                 <?php endforeach; ?>
                                 <td class="text-nowrap">
                                     <a class="btn btn-sm btn-outline-secondary"
-                                       href="<?= $esc($mosGovRootPath . '/' . $slug . '/' . (int) $row['id']) ?>">View</a>
+                                       href="<?= $esc($mosGovRootPath . '/' . $slug . '/' . (int) $row['id']) ?>">查看</a>
                                     <?php if (!empty($canWrite)): ?>
                                         <a class="btn btn-sm btn-outline-primary"
-                                           href="<?= $esc($mosGovRootPath . '/' . $slug . '/' . (int) $row['id'] . '/edit') ?>">Edit</a>
+                                           href="<?= $esc($mosGovRootPath . '/' . $slug . '/' . (int) $row['id'] . '/edit') ?>">编辑</a>
                                     <?php endif; ?>
                                 </td>
                             </tr>
@@ -110,10 +137,12 @@ $mosGovCell = static function (array $cfg, string $field, array $row, array $dec
                 </table>
             </div>
             <p class="text-secondary small mb-0 mt-2">
-                Showing <?= count($rows) ?> record<?= count($rows) === 1 ? '' : 's' ?> (most recent first, up to 500).
+                共显示 <?= count($rows) ?> 条记录（按最新排序，最多 500 条）。
             </p>
         <?php endif; ?>
     </div>
+</div>
+
 </div>
 
 <?php require __DIR__ . '/../../../../Include/Footer.php'; ?>

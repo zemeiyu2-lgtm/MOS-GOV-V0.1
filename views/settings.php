@@ -1,18 +1,18 @@
 <?php
 
 /**
- * MOS-GOV settings / status page.
+ * MOS-GOV 设置 / 状态页（安全设置）.
  *
- * V0.1 keeps configuration deliberately minimal (no tunables yet), so this
- * page reports the plugin's actual runtime state instead of offering
- * settings that do nothing: governance table row counts, the current user's
- * capabilities, and the data-layer health.
+ * 本页报告插件真实运行状态而非提供无效开关：治理表行数、当前用户权限、
+ * 数据层健康状态与本地安全模式。
  *
  * Expected variables:
  * - $stats         array<string,int> row counts, or null on failure
  * - $statsError    safe error message when counts could not be read
  * - $capabilities  GovAuthorization::capabilitySummary()
  * - $canWrite      whether the current user may modify governance data
+ * - $secureMode    effective MOS_GOV_SECURITY_MODE (LOCAL/LAN/OFF)
+ * - $secureModeDescription  human description of the mode
  * - $esc           HTML-escaping closure
  */
 
@@ -21,23 +21,47 @@ use ChurchCRM\dto\SystemURLs;
 
 $mosGovRootPath = SystemURLs::getRootPath() . '/plugins/mos-gov';
 
-$sPageTitle = 'MOS-GOV settings';
-$sPageSubtitle = 'Plugin status and current permissions';
+require __DIR__ . '/_i18n.php';
+
+$sPageTitle = '安全设置';
+$sPageSubtitle = '插件状态与当前权限';
 $aBreadcrumbs = [
-    ['label' => 'Plugins', 'url' => SystemURLs::getRootPath() . '/plugins/management'],
+    ['label' => '插件', 'url' => SystemURLs::getRootPath() . '/plugins/management'],
     ['label' => 'MOS-GOV', 'url' => $mosGovRootPath],
-    ['label' => 'Settings', 'active' => true],
+    ['label' => '安全设置', 'active' => true],
 ];
 
 require __DIR__ . '/../../../../Include/Header.php';
 
-$activeSlug = null;
+$activeSlug = 'settings';
 require __DIR__ . '/_tabs.php';
+require __DIR__ . '/_style.php';
+
+/**
+ * 安全模式说明 → 中文显示（display only）。
+ * 原文由 src/Security/LocalSecureMode::describe() 提供（受保护层，不修改），
+ * 此处仅按已知文案映射显示语言；未知文案原样透出。
+ */
+$mosGovSecureModeDescZh = [
+    'LOCAL mode: localhost (127.0.0.1) and this container host only.'
+        => 'LOCAL 模式：仅允许本机回环地址（127.0.0.1 / ::1），以及 Docker 部署下本机浏览器经 bridge 网关的访问。',
+    'LAN mode: localhost and trusted private-network clients only.'
+        => 'LAN 模式：仅允许本机与可信内网（私有网段）客户端访问。',
+];
+$mosGovSecureModeDesc = $secureModeDescription ?? '';
+foreach ($mosGovSecureModeDescZh as $mosGovDescEn => $mosGovDescZh) {
+    if ($mosGovSecureModeDesc === $mosGovDescEn) {
+        $mosGovSecureModeDesc = $mosGovDescZh;
+        break;
+    }
+}
 ?>
+
+<div class="mos-gov">
 
 <?php if (!empty($statsError)): ?>
     <div class="alert alert-danger" role="alert">
-        Governance tables are not readable: <?= $esc($statsError) ?>
+        治理数据表不可读：<?= $esc($mosGovMsg($statsError)) ?>
     </div>
 <?php endif; ?>
 
@@ -45,31 +69,30 @@ require __DIR__ . '/_tabs.php';
     <div class="col-lg-5">
         <div class="card">
             <div class="card-header">
-                <h3 class="card-title">Your governance permissions</h3>
+                <h3 class="card-title">你的治理权限</h3>
             </div>
             <div class="card-body">
                 <div class="datagrid">
                     <div class="datagrid-item">
-                        <div class="datagrid-title">Signed in as</div>
-                        <div class="datagrid-content"><?= $esc($capabilities['userName'] ?? '(none)') ?></div>
+                        <div class="datagrid-title">当前登录账号</div>
+                        <div class="datagrid-content"><?= $esc($capabilities['userName'] ?? '（无）') ?></div>
                     </div>
                     <div class="datagrid-item">
-                        <div class="datagrid-title">Read governance data</div>
-                        <div class="datagrid-content"><?= $capabilities['canRead'] ? 'Yes' : 'No' ?></div>
+                        <div class="datagrid-title">读取治理数据</div>
+                        <div class="datagrid-content"><?= $capabilities['canRead'] ? '是' : '否' ?></div>
                     </div>
                     <div class="datagrid-item">
-                        <div class="datagrid-title">Modify governance data</div>
-                        <div class="datagrid-content"><?= $capabilities['canWrite'] ? 'Yes' : 'No' ?></div>
+                        <div class="datagrid-title">修改治理数据</div>
+                        <div class="datagrid-content"><?= $capabilities['canWrite'] ? '是' : '否' ?></div>
                     </div>
                     <div class="datagrid-item">
-                        <div class="datagrid-title">ChurchCRM administrator</div>
-                        <div class="datagrid-content"><?= $capabilities['isAdmin'] ? 'Yes' : 'No' ?></div>
+                        <div class="datagrid-title">ChurchCRM 管理员</div>
+                        <div class="datagrid-content"><?= $capabilities['isAdmin'] ? '是' : '否' ?></div>
                     </div>
                 </div>
                 <p class="text-secondary small mb-0 mt-3">
-                    Governance writes are restricted to ChurchCRM administrators in V0.1.
-                    This is enforced by the MOS-GOV authorization layer (R07), which
-                    delegates identity and roles to ChurchCRM itself.
+                    V0.1 兼容路径下，遗留 CRUD 的写入仍限定于 ChurchCRM 管理员。
+                    治理层权限由 MOS-GOV 授权引擎判定（治理身份、角色、任命、范围、信息分级）。
                 </p>
             </div>
         </div>
@@ -78,13 +101,13 @@ require __DIR__ . '/_tabs.php';
     <div class="col-lg-7">
         <div class="card">
             <div class="card-header">
-                <h3 class="card-title">Governance tables</h3>
+                <h3 class="card-title">治理数据表</h3>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
                     <table class="table table-sm table-vcenter">
                         <thead>
-                            <tr><th>Table</th><th>Entity</th><th class="text-end">Rows</th></tr>
+                            <tr><th>数据表</th><th>治理实体</th><th class="text-end">行数</th></tr>
                         </thead>
                         <tbody>
                         <?php foreach (GovRepository::SLUG_TO_ENTITY as $slug => $entity): ?>
@@ -93,7 +116,7 @@ require __DIR__ . '/_tabs.php';
                                 <td><code><?= $esc($cfg['table']) ?></code></td>
                                 <td>
                                     <a href="<?= $esc($mosGovRootPath . '/' . $slug) ?>">
-                                        <?= $esc($cfg['labelPlural']) ?>
+                                        <?= $esc($mosGovEntityLabelPlural((string) $entity)) ?>
                                     </a>
                                 </td>
                                 <td class="text-end">
@@ -105,8 +128,8 @@ require __DIR__ . '/_tabs.php';
                     </table>
                 </div>
                 <p class="text-secondary small mb-0">
-                    Counts are read live through the MOS-GOV data layer.
-                    Schema: <code>database/001_initial.sql</code> (10 tables, idempotent).
+                    行数实时读取自 MOS-GOV 数据层。结构定义：<code>database/001_initial.sql</code>
+                    （10 张表，幂等）。
                 </p>
             </div>
         </div>
@@ -116,10 +139,53 @@ require __DIR__ . '/_tabs.php';
 <div class="card mt-3">
     <div class="card-body">
         <p class="text-secondary mb-0">
-            V0.1 has no configurable options. Plugin activation is managed from
-            <a href="<?= $esc(SystemURLs::getRootPath() . '/plugins/management') ?>">Plugin Management</a>.
+            插件本身没有可调配置项；启用/停用由
+            <a href="<?= $esc(SystemURLs::getRootPath() . '/plugins/management') ?>">插件管理</a>负责。
         </p>
     </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header">
+        <h3 class="card-title">本地 / LAN 安全模式（V0.2）</h3>
+    </div>
+    <div class="card-body">
+        <div class="datagrid">
+            <div class="datagrid-item">
+                <div class="datagrid-title">MOS_GOV_SECURITY_MODE</div>
+                <div class="datagrid-content">
+                    <span class="badge bg-primary-lt"><?= $esc($secureMode ?? 'LOCAL') ?></span>
+                </div>
+            </div>
+            <div class="datagrid-item">
+                <div class="datagrid-title">策略说明</div>
+                <div class="datagrid-content"><?= $esc($mosGovSecureModeDesc) ?></div>
+            </div>
+            <div class="datagrid-item">
+                <div class="datagrid-title">对外网络</div>
+                <div class="datagrid-content">禁止 —— MOS-GOV 不进行任何外部 API、云服务、统计、邮件或地图调用。</div>
+            </div>
+            <div class="datagrid-item">
+                <div class="datagrid-title">公网绑定</div>
+                <div class="datagrid-content">禁止 —— 仅部署在本机或可信内网，绝不暴露到公网。</div>
+            </div>
+            <div class="datagrid-item">
+                <div class="datagrid-title">数据库</div>
+                <div class="datagrid-content">MariaDB 仅允许本机 / Docker 内部网络 / 可信内网访问；3306 端口不得对外暴露。</div>
+            </div>
+            <div class="datagrid-item">
+                <div class="datagrid-title">备份</div>
+                <div class="datagrid-content">保留一份本地备份 + 一份离线副本；治理数据不允许只存在一份。</div>
+            </div>
+        </div>
+        <p class="text-secondary small mb-0 mt-3">
+            通过环境变量 <code>MOS_GOV_SECURITY_MODE=LOCAL|LAN</code> 设置模式；
+            Docker 部署下本机浏览器的来源地址（bridge 网关）已在 LOCAL 模式显式允许。
+            CRM 收口指引见 <code>docs/V02-CRM-CUTDOWN.md</code>。
+        </p>
+    </div>
+</div>
+
 </div>
 
 <?php require __DIR__ . '/../../../../Include/Footer.php'; ?>

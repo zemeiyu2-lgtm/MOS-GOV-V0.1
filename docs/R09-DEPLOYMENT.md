@@ -176,3 +176,19 @@ If rollback is necessary:
 4. restore only if required
 
 Governance history should not be silently destroyed.
+
+---
+
+# V0.2 deployment steps (appendix)
+
+1. Sync plugin to `src/plugins/community/mos-gov/` (same as V0.1).
+2. Run `tests/init_tables.php` (V0.1 schema) then `tests/v02_migrate.php`
+   (authorization model; idempotent, safe to re-run).
+3. Set `MOS_GOV_SECURITY_MODE` (LOCAL default; LAN for trusted networks).
+4. Verify: `tests/run_all.php` → ALL 14 SUITES PASSED.
+5. MariaDB must listen on localhost / Docker internal / trusted LAN only;
+   never expose 3306 publicly.
+6. Backup: nightly `mysqldump` (local disk) + one offline copy kept away from
+   the machine. Governance data must never exist only once.
+7. After CLI test runs, restore web-writable log ownership if needed:
+   `docker exec docker-webserver-1 chown www-data:www-data /var/www/html/logs/$(date +%F)-*.log`.
