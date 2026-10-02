@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - feature/mos-gov-v0.2-installer
+      - feature/mos-gov-v0.2-installation-final
   workflow_dispatch:
 
 permissions:
@@ -29,6 +30,48 @@ jobs:
       - name: Build installer
         shell: pwsh
         run: powershell -NoProfile -ExecutionPolicy Bypass -File installer/build.ps1
+
+      - name: Validate PowerShell runtime scripts
+        shell: pwsh
+        run: |
+          $paths = @(
+            "installer\runtime\install-runtime.ps1",
+            "installer\runtime\reset-church.ps1"
+          )
+          foreach ($relative in $paths) {
+            $path = Join-Path $env:GITHUB_WORKSPACE $relative
+            $errors = @()
+            [void][System.Management.Automation.Language.Parser]::ParseFile(
+              $path,
+              [ref]$null,
+              [ref]$errors
+            )
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object {
+                Write-Host ("ParserError: " + $_.Message)
+                Write-Host ("Extent: " + $_.Extent.Text)
+                Write-Host ("Start: line " + $_.Extent.StartScriptPosition.StartLineNumber + ", col " + $_.Extent.StartScriptPosition.StartColumnNumber)
+              }
+              throw "PowerShell parser found $($errors.Count) error(s) in $relative."
+            }
+            Write-Host "$relative syntax is valid."
+          }
+
+      - name: Validate installer reset assets
+        shell: pwsh
+        run: |
+          foreach ($path in @(
+            "installer\runtime\reset-church.cmd",
+            "installer\runtime\reset-church.ps1"
+          )) {
+            if (-not (Test-Path (Join-Path $env:GITHUB_WORKSPACE $path))) {
+              throw "Missing installer reset asset: $path"
+            }
+          }
+          $iss = Get-Content (Join-Path $env:GITHUB_WORKSPACE "installer\MOS-GOV-V0.2.iss") -Raw
+          if ($iss -notmatch "新建教会") { throw "Installer does not expose the new-church reset shortcut." }
+          if ($iss -notmatch "ResetExistingData") { throw "Installer does not contain explicit existing-data reset confirmation." }
+          Write-Host "Installer reset assets are present."
 
       - name: Validate PowerShell runtime script
         shell: pwsh
