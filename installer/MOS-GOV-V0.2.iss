@@ -74,7 +74,7 @@ begin
   begin
     RuntimeParams := '/c ""' + ExpandConstant('{app}\runtime\install-runtime.cmd') + '""';
     if ResetExistingData then
-      RuntimeParams := '/c ""' + ExpandConstant('{app}\runtime\install-runtime.cmd') + '"" /reset-data';
+      RuntimeParams := '/c ""' + ExpandConstant('{app}\runtime\install-runtime.cmd') + '" /reset-data"';
 
     if not Exec(
       ExpandConstant('{cmd}'),
