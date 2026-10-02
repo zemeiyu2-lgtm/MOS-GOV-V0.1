@@ -1,7 +1,9 @@
 #Requires -RunAsAdministrator
 #Requires -Version 5.1
 [CmdletBinding()]
-param()
+param(
+    [switch]$ResetData
+)
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
@@ -9,6 +11,7 @@ Set-StrictMode -Version Latest
 $AppRoot = Split-Path $PSScriptRoot -Parent
 $ProgramDataRoot = Join-Path $env:ProgramData "MOS-GOV"
 $DataRoot = Join-Path $ProgramDataRoot "data"
+$BackupRoot = Join-Path $ProgramDataRoot "backups"
 $ConfigRoot = Join-Path $ProgramDataRoot "config"
 $SecretRoot = Join-Path $ProgramDataRoot "secrets"
 $LogRoot = Join-Path $ProgramDataRoot "logs"
@@ -228,6 +231,22 @@ function Install-MariaDb([int]$Port,[string]$RootPassword) {
         & sc.exe delete $MariaService | Out-Null
         Start-Sleep -Seconds 2
     }
+
+    if ($ResetData -and (Test-Path -LiteralPath $DataRoot)) {
+        Ensure-Dir $BackupRoot
+        $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
+        $backupData = Join-Path $BackupRoot ("churchcrm-data-" + $stamp)
+        Write-InstallLog "Existing church database detected. Moving old database to $backupData before reset."
+        Move-Item -LiteralPath $DataRoot -Destination $backupData -Force
+    }
+
+    if (Test-Path -LiteralPath $DataRoot) {
+        $remaining = @(Get-ChildItem -LiteralPath $DataRoot -Force -ErrorAction SilentlyContinue)
+        if ($remaining.Count -gt 0) {
+            throw "MariaDB data directory is not empty. Use the explicit new-church reset operation before initializing a fresh database."
+        }
+    }
+    Ensure-Dir $DataRoot
     & $init "--datadir=$DataRoot" "--service=$MariaService" "--password=$RootPassword" "--port=$Port" "--silent"
     if ($LASTEXITCODE -ne 0) { throw "MariaDB initialization failed." }
 
@@ -359,12 +378,31 @@ trap {
 
 if (-not [Environment]::Is64BitOperatingSystem) { throw "MOS-GOV requires Windows x64." }
 
-$script:HttpPort = Find-FreePort 8080 8099
-$script:DbPort = Find-FreePort 3307 3316
+$existingStatePath = Join-Path $ConfigRoot "install-state.json"
+$existingState = $null
+if (Test-Path -LiteralPath $existingStatePath) {
+    try { $existingState = Get-Content $existingStatePath -Raw | ConvertFrom-Json } catch { $existingState = $null }
+}
+
+if ($ResetData -and $null -eq $existingState) {
+    throw "New-church reset requested, but no existing MOS-GOV installation state was found."
+}
+
+if ($null -ne $existingState -and -not $ResetData) {
+    throw "An existing MOS-GOV installation was detected. To avoid accidental data loss, use the explicit new-church reset operation or run Setup and choose '清除旧教会数据并建立新教会'."
+}
+
+if ($ResetData -and $null -ne $existingState) {
+    $script:HttpPort = [int]$existingState.httpPort
+    $script:DbPort = [int]$existingState.dbPort
+} else {
+    $script:HttpPort = Find-FreePort 8080 8099
+    $script:DbPort = Find-FreePort 3307 3316
+}
 $rootPassword = New-RandomPassword
 $appPassword = New-RandomPassword
 
-Write-InstallLog "Using HTTP port $HttpPort and MariaDB port $DbPort."
+Write-InstallLog "Using HTTP port $HttpPort and MariaDB port $DbPort. ResetData=$ResetData"
 
 $vc = Join-Path $AppRoot "prereqs/vc_redist.x64.exe"
 if (Test-Path $vc) {
