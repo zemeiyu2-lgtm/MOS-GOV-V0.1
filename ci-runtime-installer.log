@@ -1,0 +1,20 @@
+2026-10-03T14:01:06 MOS-GOV one-click installation starting.
+2026-10-03T14:01:06 Using HTTP port 8080 and MariaDB port 3307. ResetData=False UpgradeMode=False
+2026-10-03T14:01:06 Starting Microsoft VC++ Redistributable installation.
+2026-10-03T14:01:10 Microsoft VC++ Redistributable exit code: 0.
+2026-10-03T14:01:10 Configuring PHP.
+2026-10-03T14:01:10 PHP configuration completed.
+2026-10-03T14:01:10 PHP BCMath support verified.
+2026-10-03T14:01:10 Installing MariaDB.
+2026-10-03T14:01:33 MariaDB service installation completed.
+2026-10-03T14:01:33 Waiting for MariaDB.
+2026-10-03T14:01:33 MariaDB is ready.
+2026-10-03T14:01:34 churchcrm database is missing; a fresh schema import will be performed.
+2026-10-03T14:01:34 Configuring ChurchCRM.
+2026-10-03T14:01:34 ChurchCRM configuration completed.
+2026-10-03T14:01:34 Configuring Apache.
+2026-10-03T14:01:34 Validating Apache configuration.
+2026-10-03T14:01:35 Apache httpd -t: Syntax OK
+2026-10-03T14:01:35 Apache configuration is valid.
+2026-10-03T14:01:36 Apache service installation completed.
+2026-10-03T14:01:36 Importing official ChurchCRM schema and seed data.
