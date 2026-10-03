@@ -1,0 +1,6 @@
+installer launcher exited: False
+desktop lnk count: 1
+desktop lnk names: C:\Users\Public\Desktop\MOS 平台.lnk
+expected lnk name: MOS 平台
+apache service: Running
+maria service: Running
