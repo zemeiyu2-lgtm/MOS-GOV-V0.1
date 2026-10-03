@@ -60,8 +60,10 @@ jobs:
       - name: Validate shortcut and service configuration
         shell: pwsh
         run: |
-          $iss = Get-Content (Join-Path $env:GITHUB_WORKSPACE "installer\MOS-GOV-V0.2.iss") -Raw
+          # 必须显式按 UTF-8 读取：该脚本含中文字面量，且历史提交为不带 BOM 的 UTF-8。
+          $iss = Get-Content (Join-Path $env:GITHUB_WORKSPACE "installer\MOS-GOV-V0.2.iss") -Raw -Encoding UTF8
           if ($iss -notmatch 'MOS 平台') { throw "Installer shortcuts must be named 'MOS 平台'." }
+          if ($iss -match 'ç|å|æ|骞冲彴') { throw "Installer script contains mojibake; it must be saved as UTF-8." }
           if ($iss -notmatch 'MOSLauncher\.exe') { throw "Shortcuts must target MOSLauncher.exe." }
           if ($iss -notmatch 'IconFilename:\s*"\{app\}\\runtime\\MOS\.ico"') { throw "Shortcuts must use MOS.ico." }
           if ($iss -notmatch '立即打开 MOS 平台') { throw "Finish page must offer '立即打开 MOS 平台'." }
@@ -111,7 +113,25 @@ jobs:
           $setupLog = Join-Path $env:TEMP "MOS-GOV-Setup.log"
           Remove-Item $setupLog -Force -ErrorAction SilentlyContinue
           Write-Host "Starting installer: $exe"
-          $lnkPath = Join-Path ([Environment]::GetFolderPath('CommonDesktopDirectory')) "MOS 平台.lnk"
+
+          # 快捷方式定位：枚举"公共桌面 + 当前用户桌面"下的 .lnk，而不是按字面文件名拼路径。
+          # 历史上正是"按字面名查找"掩盖了真正的缺陷——安装包内中文被编码损坏，
+          # 图标名变成 "MOS 骞冲彴" / "MOS å¹³å°"，导致查找恒为 False（服务却是正常的）。
+          function Get-DesktopMosShortcuts {
+            $dirs = @(
+              [Environment]::GetFolderPath('CommonDesktopDirectory'),
+              [Environment]::GetFolderPath('Desktop')
+            ) | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -Unique
+            $found = @()
+            foreach ($d in $dirs) {
+              $found += @(Get-ChildItem -LiteralPath $d -Filter '*.lnk' -File -ErrorAction SilentlyContinue |
+                          Where-Object { $_.BaseName -like '*MOS*' })
+            }
+            return $found
+          }
+          # 期望名称 "MOS 平台" 用码位构造，使断言不受工作流文件自身编码影响。
+          $expectedShortcutName = "MOS " + [string]::Concat([char]0x5E73,[char]0x53F0)
+
           $p = Start-Process -FilePath $exe -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/SP-","/LOG=$setupLog" -PassThru
           Write-Host "Installer launcher PID: $($p.Id)"
 
@@ -119,18 +139,16 @@ jobs:
           # 因此不能只依赖父进程退出码：轮询"快捷方式 + 两个服务"作为完成信号。
           $done = $false
           $deadline = (Get-Date).AddMinutes(15)
+          $earlyDeadline = (Get-Date).AddSeconds(120)
           do {
             Start-Sleep -Seconds 5
-            $lnk = Test-Path $lnkPath
+            $lnks = @(Get-DesktopMosShortcuts)
             $svcA = Get-Service -Name "MOS-GOV-Apache" -ErrorAction SilentlyContinue
             $svcM = Get-Service -Name "MOS-GOV-MariaDB" -ErrorAction SilentlyContinue
-            if ($lnk -and $svcA -and $svcM) { $done = $true; break }
-            if ($p.HasExited -and -not $lnk -and -not $svcA -and -not $svcM) {
-              Start-Sleep -Seconds 10
-              $lnk = Test-Path $lnkPath
-              $svcA = Get-Service -Name "MOS-GOV-Apache" -ErrorAction SilentlyContinue
-              $svcM = Get-Service -Name "MOS-GOV-MariaDB" -ErrorAction SilentlyContinue
-              if ($lnk -and $svcA -and $svcM) { $done = $true }
+            if ($lnks.Count -gt 0 -and $svcA -and $svcM) { $done = $true; break }
+            # 快速失败：安装器进程已退出，且 120 秒后仍未产生快捷方式或服务，说明安装被回滚或中止。
+            if ($p.HasExited -and $lnks.Count -eq 0 -and -not $svcA -and -not $svcM -and (Get-Date) -gt $earlyDeadline) {
+              Write-Host "Installer exited without creating shortcuts or services; ending poll early."
               break
             }
           } while ((Get-Date) -lt $deadline)
@@ -138,7 +156,9 @@ jobs:
           $state = @()
           $state += "installer launcher exited: $($p.HasExited)"
           if ($p.HasExited) { $state += "installer launcher exit code: $($p.ExitCode)" }
-          $state += "desktop lnk exists: $(Test-Path $lnkPath)"
+          $state += "desktop lnk count: $($lnks.Count)"
+          $state += "desktop lnk names: " + ((@($lnks) | ForEach-Object { $_.FullName }) -join ' | ')
+          $state += "expected lnk name: $expectedShortcutName"
           $state += "apache service: $(if ($svcA) { $svcA.Status } else { 'MISSING' })"
           $state += "maria service: $(if ($svcM) { $svcM.Status } else { 'MISSING' })"
           $snapshot = Join-Path $env:GITHUB_WORKSPACE "ci-install-state.txt"
@@ -161,16 +181,37 @@ jobs:
 
           if (-not $done) {
             if (Test-Path $setupLog) { Get-Content $setupLog -Tail 120 }
-            throw "Installation did not complete within 15 minutes (shortcut=$lnk, apache=$($svcA.Status), maria=$($svcM.Status))."
+            $found = ((@($lnks) | ForEach-Object { $_.FullName }) -join ', ')
+            throw "Installation did not complete within 15 minutes (shortcuts=[$found], apache=$($svcA.Status), maria=$($svcM.Status))."
           }
 
-          # 桌面快捷方式必须存在并指向 MOSLauncher.exe
-          $lnk = $lnkPath
+          # 桌面快捷方式必须存在、名称必须为 "MOS 平台"、指向 MOSLauncher.exe 并使用 MOS.ico。
+          # 名称断言是关键：它直接捕获"安装包内中文被编码损坏"这类缺陷。
+          $shortcuts = @(Get-DesktopMosShortcuts)
+          if ($shortcuts.Count -eq 0) { throw "No MOS desktop shortcut was created (expected name '$expectedShortcutName')." }
+          $lnk = $shortcuts[0].FullName
+          $actualName = [System.IO.Path]::GetFileNameWithoutExtension($lnk)
+          Write-Host "Desktop shortcut: $lnk"
+          if ($actualName -ne $expectedShortcutName) {
+            throw "Desktop shortcut must be named '$expectedShortcutName', found '$actualName' (Chinese text in the built installer is corrupted)."
+          }
           $sh = New-Object -ComObject WScript.Shell
           $sc = $sh.CreateShortcut($lnk)
           Write-Host ("Shortcut target: " + $sc.TargetPath)
           if ($sc.TargetPath -notmatch 'MOSLauncher\.exe$') { throw "Shortcut target must be MOSLauncher.exe." }
           if ($sc.IconLocation -notmatch 'MOS\.ico') { throw "Shortcut icon must be MOS.ico." }
+
+          # 开始菜单分组（DefaultGroupName）也必须生成，且同样不允许出现乱码名称。
+          $programs = [Environment]::GetFolderPath('CommonPrograms')
+          $groupDir = @(Get-ChildItem -LiteralPath $programs -Directory -ErrorAction SilentlyContinue |
+                        Where-Object { $_.Name -like 'MOS*' })
+          if ($groupDir.Count -eq 0) { throw "Start-menu group for MOS-GOV was not created under $programs." }
+          $groupLinks = @(Get-ChildItem -LiteralPath $groupDir[0].FullName -Filter '*.lnk' -File -ErrorAction SilentlyContinue)
+          Write-Host ("Start-menu group: " + $groupDir[0].FullName + " (" + $groupLinks.Count + " shortcuts)")
+          if ($groupLinks.Count -lt 3) { throw "Start-menu group must contain the launcher, diagnostics and reset shortcuts." }
+          if (-not ($groupLinks.BaseName -contains $expectedShortcutName)) {
+            throw "Start-menu group is missing a shortcut named '$expectedShortcutName' (found: $($groupLinks.BaseName -join ', '))."
+          }
 
           # 服务必须存在且运行（给运行环境初始化留出启动时间）
           $svcDeadline = (Get-Date).AddMinutes(3)
@@ -270,17 +311,41 @@ jobs:
           if (Test-Path $conf) { $report += ((Select-String -Path $conf -Pattern '^\s*Listen\s+' | ForEach-Object { $_.Line })) } else { $report += "(missing)" }
           $report += "=== apache error log (tail 60) ==="
           if (Test-Path "C:\ProgramData\MOS-GOV\logs\apache-error.log") { $report += (Get-Content "C:\ProgramData\MOS-GOV\logs\apache-error.log" -Tail 60) } else { $report += "(missing)" }
-          $report += "=== desktop shortcut ==="
-          $lnk = Join-Path ([Environment]::GetFolderPath('CommonDesktopDirectory')) "MOS 平台.lnk"
-          $report += ("desktop lnk exists: " + (Test-Path $lnk))
+          $report += "=== desktop shortcuts actually present ==="
+          $report += ((Get-ChildItem ([Environment]::GetFolderPath('CommonDesktopDirectory')) -Filter '*.lnk' -ErrorAction SilentlyContinue |
+                       Select-Object -ExpandProperty Name) -join "`r`n")
+          $report += "=== start menu groups actually present ==="
+          $report += ((Get-ChildItem ([Environment]::GetFolderPath('CommonPrograms')) -Directory -ErrorAction SilentlyContinue |
+                       Select-Object -ExpandProperty Name) -join "`r`n")
+          $report += "=== generated build script: shortcut lines (ISCC input) ==="
+          $buildIss = Join-Path $env:GITHUB_WORKSPACE "installer-build\MOS-GOV-V0.2.iss"
+          if (Test-Path $buildIss) {
+            $report += ([System.IO.File]::ReadAllLines($buildIss) | Where-Object { $_ -like '*commondesktop*' -or $_ -like '*AppName*' })
+          } else { $report += "(missing: build script was not generated)" }
           $report += "=== launcher log (tail 40) ==="
           if (Test-Path "C:\ProgramData\MOS-GOV\logs\launcher.log") { $report += (Get-Content "C:\ProgramData\MOS-GOV\logs\launcher.log" -Tail 40) } else { $report += "(missing)" }
           Set-Content -Path "$env:GITHUB_WORKSPACE\ci-diagnostics.txt" -Value ($report -join "`r`n") -Encoding UTF8
           git config user.name "mos-gov-ci"
           git config user.email "mos-gov-ci@users.noreply.github.com"
-          git add ci-diagnostics.txt
-          git commit -m "ci: failure diagnostics [skip ci]"
-          git push
+          # 提交全部诊断产物，而不只是汇总文件，便于事后审计真实失败原因。
+          $artifacts = @(
+            "ci-diagnostics.txt",
+            "ci-install-state.txt",
+            "ci-inno-setup.log",
+            "ci-runtime-installer.log",
+            "ci-apache-error.log",
+            "ci-launcher.log"
+          ) | Where-Object { Test-Path (Join-Path $env:GITHUB_WORKSPACE $_) }
+          if (@($artifacts).Count -eq 0) { Write-Host "No diagnostics artifacts to publish."; exit 0 }
+          Write-Host ("Publishing: " + (@($artifacts) -join ', '))
+          git add @artifacts
+          git diff --cached --quiet
+          if ($LASTEXITCODE -ne 0) {
+            git commit -m "ci: failure diagnostics [skip ci]"
+            git push
+          } else {
+            Write-Host "Diagnostics unchanged; nothing to commit."
+          }
 
       - name: Cleanup installed services
         if: always()
