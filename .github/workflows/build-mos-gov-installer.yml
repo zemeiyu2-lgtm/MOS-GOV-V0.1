@@ -57,6 +57,28 @@ jobs:
           if ($ico.Length -lt 10240) { throw "MOS.ico looks truncated ($($ico.Length) bytes)." }
           Write-Host "All installer assets present. MOS.ico = $($ico.Length) bytes."
 
+      - name: Validate launcher binary
+        shell: pwsh
+        run: |
+          # 启动器必须以管理员身份运行（requireAdministrator）：
+          #   * 双击快捷方式后要能直接启动 MOS-GOV-Apache / MOS-GOV-MariaDB 两个服务；
+          #   * 要能把日志写进 C:\ProgramData\MOS-GOV\logs（该目录只允许 SYSTEM/Administrators）。
+          # 若是默认的 asInvoker 清单，启动器会以普通权限运行：启动服务只能退回每次弹 UAC 的
+          # net.exe 兜底，且 launcher.log 会被静默丢弃，诊断信息窗口打开后拿不到任何证据。
+          $exe = Join-Path $env:GITHUB_WORKSPACE "installer\runtime\MOSLauncher.exe"
+          $bytes = [System.IO.File]::ReadAllBytes($exe)
+          $text = [System.Text.Encoding]::ASCII.GetString($bytes)
+          if ($text -notmatch 'requestedExecutionLevel[\s\S]{0,60}?level="requireAdministrator"') {
+            $found = [regex]::Match($text, 'requestedExecutionLevel[\s\S]{0,60}')
+            throw ("MOSLauncher.exe must request administrator rights; found: " + $found.Value)
+          }
+          $peOffset = [BitConverter]::ToInt32($bytes, 0x3C)
+          $subsystem = [BitConverter]::ToUInt16($bytes, $peOffset + 0x5C)
+          if ($subsystem -ne 2) {
+            throw "MOSLauncher.exe must use the GUI subsystem so no console window appears (got $subsystem)."
+          }
+          Write-Host ("Launcher binary OK: requireAdministrator manifest, GUI subsystem, {0} bytes" -f $bytes.Length)
+
       - name: Validate shortcut and service configuration
         shell: pwsh
         run: |
@@ -311,8 +333,101 @@ jobs:
         shell: pwsh
         run: |
           $exe = Join-Path $env:GITHUB_WORKSPACE "dist\$env:SETUP_EXE"
-          (Get-FileHash $exe -Algorithm SHA256).Hash | Out-Host
-          $exe | Out-Host
+          $hash = (Get-FileHash $exe -Algorithm SHA256).Hash
+          $size = (Get-Item $exe).Length
+          Write-Host ("SHA256 " + $hash)
+          Write-Host ("SIZE   " + $size)
+          Write-Host ("FILE   " + $exe)
+          # 作业日志需要登录才能查看，因此同时把哈希写入 Step Summary，
+          # 并在下一步提交到仓库根目录（公开可匿名读取），供安装前校验。
+          "## MOS-GOV V0.2.1 安装包校验值`n`n| 项目 | 值 |`n| --- | --- |`n| 文件 | ``$env:SETUP_EXE`` |`n| 字节数 | $size |`n| SHA-256 | ``$hash`` |" |
+            Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+
+      - name: Publish installer checksum
+        # 校验值发布失败不应判定构建失败（安装包本体与产物上传已成功），
+        # 但会把原因写进日志，避免出现"静默失败"。
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $exe = Join-Path $env:GITHUB_WORKSPACE "dist\$env:SETUP_EXE"
+          $hash = (Get-FileHash $exe -Algorithm SHA256).Hash
+          $size = (Get-Item $exe).Length
+          $root = $env:GITHUB_WORKSPACE
+
+          # 1) 标准 SHA256SUMS 文本（同一行含文件名，便于 certutil / sha256sum 直接校验）
+          $sumsPath = Join-Path $root "MOS-GOV-V0.2.1-Setup.sha256.txt"
+          $sumsLine = ("{0}  {1}" -f $hash.ToLowerInvariant(), $env:SETUP_EXE)
+          [System.IO.File]::WriteAllText(
+            $sumsPath,
+            ($sumsLine + "`n"),
+            (New-Object System.Text.UTF8Encoding($false)))
+
+          # 2) 结构化元数据，记录是哪一次运行、哪一个提交产出的
+          $metaPath = Join-Path $root "MOS-GOV-V0.2.1-Setup.sha256.json"
+          $meta = [ordered]@{
+            product    = "MOS-GOV 教会治理平台"
+            version    = "0.2.1"
+            installer  = $env:SETUP_EXE
+            bytes      = $size
+            sha256     = $hash.ToLowerInvariant()
+            runId      = $env:GITHUB_RUN_ID
+            runAttempt = $env:GITHUB_RUN_ATTEMPT
+            commit     = $env:GITHUB_SHA
+            branch     = $env:GITHUB_REF_NAME
+            runnerOs   = $env:ImageOS
+            builtAtUtc = (Get-Date).ToUniversalTime().ToString("o")
+          }
+          [System.IO.File]::WriteAllText(
+            $metaPath,
+            (($meta | ConvertTo-Json) + "`n"),
+            (New-Object System.Text.UTF8Encoding($false)))
+          Write-Host ("Checksum files written: {0} / {1}" -f $sumsPath, $metaPath)
+          Write-Host ("SHA256 " + $hash)
+
+          git config user.name "mos-gov-ci"
+          git config user.email "mos-gov-ci@users.noreply.github.com"
+          $files = @("MOS-GOV-V0.2.1-Setup.sha256.txt", "MOS-GOV-V0.2.1-Setup.sha256.json")
+
+          # 分支可能已被其他提交推进（例如诊断提交或人工提交），直接 push 会因非快进被拒，
+          # 而 pull 在历史不相关时会直接失败。校验值文件是本次运行的生成物、与历史无关，
+          # 因此同步到真实远端顶端后重新提交一次，可保证永远是一个快进推送。
+          git fetch origin $env:GITHUB_REF_NAME
+          if ($LASTEXITCODE -ne 0) { throw "git fetch failed before publishing checksum." }
+          $remoteRef = "origin/" + $env:GITHUB_REF_NAME
+          & git rev-parse --verify --quiet $remoteRef | Out-Null
+          if ($LASTEXITCODE -eq 0) {
+            git reset --mixed $remoteRef
+            if ($LASTEXITCODE -ne 0) { throw "git reset to $remoteRef failed." }
+          } else {
+            Write-Host ("Remote ref {0} not found; committing on current HEAD." -f $remoteRef)
+          }
+
+          # 幂等：JSON 里带 builtAtUtc，每次运行都会变。因此用"只含哈希与文件名"的
+          # sha256.txt 作为是否真需要提交的判据——哈希没变就不产生任何提交。
+          $remoteSums = (git show ("HEAD:" + $files[0])) 2>$null
+          if ($LASTEXITCODE -eq 0 -and $remoteSums) {
+            $remoteText = (($remoteSums | Out-String).Trim())
+            if ($remoteText -eq $sumsLine) {
+              Write-Host ("Published checksum already matches this build ({0}); no commit needed." -f $hash)
+              # 不提交也要把工作区恢复成与 HEAD 一致（生成的 JSON 带新时间戳），
+              # 避免把工作区留在"有未暂存改动"的状态。
+              git checkout -- @files
+              exit 0
+            }
+            Write-Host ("Published checksum differs: '{0}' -> '{1}'" -f $remoteText, $sumsLine)
+          }
+
+          git add @files
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) { Write-Host "Checksum unchanged; nothing to commit."; exit 0 }
+          git commit -m "ci: publish MOS-GOV V0.2.1 installer checksum [skip ci]"
+          if ($LASTEXITCODE -ne 0) { throw "git commit failed for checksum." }
+          git push origin ("HEAD:" + $env:GITHUB_REF_NAME)
+          if ($LASTEXITCODE -ne 0) { throw "git push failed for checksum commit." }
+          # 重置过 index 之后工作区可能残留未暂存差异（例如远端新增文件尚未落盘），
+          # 这里补齐为干净工作区；失败不影响已完成的推送。
+          git checkout -- .
+          Write-Host "Checksum published to repository."
 
       - name: Upload installer
         uses: actions/upload-artifact@v4

@@ -246,7 +246,7 @@ def _find_progress_hwnd():
 
 def make_progress_window():
     """在后台线程显示一个原生 MessageBox 作为进度提示（不依赖 tkinter）。
-    返回 (progress_obj, None)。调用 progress_obj.close() 关闭。"""
+    返回一个持有窗口句柄的对象，调用 .close() 关闭。"""
     import threading
 
     class _Progress(object):
@@ -264,10 +264,10 @@ def make_progress_window():
                          daemon=True)
     t.start()
     time.sleep(0.6)  # 给窗口一点时间出现
-    return _Progress(), None
+    return _Progress()
 
 
-def show_error(install_dir, lines):
+def show_error(lines):
     """原生错误对话框：确定=打开诊断信息，取消=关闭。"""
     text = ("MOS平台暂时无法启动。\n\n" + "\n".join(lines) +
             "\n\n点击【确定】打开诊断信息，点击【取消】关闭。")
@@ -275,33 +275,58 @@ def show_error(install_dir, lines):
     result = user32.MessageBoxW(None, text, "MOS 平台",
                                 0x00000001 | 0x00000010 | 0x00010000 | 0x00040000)
     if result == 1:  # IDOK
+        diag = Path(resolve_install_dir(), "runtime", "MOS-Diagnose.cmd")
         try:
-            diag = Path(install_dir, "runtime", "MOS-Diagnose.cmd")
             if diag.exists():
                 os.startfile(str(diag))
         except Exception:
             pass
 
 
-def write_log(log_dir, msg):
-    try:
-        log_dir.mkdir(parents=True, exist_ok=True)
-        with open(log_dir / "launcher.log", "a", encoding="utf-8") as f:
-            f.write(time.strftime("[%Y-%m-%d %H:%M:%S] ") + msg + "\n")
-    except OSError:
-        pass
+# 日志落点。ProgramData\MOS-GOV\logs 只允许 SYSTEM/Administrators 写入，
+# 因此启动器一旦未提权（例如被以普通用户身份直接调用），必须退回用户可写目录，
+# 否则日志会被静默丢弃、诊断信息窗口打不开任何证据。
+_LOG_PATH = None
+
+
+def log_candidates():
+    program_data = os.environ.get("ProgramData") or r"C:\ProgramData"
+    local_app_data = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
+    return [Path(program_data, "MOS-GOV", "logs"),
+            Path(local_app_data, "MOS-GOV", "logs")]
+
+
+def write_log(msg):
+    """写入启动器日志；返回实际生效的日志文件路径（全部失败时返回 None）。"""
+    global _LOG_PATH
+    targets = [_LOG_PATH.parent] if _LOG_PATH is not None else log_candidates()
+    for directory in targets:
+        try:
+            directory.mkdir(parents=True, exist_ok=True)
+            path = directory / "launcher.log"
+            with open(path, "a", encoding="utf-8") as f:
+                f.write(time.strftime("[%Y-%m-%d %H:%M:%S] ") + msg + "\n")
+            _LOG_PATH = path
+            return path
+        except OSError:
+            continue
+    return None
+
+
+def log_path_display():
+    return str(_LOG_PATH) if _LOG_PATH is not None else "（日志不可写）"
 
 
 def main():
     install_dir = resolve_install_dir()
     program_data = Path(os.environ.get("ProgramData", r"C:\ProgramData"), "MOS-GOV")
-    log_dir = program_data / "logs"
-    write_log(log_dir, "=== MOSLauncher start ===")
-    write_log(log_dir, "install dir: " + install_dir)
+    write_log("=== MOSLauncher start ===")
+    write_log("install dir: " + install_dir)
+    write_log("elevated: " + str(is_admin()))
 
     if not Path(install_dir, "Apache24", "bin", "httpd.exe").exists():
-        write_log(log_dir, "install dir invalid")
-        show_error(install_dir, [
+        write_log("install dir invalid")
+        show_error([
             "未检测到 MOS 平台安装目录。",
             "安装目录：" + install_dir,
             "请先运行 MOS 平台安装程序。",
@@ -311,22 +336,16 @@ def main():
     host, port = parse_http_endpoint(install_dir)
     db_port = parse_db_port(program_data)
     base_url = "http://{}:{}".format(host, port)
-    write_log(log_dir, "endpoint {} dbport {}".format(base_url, db_port))
+    write_log("endpoint {} dbport {}".format(base_url, db_port))
 
-    win, lbl = None, None
+    win = None
     try:
-        win, lbl = make_progress_window()
+        win = make_progress_window()
     except Exception:
         pass
 
     def status(text):
-        write_log(log_dir, text)
-        if lbl is not None:
-            try:
-                lbl.config(text=text)
-                win.update()
-            except Exception:
-                pass
+        write_log(text)
 
     apache_state = service_state(SERVICE_APACHE)
     maria_state = service_state(SERVICE_MARIA)
@@ -334,9 +353,10 @@ def main():
         status("未检测到 Windows 服务")
         if win is not None:
             win.close()
-        show_error(install_dir, [
+        show_error([
             "未检测到 MOS 平台 Windows 服务。",
             "请先运行 MOS 平台安装程序。",
+            "诊断日志：" + log_path_display(),
         ])
         return 11
 
@@ -370,7 +390,6 @@ def main():
             service_start(SERVICE_APACHE)
         if service_state(SERVICE_MARIA) == "STOPPED":
             service_start(SERVICE_MARIA)
-        pump_events(win)
         time.sleep(2)
 
     if win is not None:
@@ -380,12 +399,13 @@ def main():
             pass
 
     if not http_ready:
-        write_log(log_dir, "launch failed http={} db={}".format(last_http, db_ready))
-        show_error(install_dir, [
+        write_log("launch failed http={} db={}".format(last_http, db_ready))
+        show_error([
             "网站服务状态：" + str(service_state(SERVICE_APACHE)),
             "数据库服务状态：" + str(service_state(SERVICE_MARIA)),
             "平台地址：" + base_url,
             "最近检查结果：HTTP {}".format(last_http),
+            "诊断日志：" + log_path_display(),
         ])
         return 20
 
@@ -394,21 +414,18 @@ def main():
     open_url = base_url + "/session/begin"
     if 200 <= plugin_code < 500 and plugin_code != 404:
         open_url = plugin_url
-    write_log(log_dir, "opening browser: " + open_url)
+    write_log("opening browser: " + open_url)
     try:
         os.startfile(open_url)
     except OSError:
         webbrowser.open(base_url)
-    write_log(log_dir, "=== MOSLauncher exit 0 ===")
+    write_log("=== MOSLauncher exit 0 ===")
     return 0
 
 
 def pump_events(win):
-    if win is not None:
-        try:
-            win.update()
-        except Exception:
-            pass
+    """保留兼容：进度窗口是原生 MessageBox，无需 pump。"""
+    return None
 
 
 if __name__ == "__main__":

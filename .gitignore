@@ -5,3 +5,10 @@
 /.vscode/
 .DS_Store
 Thumbs.db
+
+# 构建产物：安装包 116 MB、载荷目录上百 MB，不应进入版本库
+/dist/
+/installer-build/
+/installer/launcher-src/build/
+__pycache__/
+*.pyc
