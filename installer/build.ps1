@@ -213,9 +213,12 @@ $iss = $iss.Replace("{{PAYLOAD_ROOT}}",$PayloadRoot)
 $iss = $iss.Replace("{{OUTPUT_DIR}}",$DistRoot)
 
 # 编码自检 1：关键中文字面量必须原样存在。
-# 校验词用码位构造，避免断言本身受 build.ps1 文件编码影响。
-$zhPlatform = [string]::Concat([char]0x5E73,[char]0x53F0)                            # 平台
-$zhOpenNow  = [string]::Concat([char]0x7ACB,[char]0x5373,[char]0x6253,[char]0x5F00)  # 立即打开
+# 校验词用码位构造（用 -join，不用 [string]::Concat：后者在 4 参数时无法在
+# StrictMode 下绑定到 params 重载，会抛 ArgumentNullException 参数名 "argument"）。
+# 之所以不直接写成中文字面量：若本文件在错误代码页下被解码，断言词会一起变成乱码，
+# 自检就失去了意义。
+$zhPlatform = -join @([char]0x5E73,[char]0x53F0)                                      # 平台
+$zhOpenNow  = -join @([char]0x7ACB,[char]0x5373,[char]0x6253,[char]0x5F00)            # 立即打开
 $requiredLiterals = @(
     ("MOS " + $zhPlatform),
     ($zhOpenNow + " MOS " + $zhPlatform),
