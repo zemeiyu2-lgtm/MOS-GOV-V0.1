@@ -136,7 +136,7 @@ function Configure-PHP {
     $text = Get-Content $PhpIni -Raw
     $text = $text -replace '(?m)^;?extension_dir\s*=.*$', "extension_dir=`"$phpExtDir`""
 
-    foreach ($ext in @("curl","exif","fileinfo","gd","gettext","intl","mbstring","mysqli","pdo_mysql","zip")) {
+    foreach ($ext in @("curl","exif","fileinfo","gd","gettext","intl","mbstring","mysqli","openssl","pdo_mysql","zip")) {
         $pattern = "(?m)^;?extension\s*=\s*php_$([regex]::Escape($ext))\.dll\s*$"
         if ($text -match $pattern) {
             $text = [regex]::Replace($text,$pattern,"extension=php_$ext.dll")

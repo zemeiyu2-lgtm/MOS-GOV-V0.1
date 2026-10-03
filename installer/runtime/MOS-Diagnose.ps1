@@ -34,7 +34,7 @@ if (-not $ReportPath) { $ReportPath = Join-Path ([Environment]::GetFolderPath('D
 function Add-Result([string]$status, [string]$name, [string]$detail) {
     if ($status -eq 'PASS') { $script:Pass++ }
     elseif ($status -eq 'WARN') { $script:Warn++ }
-    else { $script:Fail++ }
+    elseif ($status -eq 'FAIL') { $script:Fail++ }
     $script:Lines.Add(("[{0}] {1}{2}" -f $status, $name, $(if ($detail) { " - " + $detail } else { "" })))
 }
 
@@ -58,14 +58,41 @@ function Test-TcpPort([string]$h, [int]$p) {
     } catch { return $false } finally { $c.Close() }
 }
 
-function Get-HttpStatus([string]$url) {
+function Get-HttpStatus([string]$url, [int]$Attempts = 3) {
+    for ($attempt = 1; $attempt -le $Attempts; $attempt++) {
+        $code = Get-HttpStatusOnce $url
+        if ($code -ne 0) { return $code }
+        Start-Sleep -Milliseconds 800
+    }
+    return 0
+}
+
+function Get-HttpStatusOnce([string]$url) {
+    # 原生 socket 直接请求，绕过系统/企业代理（代理会导致本机探测误报 0）
     try {
-        $req = [Net.HttpWebRequest]::Create($url)
-        $req.Method = 'GET'; $req.Timeout = 3000; $req.AllowAutoRedirect = $false
-        $req.UserAgent = 'MOS-Diagnose/1.0'
-        $resp = $req.GetResponse(); $code = [int]$resp.StatusCode; $resp.Close(); return $code
-    } catch [Net.WebException] {
-        if ($_.Exception.Response) { return [int]$_.Exception.Response.StatusCode }
+        $u = [Uri]$url
+        $client = New-Object System.Net.Sockets.TcpClient
+        $iar = $client.BeginConnect($u.Host, $u.Port, $null, $null)
+        if (-not $iar.AsyncWaitHandle.WaitOne(3000)) { $client.Close(); return 0 }
+        $client.EndConnect($iar)
+        $client.ReceiveTimeout = 3000
+        $client.SendTimeout = 3000
+        $stream = $client.GetStream()
+        $req = "GET $($u.PathAndQuery) HTTP/1.1`r`nHost: $($u.Host):$($u.Port)`r`nUser-Agent: MOS-Diagnose/1.0`r`nConnection: close`r`n`r`n"
+        $bytes = [Text.Encoding]::ASCII.GetBytes($req)
+        $stream.Write($bytes, 0, $bytes.Length)
+        $buffer = New-Object byte[] 1024
+        $data = ''
+        $deadline = (Get-Date).AddSeconds(3)
+        while ((Get-Date) -lt $deadline -and $data -notmatch "\r\n") {
+            $read = $stream.Read($buffer, 0, $buffer.Length)
+            if ($read -le 0) { break }
+            $data += [Text.Encoding]::ASCII.GetString($buffer, 0, $read)
+        }
+        $client.Close()
+        if (-not $data) { return 0 }
+        $line = $data.Split("`r`n")[0]
+        if ($line -match 'HTTP/\d\.\d\s+(\d{3})') { return [int]$Matches[1] }
         return 0
     } catch { return 0 }
 }
@@ -141,9 +168,9 @@ else { Add-Result 'FAIL' ('MariaDB 端口 ' + $dbPort) '无法连接' }
 Section 'PHP'
 $phpExe = Join-Path $Root 'PHP\php.exe'
 if (Test-Path $phpExe) {
-    $v = & $phpExe -n -v 2>$null | Select-Object -First 1
+    $v = & $phpExe -v 2>$null | Select-Object -First 1
     if ($v) { Add-Result 'PASS' 'PHP 版本' $v } else { Add-Result 'FAIL' 'PHP 运行' '无法执行' }
-    $out = & $phpExe -n -m 2>$null
+    $out = & $phpExe -m 2>$null
     foreach ($ext in 'mysqli', 'mbstring', 'openssl', 'curl', 'gd', 'zip', 'intl', 'bcmath') {
         if ($out -contains $ext) { Add-Result 'PASS' ('PHP 扩展 ' + $ext) '已加载' }
         else { Add-Result 'WARN' ('PHP 扩展 ' + $ext) '未加载' }
@@ -178,7 +205,7 @@ if (Test-Path $lnk) {
 Section '最近日志'
 $phpLog = Join-Path $LogDir 'php-error.log'
 if (Test-Path $phpLog) {
-    $tail = Get-Content $phpLog -Tail 5 -ErrorAction SilentlyContinue
+    $tail = (Get-Content $phpLog -Encoding Default -Tail 5 -ErrorAction SilentlyContinue)
     foreach ($l in $tail) { $script:Lines.Add('  ' + $l) }
 } else {
     $script:Lines.Add('  无 PHP 错误日志')
