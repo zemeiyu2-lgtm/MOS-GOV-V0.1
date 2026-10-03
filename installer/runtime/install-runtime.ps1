@@ -106,6 +106,25 @@ function Wait-MariaDb([string]$RootPassword,[int]$TimeoutSeconds=90) {
     throw "MariaDB did not become ready."
 }
 
+function Wait-ServiceRunning([string]$Name,[string]$DisplayName,[int]$TimeoutSeconds=60) {
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    while ((Get-Date) -lt $deadline) {
+        $svc = Get-Service -Name $Name -ErrorAction SilentlyContinue
+        if ($svc -and $svc.Status -eq "Running") { return }
+        Start-Sleep -Seconds 2
+    }
+    throw "$DisplayName Windows service did not reach Running state."
+}
+
+function Test-TcpListening([int]$Port) {
+    $client = New-Object System.Net.Sockets.TcpClient
+    try {
+        return $client.ConnectAsync("127.0.0.1", $Port).Wait(2000) -and $client.Connected
+    } finally {
+        $client.Dispose()
+    }
+}
+
 function Configure-PHP {
     $template = Join-Path $PhpRoot "php.ini-production"
     if (-not (Test-Path $template)) { throw "php.ini-production not found." }
@@ -388,11 +407,12 @@ if ($ResetData -and $null -eq $existingState) {
     throw "New-church reset requested, but no existing MOS-GOV installation state was found."
 }
 
-if ($null -ne $existingState -and -not $ResetData) {
-    throw "An existing MOS-GOV installation was detected. To avoid accidental data loss, use the explicit new-church reset operation or run Setup and choose '清除旧教会数据并建立新教会'."
-}
+# 升级/修复模式：检测到已有安装且未要求重置数据 -> 保留教会数据，
+# 只修复程序文件、配置和 Windows 服务（V0.2.1 新增，修复"升级保留数据"失败的问题）。
+$UpgradeMode = ($null -ne $existingState -and -not $ResetData)
+$FreshDatabase = -not $UpgradeMode
 
-if ($ResetData -and $null -ne $existingState) {
+if ($null -ne $existingState) {
     $script:HttpPort = [int]$existingState.httpPort
     $script:DbPort = [int]$existingState.dbPort
 } else {
@@ -402,7 +422,22 @@ if ($ResetData -and $null -ne $existingState) {
 $rootPassword = New-RandomPassword
 $appPassword = New-RandomPassword
 
-Write-InstallLog "Using HTTP port $HttpPort and MariaDB port $DbPort. ResetData=$ResetData"
+if ($UpgradeMode) {
+    # 升级模式：沿用现有数据库 root 口令与 ChurchCRM 应用口令，避免数据库与应用失配。
+    $secretFile = Join-Path $SecretRoot "mariadb-root.txt"
+    if (Test-Path -LiteralPath $secretFile) {
+        foreach ($line in Get-Content -LiteralPath $secretFile) {
+            if ($line -match '^root-password=(.+)$') { $rootPassword = $Matches[1] }
+        }
+    }
+    if (Test-Path -LiteralPath $ConfigPhp) {
+        $configText = Get-Content -LiteralPath $ConfigPhp -Raw
+        $pwdMatch = [regex]::Match($configText, "\`$sPASSWORD\s*=\s*'([^']*)'")
+        if ($pwdMatch.Success) { $appPassword = $pwdMatch.Groups[1].Value }
+    }
+}
+
+Write-InstallLog "Using HTTP port $HttpPort and MariaDB port $DbPort. ResetData=$ResetData UpgradeMode=$UpgradeMode"
 
 $vc = Join-Path $AppRoot "prereqs/vc_redist.x64.exe"
 if (Test-Path $vc) {
@@ -419,14 +454,60 @@ $phpCheck = Join-Path $PhpRoot "php.exe"
 & $phpCheck -r "if (!extension_loaded('bcmath')) { exit(1); }"
 if ($LASTEXITCODE -ne 0) { throw "PHP BCMath support is unavailable; ChurchCRM requires ext-bcmath." }
 Write-InstallLog "PHP BCMath support verified."
-Write-InstallLog "Installing MariaDB."
-Install-MariaDb -Port $DbPort -RootPassword $rootPassword
-Write-InstallLog "MariaDB service installation completed."
-Write-InstallLog "Waiting for MariaDB."
-Wait-MariaDb -RootPassword $rootPassword
-Write-InstallLog "MariaDB is ready."
+$rootVerified = $false
+if ($UpgradeMode) {
+    Write-InstallLog "Upgrade mode: existing installation detected; church data will be preserved."
+    $myIniPath = Join-Path $DataRoot "my.ini"
+    if ($null -eq (Get-Service -Name $MariaService -ErrorAction SilentlyContinue)) {
+        if (Test-Path -LiteralPath $myIniPath) {
+            Write-InstallLog "MariaDB service is missing but existing database data was found. Recreating the Windows service."
+            $mariadbd = Join-Path $MariaRoot "bin/mariadbd.exe"
+            if (-not (Test-Path -LiteralPath $mariadbd)) { throw "mariadbd.exe not found: $mariadbd" }
+            $null = & $mariadbd --install $MariaService "--defaults-file=$myIniPath" 2>&1
+            if ($LASTEXITCODE -ne 0) { throw "MariaDB service re-creation failed (exit $LASTEXITCODE)." }
+        } else {
+            Write-InstallLog "No MariaDB data directory found in upgrade mode. Initializing a fresh database."
+            $rootPassword = New-RandomPassword
+            $FreshDatabase = $true
+            Install-MariaDb -Port $DbPort -RootPassword $rootPassword
+            Write-InstallLog "MariaDB service installation completed."
+        }
+    }
+    if ($null -ne (Get-Service -Name $MariaService -ErrorAction SilentlyContinue)) {
+        if ((Get-Service -Name $MariaService).Status -ne "Running") { Start-Service $MariaService }
+        Wait-ServiceRunning -Name $MariaService -DisplayName "MariaDB"
+        if ($rootPassword) {
+            try {
+                Wait-MariaDb -RootPassword $rootPassword -TimeoutSeconds 60
+                $rootVerified = $true
+                Write-InstallLog "MariaDB is ready (existing root credential verified)."
+            } catch {
+                Write-InstallLog "Existing MariaDB root credential did not verify; continuing with service-level checks only."
+            }
+        }
+        if (-not $rootVerified) {
+            if (-not (Test-TcpListening -Port $DbPort)) { throw "MariaDB is not listening on port $DbPort." }
+            Write-InstallLog "MariaDB service is running; database grants will not be touched."
+        }
+    }
+} else {
+    Write-InstallLog "Installing MariaDB."
+    Install-MariaDb -Port $DbPort -RootPassword $rootPassword
+    Write-InstallLog "MariaDB service installation completed."
+    Write-InstallLog "Waiting for MariaDB."
+    Wait-MariaDb -RootPassword $rootPassword
+    Write-InstallLog "MariaDB is ready."
+    $rootVerified = $true
+}
 
-Invoke-MariaClient -RootPassword $rootPassword -Sql @"
+if ($rootVerified) {
+    # 确保 churchcrm 数据库与应用账号仍然可用（幂等）。
+    $dbCheck = (Invoke-MariaClient -RootPassword $rootPassword -Sql "SELECT COUNT(SCHEMA_NAME) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME='churchcrm';") -join ""
+    if ($dbCheck.Trim() -eq "0") {
+        Write-InstallLog "churchcrm database is missing; a fresh schema import will be performed."
+        $FreshDatabase = $true
+    }
+    Invoke-MariaClient -RootPassword $rootPassword -Sql @"
 CREATE DATABASE IF NOT EXISTS churchcrm CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER IF NOT EXISTS 'churchcrm_app'@'127.0.0.1' IDENTIFIED BY '$appPassword';
 CREATE USER IF NOT EXISTS 'churchcrm_app'@'localhost' IDENTIFIED BY '$appPassword';
@@ -436,9 +517,16 @@ GRANT ALL PRIVILEGES ON churchcrm.* TO 'churchcrm_app'@'127.0.0.1';
 GRANT ALL PRIVILEGES ON churchcrm.* TO 'churchcrm_app'@'localhost';
 FLUSH PRIVILEGES;
 "@
+}
 
-Write-InstallLog "Configuring ChurchCRM."
-Configure-ChurchCRM -Port $HttpPort -DbPort $DbPort -DbPassword $appPassword
+if ($UpgradeMode -and (Test-Path -LiteralPath $ConfigPhp)) {
+    Write-InstallLog "Existing ChurchCRM Config.php found; configuration preserved."
+} else {
+    Write-InstallLog "Configuring ChurchCRM."
+    Configure-ChurchCRM -Port $HttpPort -DbPort $DbPort -DbPassword $appPassword
+    Write-InstallLog "ChurchCRM configuration completed."
+    $FreshDatabase = $true
+}
 Write-InstallLog "Configuring Apache."
 Configure-Apache -Port $HttpPort
 Install-Apache -Port $HttpPort
@@ -446,26 +534,36 @@ Write-InstallLog "Apache service installation completed."
 
 # Initialize the official ChurchCRM schema and seed data first.
 # This creates the standard admin/changeme account used by ChurchCRM's fresh-install flow.
-Write-InstallLog "Importing official ChurchCRM schema and seed data."
-Run-SqlFile (Join-Path $ChurchRoot "mysql/install/Install.sql") $rootPassword
-Write-InstallLog "Official ChurchCRM schema import completed."
+if ($FreshDatabase) {
+    Write-InstallLog "Importing official ChurchCRM schema and seed data."
+    Run-SqlFile (Join-Path $ChurchRoot "mysql/install/Install.sql") $rootPassword
+    Write-InstallLog "Official ChurchCRM schema import completed."
+} else {
+    Write-InstallLog "Existing churchcrm schema detected; schema import skipped (data preserved)."
+}
 
 Write-InstallLog "Waiting for ChurchCRM HTTP endpoint."
 Wait-Http -Url "http://127.0.0.1:$HttpPort/" -TimeoutSeconds 180
 Write-InstallLog "ChurchCRM HTTP endpoint is reachable."
 
-Run-SqlFile (Join-Path $ChurchRoot "plugins/community/mos-gov/database/001_initial.sql") $rootPassword
-Run-SqlFile (Join-Path $ChurchRoot "plugins/community/mos-gov/database/002_v02_authorization.sql") $rootPassword
+if ($FreshDatabase) {
+    Write-InstallLog "Importing MOS-GOV plugin database schema."
+    Run-SqlFile (Join-Path $ChurchRoot "plugins/community/mos-gov/database/001_initial.sql") $rootPassword
+    Run-SqlFile (Join-Path $ChurchRoot "plugins/community/mos-gov/database/002_v02_authorization.sql") $rootPassword
+    Write-InstallLog "MOS-GOV plugin database schema import completed."
+}
 
 $php = Join-Path $PhpRoot "php.exe"
 $enable = Join-Path $AppRoot "runtime/enable-mosgov.php"
 & $php $enable
 if ($LASTEXITCODE -ne 0) { throw "MOS-GOV enablement failed." }
 
-Write-Utf8NoBom -Path (Join-Path $SecretRoot "mariadb-root.txt") -Content "root-password=$rootPassword"
+if ($FreshDatabase) {
+    Write-Utf8NoBom -Path (Join-Path $SecretRoot "mariadb-root.txt") -Content "root-password=$rootPassword"
+}
 Protect-Directory $SecretRoot
 
-$stateJson = @{ version="0.2.0"; httpPort=$HttpPort; dbPort=$DbPort; appUrl="http://127.0.0.1:$HttpPort/"; installedAtUtc=(Get-Date).ToUniversalTime().ToString("o") } |
+$stateJson = @{ version="0.2.1"; httpPort=$HttpPort; dbPort=$DbPort; appUrl="http://127.0.0.1:$HttpPort/"; installedAtUtc=(Get-Date).ToUniversalTime().ToString("o") } |
     ConvertTo-Json
 Write-Utf8NoBom -Path (Join-Path $ConfigRoot "install-state.json") -Content $stateJson
 

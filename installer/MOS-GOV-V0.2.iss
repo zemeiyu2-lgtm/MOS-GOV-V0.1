@@ -51,33 +51,92 @@ var
   RuntimeResultCode: Integer;
   ResetExistingData: Boolean;
 
+function ServiceExists(const Name: String): Boolean;
+begin
+  { 通过注册表检查服务是否存在（SYSTEM\CurrentControlSet\Services\<Name>）。
+    不依赖外部进程（sc.exe/cmd），在各种受限环境下都可靠。 }
+  Result := RegKeyExists(HKLM, 'SYSTEM\CurrentControlSet\Services\' + Name);
+end;
+
+procedure StopMosService(const Name: String);
+var
+  ResultCode: Integer;
+begin
+  if RegKeyExists(HKLM, 'SYSTEM\CurrentControlSet\Services\' + Name) then
+  begin
+    Exec(ExpandConstant('{sys}\net.exe'), 'stop "' + Name + '"',
+      '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  end;
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  Result := '';
+  { 重复安装/升级前先停止服务，避免 httpd.exe / mariadbd.exe 被占用导致文件替换失败。 }
+  StopMosService('MOS-GOV-Apache');
+  StopMosService('MOS-GOV-MariaDB');
+  Sleep(2000);
+end;
+
 function InitializeSetup: Boolean;
 var
+  HasState, HasServices: Boolean;
   Choice: Integer;
 begin
   ResetExistingData := False;
 
-  if FileExists(ExpandConstant('{commonappdata}\MOS-GOV\config\install-state.json')) then
+  HasState := FileExists(ExpandConstant('{commonappdata}\MOS-GOV\config\install-state.json'));
+  HasServices :=
+    ServiceExists('MOS-GOV-Apache') and ServiceExists('MOS-GOV-MariaDB');
+
+  if HasState then
   begin
-    Choice := MsgBox(
-      '检测到本机已经存在 MOS 平台（MOS-GOV）数据。' + #13#10#13#10 +
-      '选择【是】：新建教会 —— 保留旧数据备份，清除旧数据库，建立一个全新的教会环境。' + #13#10 +
-      '选择【否】：升级程序 —— 保留现有教会数据，只更新程序文件（推荐）。' + #13#10 +
-      '选择【取消】：终止本次安装。',
-      mbConfirmation,
-      MB_YESNOCANCEL
-    );
-    case Choice of
-      IDYES:
-        ResetExistingData := True;
-      IDCANCEL:
-        begin
-          MsgBox('已取消安装，现有教会数据没有改变。', mbInformation, MB_OK);
-          Result := False;
-          exit;
-        end;
+    if WizardSilent then
+    begin
+      { 静默安装：服务在 -> 升级保留数据；服务缺失 -> 重建环境（旧数据自动备份）}
+      ResetExistingData := not HasServices;
+    end
+    else if HasServices then
+    begin
+      Choice := MsgBox(
+        '检测到本机已经存在 MOS 平台（MOS-GOV）数据。' + #13#10#13#10 +
+        '选择【是】：新建教会 —— 保留旧数据备份，清除旧数据库，建立一个全新的教会环境。' + #13#10 +
+        '选择【否】：升级程序 —— 保留现有教会数据，只更新程序文件（推荐）。' + #13#10 +
+        '选择【取消】：终止本次安装。',
+        mbConfirmation,
+        MB_YESNOCANCEL
+      );
+      case Choice of
+        IDYES:
+          ResetExistingData := True;
+        IDCANCEL:
+          begin
+            MsgBox('已取消安装，现有教会数据没有改变。', mbInformation, MB_OK);
+            Result := False;
+            exit;
+          end;
+      end;
+      ; { IDNO -> 升级安装，保留数据 }
+    end
+    else
+    begin
+      { 有数据但服务缺失（例如之前运行过卸载）：运行环境必须重建，
+        旧数据库会先自动备份到 C:\ProgramData\MOS-GOV\backups }
+      if MsgBox(
+        '检测到 MOS 平台旧数据，但本机的 MOS 平台服务已不存在（可能被卸载）。' + #13#10#13#10 +
+        '需要重建运行环境才能继续。' + #13#10#13#10 +
+        '选择【是】：自动备份旧数据后重建全新的运行环境。' + #13#10 +
+        '选择【否】：终止本次安装，现有数据保持不变。',
+        mbConfirmation,
+        MB_YESNO
+      ) = IDNO then
+      begin
+        MsgBox('已取消安装，现有教会数据没有改变。', mbInformation, MB_OK);
+        Result := False;
+        exit;
+      end;
+      ResetExistingData := True;
     end;
-    ; { IDNO -> 升级安装，保留数据 }
   end;
 
   Result := True;
