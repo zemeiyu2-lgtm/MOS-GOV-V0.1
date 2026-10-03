@@ -113,7 +113,7 @@ function Find-ComponentRoot([string]$Destination,[string]$RelativePath,[string]$
 
 $ccrmZip = Get-File "ChurchCRM-7.7.0.zip" $Manifest.churchcrm.url $Manifest.churchcrm.sha256
 $phpZip = Get-File "php-8.4.25-Win32-vs17-x64.zip" $Manifest.php.url $Manifest.php.sha256
-$apacheZip = Get-File "httpd-2.4.68-260610-Win64-VS18.zip" $Manifest.apache.url $Manifest.apache.sha256
+$apacheZip = Get-File ("httpd-" + $Manifest.apache.version + "-Win64-VS18.zip") $Manifest.apache.url $Manifest.apache.sha256
 $mariaZip = Get-File "mariadb-11.8.9-winx64.zip" $Manifest.mariadb.url $Manifest.mariadb.sha256
 
 $vcPath = Join-Path $DownloadRoot "vc_redist.x64.exe"
@@ -179,10 +179,23 @@ Copy-Item (Join-Path $PSScriptRoot "runtime/uninstall-runtime.ps1") (Join-Path $
 Copy-Item (Join-Path $PSScriptRoot "runtime/reset-church.cmd") (Join-Path $payloadRuntime "reset-church.cmd") -Force
 Copy-Item (Join-Path $PSScriptRoot "runtime/reset-church.ps1") (Join-Path $payloadRuntime "reset-church.ps1") -Force
 Copy-Item (Join-Path $PSScriptRoot "runtime/enable-mosgov.php") (Join-Path $payloadRuntime "enable-mosgov.php") -Force
+# V0.2.1 平台入口资源：启动器 / 图标 / 诊断工具
+foreach ($runtimeAsset in @(
+    "MOSLauncher.exe",
+    "MOSLauncher.ps1",
+    "MOSLauncher.vbs",
+    "MOS.ico",
+    "MOS-Diagnose.ps1",
+    "MOS-Diagnose.cmd"
+)) {
+    $source = Join-Path $PSScriptRoot ("runtime/" + $runtimeAsset)
+    if (-not (Test-Path -LiteralPath $source)) { throw "Required runtime asset missing: $source" }
+    Copy-Item $source (Join-Path $payloadRuntime $runtimeAsset) -Force
+}
 
 $iss = Get-Content (Join-Path $PSScriptRoot "MOS-GOV-V0.2.iss") -Raw
-$iss = $iss.Replace("{{PAYLOAD_ROOT}}",$PayloadRoot.Replace('\','/'))
-$iss = $iss.Replace("{{OUTPUT_DIR}}",$DistRoot.Replace('\','/'))
+$iss = $iss.Replace("{{PAYLOAD_ROOT}}",$PayloadRoot)
+$iss = $iss.Replace("{{OUTPUT_DIR}}",$DistRoot)
 $issPath = Join-Path $BuildRoot "MOS-GOV-V0.2.iss"
 Set-Content $issPath $iss -Encoding UTF8
 
@@ -197,10 +210,10 @@ if (-not $iscc) { throw "ISCC.exe not found. Install Inno Setup 6." }
 & $iscc $issPath
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed: $LASTEXITCODE" }
 
-$exe = Join-Path $DistRoot "MOS-GOV-V0.2-Setup.exe"
+$exe = Join-Path $DistRoot "MOS-GOV-V0.2.1-Setup.exe"
 if (-not (Test-Path $exe)) { throw "Installer was not produced." }
 $hash = (Get-FileHash $exe -Algorithm SHA256).Hash
-@{ product="MOS-GOV 教会治理平台"; version="0.2.0"; installer=(Split-Path $exe -Leaf); sha256=$hash; builtAtUtc=(Get-Date).ToUniversalTime().ToString("o") } |
-    ConvertTo-Json | Set-Content (Join-Path $DistRoot "MOS-GOV-V0.2-Setup.sha256.json") -Encoding UTF8
+@{ product="MOS-GOV 教会治理平台"; version="0.2.1"; installer=(Split-Path $exe -Leaf); sha256=$hash; builtAtUtc=(Get-Date).ToUniversalTime().ToString("o") } |
+    ConvertTo-Json | Set-Content (Join-Path $DistRoot "MOS-GOV-V0.2.1-Setup.sha256.json") -Encoding UTF8
 Write-Host "Created: $exe"
 Write-Host "SHA256: $hash"
