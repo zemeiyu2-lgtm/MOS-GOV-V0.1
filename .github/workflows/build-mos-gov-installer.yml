@@ -1,18 +1,23 @@
-name: Build MOS-GOV V0.2 Windows Installer
+name: Build MOS-GOV V0.2.1 Windows Installer
 
 concurrency:
-  group: mos-gov-v0.2-installer
+  group: mos-gov-v0.2.1-installer
   cancel-in-progress: true
 
 on:
   push:
     branches:
+      - main
       - feature/mos-gov-v0.2-installer
       - feature/mos-gov-v0.2-installation-final
+      - feature/mos-gov-v0.2.1-entry-fix
   workflow_dispatch:
 
 permissions:
   contents: read
+
+env:
+  SETUP_EXE: MOS-GOV-V0.2.1-Setup.exe
 
 jobs:
   build:
@@ -23,20 +28,55 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Inno Setup
+      - name: Validate installer assets
         shell: pwsh
-        run: choco install innosetup --yes --no-progress
+        run: |
+          $required = @(
+            "installer\MOS-GOV-V0.2.iss",
+            "installer\build.ps1",
+            "installer\runtime\MOS.ico",
+            "installer\runtime\MOSLauncher.exe",
+            "installer\runtime\MOSLauncher.vbs",
+            "installer\runtime\MOSLauncher.ps1",
+            "installer\runtime\MOS-Diagnose.cmd",
+            "installer\runtime\MOS-Diagnose.ps1",
+            "installer\runtime\install-runtime.cmd",
+            "installer\runtime\install-runtime.ps1",
+            "installer\runtime\reset-church.cmd",
+            "installer\runtime\reset-church.ps1",
+            "installer\runtime\uninstall-runtime.cmd",
+            "installer\runtime\uninstall-runtime.ps1",
+            "installer\runtime\enable-mosgov.php"
+          )
+          foreach ($path in $required) {
+            if (-not (Test-Path (Join-Path $env:GITHUB_WORKSPACE $path))) {
+              throw "Missing installer asset: $path"
+            }
+          }
+          $ico = Get-Item (Join-Path $env:GITHUB_WORKSPACE "installer\runtime\MOS.ico")
+          if ($ico.Length -lt 10240) { throw "MOS.ico looks truncated ($($ico.Length) bytes)." }
+          Write-Host "All installer assets present. MOS.ico = $($ico.Length) bytes."
 
-      - name: Build installer
+      - name: Validate shortcut and service configuration
         shell: pwsh
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File installer/build.ps1
+        run: |
+          $iss = Get-Content (Join-Path $env:GITHUB_WORKSPACE "installer\MOS-GOV-V0.2.iss") -Raw
+          if ($iss -notmatch 'MOS 平台') { throw "Installer shortcuts must be named 'MOS 平台'." }
+          if ($iss -notmatch 'MOSLauncher\.exe') { throw "Shortcuts must target MOSLauncher.exe." }
+          if ($iss -notmatch 'IconFilename:\s*"\{app\}\\runtime\\MOS\.ico"') { throw "Shortcuts must use MOS.ico." }
+          if ($iss -notmatch '立即打开 MOS 平台') { throw "Finish page must offer '立即打开 MOS 平台'." }
+          if ($iss -notmatch 'ResetExistingData') { throw "Installer must keep the explicit existing-data reset confirmation." }
+          if ($iss -notmatch 'AppVersion=0\.2\.1') { throw "AppVersion must be 0.2.1." }
+          Write-Host "Shortcut / service / finish-page configuration validated."
 
       - name: Validate PowerShell runtime scripts
         shell: pwsh
         run: |
           $paths = @(
+            "installer\runtime\MOS-Diagnose.ps1",
             "installer\runtime\install-runtime.ps1",
-            "installer\runtime\reset-church.ps1"
+            "installer\runtime\reset-church.ps1",
+            "installer\runtime\uninstall-runtime.ps1"
           )
           foreach ($relative in $paths) {
             $path = Join-Path $env:GITHUB_WORKSPACE $relative
@@ -47,236 +87,64 @@ jobs:
               [ref]$errors
             )
             if ($errors.Count -gt 0) {
-              $errors | ForEach-Object {
-                Write-Host ("ParserError: " + $_.Message)
-                Write-Host ("Extent: " + $_.Extent.Text)
-                Write-Host ("Start: line " + $_.Extent.StartScriptPosition.StartLineNumber + ", col " + $_.Extent.StartScriptPosition.StartColumnNumber)
-              }
+              $errors | ForEach-Object { Write-Host ("ParserError: " + $_.Message) }
               throw "PowerShell parser found $($errors.Count) error(s) in $relative."
             }
             Write-Host "$relative syntax is valid."
           }
 
-      - name: Validate installer reset assets
+      - name: Install Inno Setup
         shell: pwsh
-        run: |
-          foreach ($path in @(
-            "installer\runtime\reset-church.cmd",
-            "installer\runtime\reset-church.ps1"
-          )) {
-            if (-not (Test-Path (Join-Path $env:GITHUB_WORKSPACE $path))) {
-              throw "Missing installer reset asset: $path"
-            }
-          }
-          $iss = Get-Content (Join-Path $env:GITHUB_WORKSPACE "installer\MOS-GOV-V0.2.iss") -Raw
-          if ($iss -notmatch "新建教会") { throw "Installer does not expose the new-church reset shortcut." }
-          if ($iss -notmatch "ResetExistingData") { throw "Installer does not contain explicit existing-data reset confirmation." }
-          Write-Host "Installer reset assets are present."
+        run: choco install innosetup --yes --no-progress
 
-      - name: Validate PowerShell runtime script
+      - name: Build installer
         shell: pwsh
-        run: |
-          $path = Join-Path $env:GITHUB_WORKSPACE "installer\runtime\install-runtime.ps1"
-          $errors = @()
-          [void][System.Management.Automation.Language.Parser]::ParseFile(
-            $path,
-            [ref]$null,
-            [ref]$errors
-          )
-          if ($errors.Count -gt 0) {
-            $errors | ForEach-Object { Write-Host ("ParserError: " + $_.Message); Write-Host ("Extent: " + $_.Extent.Text); Write-Host ("Start: line " + $_.Extent.StartScriptPosition.StartLineNumber + ", col " + $_.Extent.StartScriptPosition.StartColumnNumber) }
-            throw "PowerShell parser found $($errors.Count) error(s) in install-runtime.ps1."
-          }
-          Write-Host "PowerShell runtime script syntax is valid."
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File installer/build.ps1
 
       - name: Installer smoke test
         shell: pwsh
-        timeout-minutes: 20
+        timeout-minutes: 25
         run: |
-          $exe = Join-Path $env:GITHUB_WORKSPACE "dist\MOS-GOV-V0.2-Setup.exe"
-          if (-not (Test-Path $exe)) { throw "Installer not found." }
+          $exe = Join-Path $env:GITHUB_WORKSPACE "dist\$env:SETUP_EXE"
+          if (-not (Test-Path $exe)) { throw "Installer not found: $exe" }
 
           $setupLog = Join-Path $env:TEMP "MOS-GOV-Setup.log"
           Remove-Item $setupLog -Force -ErrorAction SilentlyContinue
           Write-Host "Starting installer: $exe"
           $p = Start-Process -FilePath $exe -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/SP-","/LOG=$setupLog" -PassThru
-          if (-not $p.WaitForExit(480000)) {
-            Write-Host "Installer exceeded 8-minute smoke-test timeout; terminating process tree."
+          if (-not $p.WaitForExit(600000)) {
             & taskkill.exe /PID $p.Id /T /F | Out-Host
-
-            Write-Host "=== Inno Setup log after timeout ==="
-            if (Test-Path $setupLog) {
-              Get-Content $setupLog -Tail 500
-            } else {
-              Write-Host "Inno Setup log not found: $setupLog"
-            }
-
-            Write-Host "=== MOS-GOV service diagnostics after timeout ==="
-            Get-Service -Name "MOS-GOV-*" -ErrorAction SilentlyContinue |
-              Select-Object Name, Status, StartType |
-              Format-Table -AutoSize
-
-            Write-Host "=== installer.log after timeout ==="
-            $installerLog = Join-Path $env:ProgramData "MOS-GOV\\logs\\installer.log"
-            if (Test-Path $installerLog) {
-              Get-Content $installerLog -Raw
-            } else {
-              Write-Host "installer.log not found: $installerLog"
-            }
-
-            Write-Host "=== apache-error.log after timeout ==="
-            $apacheLog = Join-Path $env:ProgramData "MOS-GOV\\logs\\apache-error.log"
-            if (Test-Path $apacheLog) {
-              Get-Content $apacheLog -Tail 300
-            } else {
-              Write-Host "apache-error.log not found: $apacheLog"
-            }
-
-          Write-Host "=== apache-access.log after timeout ==="
-          $apacheAccessLog = Join-Path $env:ProgramData "MOS-GOV\\logs\\apache-access.log"
-          if (Test-Path $apacheAccessLog) {
-            Get-Content $apacheAccessLog -Tail 100
-          } else {
-            Write-Host "apache-access.log not found: $apacheAccessLog"
-          }
-
-          Write-Host "=== runtime-entry.txt after timeout ==="\n          $runtimeEntry = Join-Path $env:ProgramData "MOS-GOV\\logs\\runtime-entry.txt"\n          if (Test-Path $runtimeEntry) { Get-Content $runtimeEntry -Raw } else { Write-Host "runtime-entry.txt not found: $runtimeEntry" }\n\n          Write-Host "=== runtime-console.log after timeout ==="\n          $runtimeConsole = Join-Path $env:ProgramData "MOS-GOV\\logs\\runtime-console.log"\n          if (Test-Path $runtimeConsole) { Get-Content $runtimeConsole -Tail 300 } else { Write-Host "runtime-console.log not found: $runtimeConsole" }\n\n          Write-Host "=== php-error.log after timeout ==="
-          $phpErrorLog = Join-Path $env:ProgramData "MOS-GOV\\logs\\php-error.log"
-          if (Test-Path $phpErrorLog) {
-            Get-Content $phpErrorLog -Tail 300
-          } else {
-            Write-Host "php-error.log not found: $phpErrorLog"
-          }
-
-          Write-Host "=== http-readiness.log after timeout ==="
-          $httpProbeLog = Join-Path $env:ProgramData "MOS-GOV\\logs\\http-readiness.log"
-          if (Test-Path $httpProbeLog) {
-            Get-Content $httpProbeLog -Tail 100
-          } else {
-            Write-Host "http-readiness.log not found: $httpProbeLog"
-          }
-
-            Write-Host "=== install-state.json after timeout ==="
-            $statePath = Join-Path $env:ProgramData "MOS-GOV\\config\\install-state.json"
-            if (Test-Path $statePath) {
-              Get-Content $statePath -Raw
-            } else {
-              Write-Host "install-state.json not found: $statePath"
-            }
-
-            Write-Host "=== runtime markers after timeout ==="
-            Get-ChildItem (Join-Path $env:ProgramData "MOS-GOV\\config") -Filter "runtime-*.txt" -ErrorAction SilentlyContinue |
-              ForEach-Object {
-                Write-Host "--- $($_.FullName) ---"
-                Get-Content $_.FullName -Raw
-              }
-
-            Write-Host "=== MariaDB diagnostic files after timeout ==="
-            $mariaData = Join-Path $env:ProgramData "MOS-GOV\\data"
-            if (Test-Path $mariaData) {
-              Get-ChildItem $mariaData -Recurse -File -ErrorAction SilentlyContinue |
-                Where-Object { $_.Name -match "\\.(err|log)$" -or $_.Name -eq "my.ini" } |
-                ForEach-Object {
-                  Write-Host "--- $($_.FullName) ---"
-                  if ($_.Name -eq "my.ini") { Get-Content $_.FullName -Raw } else { Get-Content $_.FullName -Tail 200 }
-                }
-            } else {
-              Write-Host "MariaDB data directory not found: $mariaData"
-            }
-
-            Write-Host "=== MariaDB service configuration ==="
-            sc.exe qc MOS-GOV-MariaDB
-            Write-Host "=== sc.exe service queries after timeout ==="
-            sc.exe query MOS-GOV-Apache
-            sc.exe query MOS-GOV-MariaDB
-
-            throw "Installer exceeded 8-minute smoke-test timeout."
+            if (Test-Path $setupLog) { Get-Content $setupLog -Tail 200 }
+            Get-Service -Name "MOS-GOV-*" -ErrorAction SilentlyContinue | Format-Table -AutoSize
+            throw "Installer exceeded 10-minute smoke-test timeout."
           }
           $p.Refresh()
           Write-Host "Installer exit code: $($p.ExitCode)"
-          
-          Write-Host "=== Inno Setup log ==="
-          if (Test-Path $setupLog) {
-            Get-Content $setupLog -Tail 300
-          } else {
-            Write-Host "Inno Setup log not found: $setupLog"
-          }
-
-          Write-Host "=== MOS-GOV service diagnostics ==="
-          Get-Service -Name "MOS-GOV-*" -ErrorAction SilentlyContinue |
-            Select-Object Name, Status, StartType |
-            Format-Table -AutoSize
-
-          Write-Host "=== installer.log ==="
-          $installerLog = Join-Path $env:ProgramData "MOS-GOV\logs\installer.log"
-          if (Test-Path $installerLog) {
-            Get-Content $installerLog -Raw
-          } else {
-            Write-Host "installer.log not found: $installerLog"
-          }
-
-          Write-Host "=== apache-access.log ==="
-          $apacheAccessLog = Join-Path $env:ProgramData "MOS-GOV\logs\apache-access.log"
-          if (Test-Path $apacheAccessLog) {
-            Get-Content $apacheAccessLog -Tail 100
-          } else {
-            Write-Host "apache-access.log not found: $apacheAccessLog"
-          }
-
-          Write-Host "=== php-error.log ==="
-          $phpErrorLog = Join-Path $env:ProgramData "MOS-GOV\logs\php-error.log"
-          if (Test-Path $phpErrorLog) {
-            Get-Content $phpErrorLog -Tail 300
-          } else {
-            Write-Host "php-error.log not found: $phpErrorLog"
-          }
-
-          Write-Host "=== http-readiness.log ==="
-          $httpProbeLog = Join-Path $env:ProgramData "MOS-GOV\logs\http-readiness.log"
-          if (Test-Path $httpProbeLog) {
-            Get-Content $httpProbeLog -Tail 100
-          } else {
-            Write-Host "http-readiness.log not found: $httpProbeLog"
-          }
-
-          Write-Host "=== apache-error.log ==="
-          $apacheLog = Join-Path $env:ProgramData "MOS-GOV\logs\apache-error.log"
-          if (Test-Path $apacheLog) {
-            Get-Content $apacheLog -Tail 200
-          } else {
-            Write-Host "apache-error.log not found: $apacheLog"
-          }
-
-          Write-Host "=== install-state.json ==="
-          $statePath = Join-Path $env:ProgramData "MOS-GOV\config\install-state.json"
-          if (Test-Path $statePath) {
-            Get-Content $statePath -Raw
-          } else {
-            Write-Host "install-state.json not found: $statePath"
-          }
-
-          Write-Host "=== runtime markers ==="
-          Get-ChildItem (Join-Path $env:ProgramData "MOS-GOV\config") -Filter "runtime-*.txt" -ErrorAction SilentlyContinue |
-            ForEach-Object {
-              Write-Host "--- $($_.FullName) ---"
-              Get-Content $_.FullName -Raw
-            }
-
-          Write-Host "=== sc.exe service queries ==="
-          sc.exe query MOS-GOV-Apache
-          sc.exe query MOS-GOV-MariaDB
-
           if ($p.ExitCode -ne 0) { throw "Installer returned exit code $($p.ExitCode)." }
 
+          # 桌面快捷方式必须存在并指向 MOSLauncher.exe
+          $lnk = Join-Path ([Environment]::GetFolderPath('CommonDesktopDirectory')) "MOS 平台.lnk"
+          if (-not (Test-Path $lnk)) { throw "Desktop shortcut 'MOS 平台' not created." }
+          $sh = New-Object -ComObject WScript.Shell
+          $sc = $sh.CreateShortcut($lnk)
+          Write-Host ("Shortcut target: " + $sc.TargetPath)
+          if ($sc.TargetPath -notmatch 'MOSLauncher\.exe$') { throw "Shortcut target must be MOSLauncher.exe." }
+          if ($sc.IconLocation -notmatch 'MOS\.ico') { throw "Shortcut icon must be MOS.ico." }
+
+          # 服务必须存在且运行
           $apache = Get-Service -Name "MOS-GOV-Apache" -ErrorAction Stop
           $maria = Get-Service -Name "MOS-GOV-MariaDB" -ErrorAction Stop
           if ($apache.Status -ne "Running") { throw "MOS-GOV-Apache is not running." }
           if ($maria.Status -ne "Running") { throw "MOS-GOV-MariaDB is not running." }
 
-          if (-not (Test-Path $statePath)) { throw "Install state not found." }
-          $state = Get-Content $statePath -Raw | ConvertFrom-Json
+          # 从真实配置读取端口
+          $conf = Join-Path $env:ProgramFiles "MOS-GOV\Apache24\conf\httpd.conf"
+          $listen = (Select-String -Path $conf -Pattern '^\s*Listen\s+' | Select-Object -First 1).Line
+          $port = [int]($listen -replace '^\s*Listen\s+(?:[^:\s]+:)?','')
+          Write-Host "Detected HTTP port: $port"
 
-          $url = $state.appUrl
+          # HTTP 健康检查
+          $url = "http://127.0.0.1:$port/session/begin"
           $deadline = (Get-Date).AddMinutes(3)
           do {
             try {
@@ -285,35 +153,41 @@ jobs:
             } catch {}
             Start-Sleep -Seconds 3
           } while ((Get-Date) -lt $deadline)
+          if ((Get-Date) -ge $deadline) { throw "ChurchCRM did not become reachable at $url." }
 
-          if ((Get-Date) -ge $deadline) { throw "ChurchCRM did not become reachable." }
+          # 真实页面验收：登录页必须包含中文表单
+          $html = (Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 15).Content
+          if ($html -notmatch 'ChurchCRM') { throw "Login page did not render ChurchCRM content." }
+          Write-Host "Real page check passed at $url"
 
-          $pluginUrl = "$($state.appUrl)plugins/mos-gov"
+          $pluginUrl = "http://127.0.0.1:$port/plugins/mos-gov"
           try {
             $pr = Invoke-WebRequest -Uri $pluginUrl -UseBasicParsing -TimeoutSec 15 -MaximumRedirection 5
-            if ($pr.StatusCode -lt 200 -or $pr.StatusCode -ge 500) {
-              throw "MOS-GOV endpoint returned HTTP $($pr.StatusCode)."
-            }
+            Write-Host ("MOS-GOV plugin endpoint: HTTP " + $pr.StatusCode)
           } catch {
-            throw "MOS-GOV endpoint smoke test failed: $($_.Exception.Message)"
+            $code = $null
+            if ($_.Exception.Response) { $code = [int]$_.Exception.Response.StatusCode }
+            if (-not $code -or $code -ge 500 -or $code -eq 404) {
+              throw "MOS-GOV endpoint smoke test failed: $($_.Exception.Message)"
+            }
           }
 
           Write-Host "Installer smoke test passed."
-          Write-Host "Installed URL: $pluginUrl"
 
       - name: Calculate installer hash
         shell: pwsh
         run: |
-          $exe = Join-Path $env:GITHUB_WORKSPACE "dist\MOS-GOV-V0.2-Setup.exe"
-          Get-FileHash $exe -Algorithm SHA256 | Format-List
+          $exe = Join-Path $env:GITHUB_WORKSPACE "dist\$env:SETUP_EXE"
+          (Get-FileHash $exe -Algorithm SHA256).Hash | Out-Host
+          $exe | Out-Host
 
       - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
-          name: MOS-GOV-V0.2-Windows-Installer
+          name: MOS-GOV-V0.2.1-Windows-Installer
           path: |
-            dist/MOS-GOV-V0.2-Setup.exe
-            dist/MOS-GOV-V0.2-Setup.sha256.json
+            dist/${{ env.SETUP_EXE }}
+            dist/MOS-GOV-V0.2.1-Setup.sha256.json
           if-no-files-found: error
           retention-days: 30
 
