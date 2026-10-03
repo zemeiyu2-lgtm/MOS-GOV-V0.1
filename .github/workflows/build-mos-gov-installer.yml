@@ -114,6 +114,14 @@ jobs:
         shell: pwsh
         timeout-minutes: 25
         run: |
+          # 全程录制输出：冒烟测试自身的失败原因也必须可审计（此前失败原因只能靠推理）。
+          $smokeLog = Join-Path $env:GITHUB_WORKSPACE "ci-smoke.log"
+          Start-Transcript -Path $smokeLog -Force | Out-Null
+          trap {
+            Write-Host ("SMOKE TEST FAILED: " + $_.Exception.Message)
+            try { Stop-Transcript | Out-Null } catch { }
+            throw $_
+          }
           $exe = Join-Path $env:GITHUB_WORKSPACE "dist\$env:SETUP_EXE"
           if (-not (Test-Path $exe)) { throw "Installer not found: $exe" }
 
@@ -143,27 +151,32 @@ jobs:
           $p = Start-Process -FilePath $exe -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/SP-","/LOG=$setupLog" -PassThru
           Write-Host "Installer launcher PID: $($p.Id)"
 
-          # Inno Setup 的父进程可能在真正的安装子进程完成前就退出，
-          # 因此不能只依赖父进程退出码：轮询"快捷方式 + 两个服务"作为完成信号。
+          # 完成信号必须来自"运行环境初始化脚本自己写下的结束标记"，不能用
+          # "快捷方式存在 + 服务存在" 代替：Inno 在 [Icons] 阶段（早于 [Run]）就已创建快捷方式，
+          # 服务也会在 [Run] 中途出现，此时 ChurchCRM 数据库 schema 可能仍在导入。
+          # 之前正是因此在"数据库未就绪"的中间状态下检查登录页，页面里没有 ChurchCRM 而失败。
+          $runtimeLog = 'C:\ProgramData\MOS-GOV\logs\installer.log'
           $done = $false
+          $fatal = $null
           $deadline = (Get-Date).AddMinutes(15)
-          $earlyDeadline = (Get-Date).AddSeconds(120)
           do {
             Start-Sleep -Seconds 5
             $lnks = @(Get-DesktopMosShortcuts)
             $svcA = Get-Service -Name "MOS-GOV-Apache" -ErrorAction SilentlyContinue
             $svcM = Get-Service -Name "MOS-GOV-MariaDB" -ErrorAction SilentlyContinue
-            if ($lnks.Count -gt 0 -and $svcA -and $svcM) { $done = $true; break }
-            # 快速失败：安装器进程已退出，且 120 秒后仍未产生快捷方式或服务，说明安装被回滚或中止。
-            if ($p.HasExited -and $lnks.Count -eq 0 -and -not $svcA -and -not $svcM -and (Get-Date) -gt $earlyDeadline) {
-              Write-Host "Installer exited without creating shortcuts or services; ending poll early."
-              break
+            $logText = ''
+            if (Test-Path -LiteralPath $runtimeLog) {
+              $logText = (Get-Content -LiteralPath $runtimeLog -Raw -ErrorAction SilentlyContinue)
             }
+            if ($logText -match 'MOS-GOV installation completed\.') { $done = $true; break }
+            $fatalMatch = [regex]::Match($logText, '(?m)^.*FATAL:.*$')
+            if ($fatalMatch.Success) { $fatal = $fatalMatch.Value.Trim(); break }
           } while ((Get-Date) -lt $deadline)
 
           $state = @()
           $state += "installer launcher exited: $($p.HasExited)"
           if ($p.HasExited) { $state += "installer launcher exit code: $($p.ExitCode)" }
+          $state += "runtime install completed marker: $done"
           $state += "desktop lnk count: $($lnks.Count)"
           $state += "desktop lnk names: " + ((@($lnks) | ForEach-Object { $_.FullName }) -join ' | ')
           $state += "expected lnk name: $expectedShortcutName"
@@ -187,8 +200,9 @@ jobs:
             Copy-Item $setupLog (Join-Path $env:GITHUB_WORKSPACE "ci-inno-setup.log") -Force -ErrorAction SilentlyContinue
           }
 
+          if ($fatal) { throw "MOS-GOV runtime installation reported a fatal error: $fatal" }
           if (-not $done) {
-            if (Test-Path $setupLog) { Get-Content $setupLog -Tail 120 }
+            if (Test-Path -LiteralPath $runtimeLog) { Write-Host "--- installer.log (tail 40) ---"; Get-Content -LiteralPath $runtimeLog -Tail 40 }
             $found = ((@($lnks) | ForEach-Object { $_.FullName }) -join ', ')
             throw "Installation did not complete within 15 minutes (shortcuts=[$found], apache=$($svcA.Status), maria=$($svcM.Status))."
           }
@@ -270,6 +284,7 @@ jobs:
           }
 
           Write-Host "Installer smoke test passed."
+          Stop-Transcript | Out-Null
 
       - name: Calculate installer hash
         shell: pwsh
@@ -322,6 +337,9 @@ jobs:
           if (Test-Path $conf) { $report += ((Select-String -Path $conf -Pattern '^\s*Listen\s+' | ForEach-Object { $_.Line })) } else { $report += "(missing)" }
           $report += "=== apache error log (tail 60) ==="
           if (Test-Path "C:\ProgramData\MOS-GOV\logs\apache-error.log") { $report += (Get-Content "C:\ProgramData\MOS-GOV\logs\apache-error.log" -Tail 60) } else { $report += "(missing)" }
+          $report += "=== smoke test transcript (tail 120) ==="
+          if (Test-Path "$env:GITHUB_WORKSPACE\ci-smoke.log") { $report += (Get-Content "$env:GITHUB_WORKSPACE\ci-smoke.log" -Tail 120) } else { $report += "(missing: smoke transcript not captured)" }
+          $report += ""
           $report += "=== desktop shortcuts actually present ==="
           $report += ((Get-ChildItem ([Environment]::GetFolderPath('CommonDesktopDirectory')) -Filter '*.lnk' -ErrorAction SilentlyContinue |
                        Select-Object -ExpandProperty Name) -join "`r`n")
@@ -342,6 +360,7 @@ jobs:
           $artifacts = @(
             "ci-diagnostics.txt",
             "ci-build.log",
+            "ci-smoke.log",
             "ci-install-state.txt",
             "ci-inno-setup.log",
             "ci-runtime-installer.log",
