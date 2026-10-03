@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   SETUP_EXE: MOS-GOV-V0.2.1-Setup.exe
@@ -200,3 +200,40 @@ jobs:
             powershell -NoProfile -ExecutionPolicy Bypass -File $clean
           }
           Remove-Item "$env:ProgramData\MOS-GOV" -Recurse -Force -ErrorAction SilentlyContinue
+
+      - name: Publish failure diagnostics
+        if: failure()
+        shell: pwsh
+        run: |
+          $report = @()
+          $report += "MOS-GOV CI failure diagnostics @ " + (Get-Date).ToUniversalTime().ToString("o")
+          $report += "runner image: " + $env:ImageOS + " / " + $env:RUNNER_OS
+          $report += ""
+          $report += "=== Inno Setup log (tail 150) ==="
+          if (Test-Path "$env:TEMP\MOS-GOV-Setup.log") { $report += (Get-Content "$env:TEMP\MOS-GOV-Setup.log" -Tail 150) } else { $report += "(missing)" }
+          $report += ""
+          $report += "=== runtime installer.log (tail 120) ==="
+          if (Test-Path "C:\ProgramData\MOS-GOV\logs\installer.log") { $report += (Get-Content "C:\ProgramData\MOS-GOV\logs\installer.log" -Tail 120) } else { $report += "(missing)" }
+          $report += ""
+          $report += "=== services ==="
+          $report += ((Get-Service -Name 'MOS-GOV-*' -ErrorAction SilentlyContinue | Format-Table -AutoSize | Out-String))
+          $report += "=== listening ports (80/8080/8081/3306/3307) ==="
+          $report += ((Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { $_.LocalPort -in @(80,8080,8081,3306,3307) } | Format-Table -AutoSize | Out-String))
+          $report += "=== dist ==="
+          $report += ((Get-ChildItem "$env:GITHUB_WORKSPACE\dist" -ErrorAction SilentlyContinue | Select-Object Name,Length | Format-Table -AutoSize | Out-String))
+          $report += "=== httpd.conf Listen ==="
+          $conf = Join-Path $env:ProgramFiles "MOS-GOV\Apache24\conf\httpd.conf"
+          if (Test-Path $conf) { $report += ((Select-String -Path $conf -Pattern '^\s*Listen\s+' | ForEach-Object { $_.Line })) } else { $report += "(missing)" }
+          $report += "=== apache error log (tail 60) ==="
+          if (Test-Path "C:\ProgramData\MOS-GOV\logs\apache-error.log") { $report += (Get-Content "C:\ProgramData\MOS-GOV\logs\apache-error.log" -Tail 60) } else { $report += "(missing)" }
+          $report += "=== desktop shortcut ==="
+          $lnk = Join-Path ([Environment]::GetFolderPath('CommonDesktopDirectory')) "MOS 平台.lnk"
+          $report += ("desktop lnk exists: " + (Test-Path $lnk))
+          $report += "=== launcher log (tail 40) ==="
+          if (Test-Path "C:\ProgramData\MOS-GOV\logs\launcher.log") { $report += (Get-Content "C:\ProgramData\MOS-GOV\logs\launcher.log" -Tail 40) } else { $report += "(missing)" }
+          Set-Content -Path "$env:GITHUB_WORKSPACE\ci-diagnostics.txt" -Value ($report -join "`r`n") -Encoding UTF8
+          git config user.name "mos-gov-ci"
+          git config user.email "mos-gov-ci@users.noreply.github.com"
+          git add ci-diagnostics.txt
+          git commit -m "ci: failure diagnostics [skip ci]"
+          git push
