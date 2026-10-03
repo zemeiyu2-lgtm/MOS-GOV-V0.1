@@ -111,27 +111,75 @@ jobs:
           $setupLog = Join-Path $env:TEMP "MOS-GOV-Setup.log"
           Remove-Item $setupLog -Force -ErrorAction SilentlyContinue
           Write-Host "Starting installer: $exe"
+          $lnkPath = Join-Path ([Environment]::GetFolderPath('CommonDesktopDirectory')) "MOS 平台.lnk"
           $p = Start-Process -FilePath $exe -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/SP-","/LOG=$setupLog" -PassThru
-          if (-not $p.WaitForExit(600000)) {
-            & taskkill.exe /PID $p.Id /T /F | Out-Host
-            if (Test-Path $setupLog) { Get-Content $setupLog -Tail 200 }
-            Get-Service -Name "MOS-GOV-*" -ErrorAction SilentlyContinue | Format-Table -AutoSize
-            throw "Installer exceeded 10-minute smoke-test timeout."
+          Write-Host "Installer launcher PID: $($p.Id)"
+
+          # Inno Setup 的父进程可能在真正的安装子进程完成前就退出，
+          # 因此不能只依赖父进程退出码：轮询"快捷方式 + 两个服务"作为完成信号。
+          $done = $false
+          $deadline = (Get-Date).AddMinutes(15)
+          do {
+            Start-Sleep -Seconds 5
+            $lnk = Test-Path $lnkPath
+            $svcA = Get-Service -Name "MOS-GOV-Apache" -ErrorAction SilentlyContinue
+            $svcM = Get-Service -Name "MOS-GOV-MariaDB" -ErrorAction SilentlyContinue
+            if ($lnk -and $svcA -and $svcM) { $done = $true; break }
+            if ($p.HasExited -and -not $lnk -and -not $svcA -and -not $svcM) {
+              Start-Sleep -Seconds 10
+              $lnk = Test-Path $lnkPath
+              $svcA = Get-Service -Name "MOS-GOV-Apache" -ErrorAction SilentlyContinue
+              $svcM = Get-Service -Name "MOS-GOV-MariaDB" -ErrorAction SilentlyContinue
+              if ($lnk -and $svcA -and $svcM) { $done = $true }
+              break
+            }
+          } while ((Get-Date) -lt $deadline)
+
+          $state = @()
+          $state += "installer launcher exited: $($p.HasExited)"
+          if ($p.HasExited) { $state += "installer launcher exit code: $($p.ExitCode)" }
+          $state += "desktop lnk exists: $(Test-Path $lnkPath)"
+          $state += "apache service: $(if ($svcA) { $svcA.Status } else { 'MISSING' })"
+          $state += "maria service: $(if ($svcM) { $svcM.Status } else { 'MISSING' })"
+          $snapshot = Join-Path $env:GITHUB_WORKSPACE "ci-install-state.txt"
+          Set-Content -Path $snapshot -Value ($state -join "`r`n") -Encoding UTF8
+          Write-Host ($state -join "`n")
+
+          # 采集运行环境日志，供失败时审计
+          foreach ($logPair in @(
+            @("C:\ProgramData\MOS-GOV\logs\installer.log","ci-runtime-installer.log"),
+            @("C:\ProgramData\MOS-GOV\logs\apache-error.log","ci-apache-error.log"),
+            @("C:\ProgramData\MOS-GOV\logs\launcher.log","ci-launcher.log")
+          )) {
+            if (Test-Path $logPair[0]) {
+              Copy-Item $logPair[0] (Join-Path $env:GITHUB_WORKSPACE $logPair[1]) -Force -ErrorAction SilentlyContinue
+            }
           }
-          $p.Refresh()
-          Write-Host "Installer exit code: $($p.ExitCode)"
-          if ($p.ExitCode -ne 0) { throw "Installer returned exit code $($p.ExitCode)." }
+          if (Test-Path $setupLog) {
+            Copy-Item $setupLog (Join-Path $env:GITHUB_WORKSPACE "ci-inno-setup.log") -Force -ErrorAction SilentlyContinue
+          }
+
+          if (-not $done) {
+            if (Test-Path $setupLog) { Get-Content $setupLog -Tail 120 }
+            throw "Installation did not complete within 15 minutes (shortcut=$lnk, apache=$($svcA.Status), maria=$($svcM.Status))."
+          }
 
           # 桌面快捷方式必须存在并指向 MOSLauncher.exe
-          $lnk = Join-Path ([Environment]::GetFolderPath('CommonDesktopDirectory')) "MOS 平台.lnk"
-          if (-not (Test-Path $lnk)) { throw "Desktop shortcut 'MOS 平台' not created." }
+          $lnk = $lnkPath
           $sh = New-Object -ComObject WScript.Shell
           $sc = $sh.CreateShortcut($lnk)
           Write-Host ("Shortcut target: " + $sc.TargetPath)
           if ($sc.TargetPath -notmatch 'MOSLauncher\.exe$') { throw "Shortcut target must be MOSLauncher.exe." }
           if ($sc.IconLocation -notmatch 'MOS\.ico') { throw "Shortcut icon must be MOS.ico." }
 
-          # 服务必须存在且运行
+          # 服务必须存在且运行（给运行环境初始化留出启动时间）
+          $svcDeadline = (Get-Date).AddMinutes(3)
+          do {
+            $svcA = Get-Service -Name "MOS-GOV-Apache" -ErrorAction SilentlyContinue
+            $svcM = Get-Service -Name "MOS-GOV-MariaDB" -ErrorAction SilentlyContinue
+            if ($svcA -and $svcM -and $svcA.Status -eq "Running" -and $svcM.Status -eq "Running") { break }
+            Start-Sleep -Seconds 3
+          } while ((Get-Date) -lt $svcDeadline)
           $apache = Get-Service -Name "MOS-GOV-Apache" -ErrorAction Stop
           $maria = Get-Service -Name "MOS-GOV-MariaDB" -ErrorAction Stop
           if ($apache.Status -ne "Running") { throw "MOS-GOV-Apache is not running." }
@@ -191,16 +239,6 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Cleanup installed services
-        if: always()
-        shell: pwsh
-        run: |
-          $clean = Join-Path $env:GITHUB_WORKSPACE "installer\runtime\uninstall-runtime.ps1"
-          if (Test-Path $clean) {
-            powershell -NoProfile -ExecutionPolicy Bypass -File $clean
-          }
-          Remove-Item "$env:ProgramData\MOS-GOV" -Recurse -Force -ErrorAction SilentlyContinue
-
       - name: Publish failure diagnostics
         if: failure()
         shell: pwsh
@@ -214,6 +252,12 @@ jobs:
           $report += ""
           $report += "=== runtime installer.log (tail 120) ==="
           if (Test-Path "C:\ProgramData\MOS-GOV\logs\installer.log") { $report += (Get-Content "C:\ProgramData\MOS-GOV\logs\installer.log" -Tail 120) } else { $report += "(missing)" }
+          $report += ""
+          $report += "=== smoke-test install snapshot ==="
+          if (Test-Path "$env:GITHUB_WORKSPACE\ci-install-state.txt") { $report += (Get-Content "$env:GITHUB_WORKSPACE\ci-install-state.txt") } else { $report += "(missing)" }
+          $report += ""
+          $report += "=== collected runtime installer.log (tail 150) ==="
+          if (Test-Path "$env:GITHUB_WORKSPACE\ci-runtime-installer.log") { $report += (Get-Content "$env:GITHUB_WORKSPACE\ci-runtime-installer.log" -Tail 150) } else { $report += "(missing)" }
           $report += ""
           $report += "=== services ==="
           $report += ((Get-Service -Name 'MOS-GOV-*' -ErrorAction SilentlyContinue | Format-Table -AutoSize | Out-String))
@@ -237,3 +281,14 @@ jobs:
           git add ci-diagnostics.txt
           git commit -m "ci: failure diagnostics [skip ci]"
           git push
+
+      - name: Cleanup installed services
+        if: always()
+        shell: pwsh
+        run: |
+          $clean = Join-Path $env:GITHUB_WORKSPACE "installer\runtime\uninstall-runtime.ps1"
+          if (Test-Path $clean) {
+            powershell -NoProfile -ExecutionPolicy Bypass -File $clean
+          }
+          Remove-Item "$env:ProgramData\MOS-GOV" -Recurse -Force -ErrorAction SilentlyContinue
+
