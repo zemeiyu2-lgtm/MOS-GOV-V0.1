@@ -217,11 +217,32 @@ jobs:
           if ($actualName -ne $expectedShortcutName) {
             throw "Desktop shortcut must be named '$expectedShortcutName', found '$actualName' (Chinese text in the built installer is corrupted)."
           }
-          $sh = New-Object -ComObject WScript.Shell
-          $sc = $sh.CreateShortcut($lnk)
-          Write-Host ("Shortcut target: " + $sc.TargetPath)
-          if ($sc.TargetPath -notmatch 'MOSLauncher\.exe$') { throw "Shortcut target must be MOSLauncher.exe." }
-          if ($sc.IconLocation -notmatch 'MOS\.ico') { throw "Shortcut icon must be MOS.ico." }
+          # 目标 / 图标校验：直接读取 .lnk 的二进制内容做搜索（对 UTF-16LE 的两种字节对齐都解码），
+          # 不再依赖 WScript.Shell 的 COM 解析。
+          # 原因：在 Windows Server 2025 runner 上，COM 的 TargetPath 对 Inno 生成的快捷方式返回
+          # 空字符串——这是"探测方式"的问题，不是快捷方式的问题（本机双击该快捷方式可正常启动启动器）。
+          $lnkBytes = [System.IO.File]::ReadAllBytes($lnk)
+          $lnkText = [System.Text.Encoding]::Unicode.GetString($lnkBytes, 0, $lnkBytes.Length - ($lnkBytes.Length % 2))
+          if ($lnkBytes.Length -gt 2) {
+            $off = 1
+            $len = ($lnkBytes.Length - $off) - (($lnkBytes.Length - $off) % 2)
+            if ($len -gt 0) {
+              $lnkText = $lnkText + "`n" + [System.Text.Encoding]::Unicode.GetString($lnkBytes, $off, $len)
+            }
+          }
+          Write-Host ("Shortcut references MOSLauncher.exe: " + ($lnkText -match 'MOSLauncher\.exe'))
+          Write-Host ("Shortcut references MOS.ico: " + ($lnkText -match 'MOS\.ico'))
+          if ($lnkText -notmatch 'MOSLauncher\.exe') { throw "Shortcut does not reference MOSLauncher.exe." }
+          if ($lnkText -notmatch 'MOS\.ico') { throw "Shortcut does not reference MOS.ico." }
+          # COM 视角仅作参考记录（部分 Windows 版本返回空值）
+          try {
+            $sh = New-Object -ComObject WScript.Shell
+            $sc = $sh.CreateShortcut($lnk)
+            Write-Host ("COM TargetPath (informational): '" + $sc.TargetPath + "'")
+            Write-Host ("COM IconLocation (informational): '" + $sc.IconLocation + "'")
+          } catch {
+            Write-Host "COM shortcut inspection unavailable: $($_.Exception.Message)"
+          }
 
           # 开始菜单分组（DefaultGroupName）也必须生成，且同样不允许出现乱码名称。
           $programs = [Environment]::GetFolderPath('CommonPrograms')
