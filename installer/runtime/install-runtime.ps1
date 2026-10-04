@@ -443,7 +443,7 @@ if ($ResetData -and $null -eq $existingState) {
     throw "New-church reset requested, but no existing MOS-GOV installation state was found."
 }
 
-# 升级/修复模式：检测到已有安装且未要求重置数据 -> 保留教会数据，
+ # 升级/修复模式：检测到已有安装且未要求重置数据 -> 保留教会数据，
 # 只修复程序文件、配置和 Windows 服务（V0.2.1 新增，修复"升级保留数据"失败的问题）。
 $UpgradeMode = ($null -ne $existingState -and -not $ResetData)
 $FreshDatabase = -not $UpgradeMode
@@ -599,7 +599,7 @@ if ($FreshDatabase) {
 }
 Protect-Directory $SecretRoot
 
-$stateJson = @{ version="0.2.1"; httpPort=$HttpPort; dbPort=$DbPort; appUrl="http://127.0.0.1:$HttpPort/"; installedAtUtc=(Get-Date).ToUniversalTime().ToString("o") } |
+$stateJson = @{ version="0.2.2"; httpPort=$HttpPort; dbPort=$DbPort; appUrl="http://127.0.0.1:$HttpPort/"; installedAtUtc=(Get-Date).ToUniversalTime().ToString("o") } |
     ConvertTo-Json
 Write-Utf8NoBom -Path (Join-Path $ConfigRoot "install-state.json") -Content $stateJson
 
