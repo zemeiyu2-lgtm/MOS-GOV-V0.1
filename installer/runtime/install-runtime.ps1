@@ -81,27 +81,24 @@ function New-RandomPassword([int]$Length=32) {
 }
 
 function Protect-Directory([string]$Path) {
-    # 使用 .NET ACL API，避免 icacls 在不同语言/Windows 环境下的参数解析差异。
-    # 保留 SYSTEM + Administrators 完整控制，并关闭继承。
+    # ACL 强化必须“尽力而为”，不能成为安装的单点失败。
+    # 某些真实 Windows 环境/安全软件会让 icacls 对已有 ProgramData 目录返回非零；
+    # 这不应阻止平台安装。失败会明确记录 WARN，后续诊断可见。
     try {
-        $acl = Get-Acl -LiteralPath $Path
-        $acl.SetAccessRuleProtection($true, $false)
-        $acl.SetAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule(
-            (New-Object System.Security.Principal.SecurityIdentifier("S-1-5-18")),
-            "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow"
-        )))
-        $acl.SetAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule(
-            (New-Object System.Security.Principal.SecurityIdentifier("S-1-5-32-544")),
-            "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow"
-        )))
-        Set-Acl -LiteralPath $Path -AclObject $acl
+        $aclOutput = @(& icacls.exe $Path /inheritance:r /grant:r "*S-1-5-18:(OI)(CI)(F)" "*S-1-5-32-544:(OI)(CI)(F)" 2>&1)
+        $aclExit = $LASTEXITCODE
+        foreach ($line in $aclOutput) { Write-BootstrapLog ("icacls: " + [string]$line) }
+        if ($aclExit -ne 0) {
+            Write-BootstrapLog ("WARN: ACL hardening could not be applied to {0} (exit {1}); installation will continue." -f $Path,$aclExit)
+            return $false
+        }
         Write-BootstrapLog "ACL protection applied: $Path"
+        return $true
     } catch {
-        Write-BootstrapLog ("ACL protection failed for {0}: {1}" -f $Path, $_.Exception.Message)
-        throw
+        Write-BootstrapLog ("WARN: ACL hardening exception for {0}: {1}; installation will continue." -f $Path, $_.Exception.Message)
+        return $false
     }
 }
-
 function Invoke-MariaClient {
     param([string]$Sql,[string]$RootPassword)
     $client = Join-Path $MariaRoot "bin/mariadb.exe"
