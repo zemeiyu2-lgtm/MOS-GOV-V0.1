@@ -1,4 +1,4 @@
-﻿#define AppVersion "0.2.1"
+﻿#define AppVersion "0.2.2"
 
 [Setup]
 AppId={{5F78C9D9-08D7-43A6-9C69-2D1D0BAF2F65}
@@ -13,7 +13,7 @@ DisableProgramGroupPage=yes
 PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
-OutputBaseFilename=MOS-GOV-V0.2.1-Setup
+OutputBaseFilename=MOS-GOV-V0.2.2-Setup
 OutputDir={{OUTPUT_DIR}}
 Compression=lzma2/ultra64
 SolidCompression=yes
@@ -144,16 +144,37 @@ end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 var
-  RuntimeParams: String;
+  RuntimeScript, RuntimeParams, BootstrapHint: String;
 begin
   if CurStep = ssPostInstall then
   begin
-    RuntimeParams := '/c ""' + ExpandConstant('{app}\runtime\install-runtime.cmd') + '""';
+    RuntimeScript := ExpandConstant('{app}\runtime\install-runtime.cmd');
+    BootstrapHint := ExpandConstant('{tmp}\MOS-GOV-runtime-bootstrap.log');
+
+    Log('MOS-GOV runtime bootstrap starting: ' + RuntimeScript);
+    Log('ResetExistingData=' + IntToStr(Integer(ResetExistingData)));
+
+    if not FileExists(RuntimeScript) then
+    begin
+      Log('FATAL: runtime bootstrap script missing: ' + RuntimeScript);
+      SuppressibleMsgBox(
+        'MOS-GOV 运行环境初始化脚本不存在：' + #13#10 + RuntimeScript +
+        #13#10#13#10 + '安装包文件不完整，安装已停止。',
+        mbError, MB_OK, 0
+      );
+      Abort;
+    end;
+
+    { Inno Setup 的 Exec 原生支持直接执行 .cmd/.bat。
+      旧版本通过 cmd.exe /c 再套一层引号，在部分真实 Windows 环境下只得到
+      exit code 1，且脚本本身甚至没有机会创建 installer.log。
+      直接 Exec .cmd 可消除这一层命令行解析差异。 }
+    RuntimeParams := '';
     if ResetExistingData then
-      RuntimeParams := '/c ""' + ExpandConstant('{app}\runtime\install-runtime.cmd') + '" /reset-data"';
+      RuntimeParams := '/reset-data';
 
     if not Exec(
-      ExpandConstant('{cmd}'),
+      RuntimeScript,
       RuntimeParams,
       ExpandConstant('{app}\runtime'),
       SW_HIDE,
@@ -161,18 +182,30 @@ begin
       RuntimeResultCode
     ) then
     begin
-      SuppressibleMsgBox('MOS-GOV 运行环境启动失败，无法执行安装初始化脚本。', mbError, MB_OK, 0);
+      Log('FATAL: could not execute runtime bootstrap. ErrorCode=' + IntToStr(RuntimeResultCode) +
+        ' Message=' + SysErrorMessage(RuntimeResultCode));
+      SuppressibleMsgBox(
+        'MOS-GOV 运行环境初始化脚本无法执行。' + #13#10#13#10 +
+        '错误：' + SysErrorMessage(RuntimeResultCode) + #13#10#13#10 +
+        '诊断文件（如果已创建）：' + BootstrapHint,
+        mbError, MB_OK, 0
+      );
       Abort;
     end;
 
+    Log('Runtime bootstrap exit code=' + IntToStr(RuntimeResultCode));
+
     if RuntimeResultCode <> 0 then
     begin
+      Log('FATAL: runtime bootstrap failed with exit code ' + IntToStr(RuntimeResultCode));
       SuppressibleMsgBox(
         'MOS-GOV 运行环境初始化失败。安装程序返回码：' + IntToStr(RuntimeResultCode) +
-        '。请查看 C:\ProgramData\MOS-GOV\logs\installer.log。',
-        mbError,
-        MB_OK,
-        0
+        '.' + #13#10#13#10 +
+        '请查看以下诊断文件：' + #13#10 +
+        '%TEMP%\MOS-GOV-runtime-bootstrap.log' + #13#10 +
+        'C:\ProgramData\MOS-GOV\logs\bootstrap.log' + #13#10 +
+        'C:\ProgramData\MOS-GOV\logs\installer.log',
+        mbError, MB_OK, 0
       );
       Abort;
     end;
