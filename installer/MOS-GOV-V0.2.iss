@@ -158,8 +158,8 @@ begin
     begin
       Log('FATAL: runtime bootstrap script missing: ' + RuntimeScript);
       SuppressibleMsgBox(
-        'MOS-GOV 运行环境初始化脚本不存在：' + #13#10 + RuntimeScript +
-        #13#10#13#10 + '安装包文件不完整，安装已停止。',
+        'MOS-GOV 运行环境初始化脚本不存在：' + #13#10 + RuntimeScript + #13#10#13#10 +
+        '安装包文件不完整，安装已停止。',
         mbError, MB_OK, 0
       );
       Abort;
