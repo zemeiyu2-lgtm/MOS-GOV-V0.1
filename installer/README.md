@@ -1,8 +1,8 @@
-# MOS-GOV V0.2.2 一体化 Windows 安装器
+# MOS-GOV V0.2.3 一体化 Windows 安装器
 
 本安装器的目标是：**一台没有预装 ChurchCRM、PHP、Apache、MariaDB 的 Windows x64 电脑，也能从一个 Setup.exe 开始完成 MOS-GOV 本地部署。**
 
-## V0.2.2 相对 V0.2.2 的安装初始化修复
+## V0.2.3 相对 V0.2.3 的安装初始化修复
 
 V0.2 的真实问题是**安装后入口链路**：
 
@@ -76,11 +76,11 @@ powershell -ExecutionPolicy Bypass -File installer\build.ps1
 
 构建脚本会下载并校验固定版本的 ChurchCRM、PHP、Apache、MariaDB，并校验 Microsoft Visual C++ Redistributable 的 Authenticode 签名，然后生成：
 
-dist\MOS-GOV-V0.2.2-Setup.exe
+dist\MOS-GOV-V0.2.3-Setup.exe
 
 以及：
 
-dist\MOS-GOV-V0.2.2-Setup.sha256.json
+dist\MOS-GOV-V0.2.3-Setup.sha256.json
 
 ## 正式安装包不包含
 
@@ -123,7 +123,7 @@ C:\ProgramData\MOS-GOV
 
 MOS-GOV 中文体验冻结点：7b0b8e8
 
-V0.2.2 安装初始化修复：直接执行 runtime CMD，增加 %TEMP%\MOS-GOV-runtime-bootstrap.log / ProgramData bootstrap.log，并将目录 ACL 设置改为 .NET API，避免真实 Windows 环境中初始化早期返回码 1 且无 installer.log。
+V0.2.3 安装初始化修复：直接执行 runtime CMD，增加 %TEMP%\MOS-GOV-runtime-bootstrap.log / ProgramData bootstrap.log，并将目录 ACL 设置改为 .NET API，避免真实 Windows 环境中初始化早期返回码 1 且无 installer.log。
 
 权限语义修复：44941a7
 
@@ -132,3 +132,8 @@ V0.2.2 安装初始化修复：直接执行 runtime CMD，增加 %TEMP%\MOS-GOV-
 ChurchCRM 组件版本固定于 7.7.0，PHP 固定于 8.4.25，Apache 固定于 2.4.69（ApacheLounge VS18 Win64；2.4.68 上游镜像已 410 下架，V0.2.1 起改用 2.4.69），MariaDB 固定于 11.8.9。
 
 安装器是独立部署工程，不修改 ChurchCRM Core。
+
+
+### V0.2.3 安装入口修复
+
+V0.2.3 不再把“MOS 平台”桌面快捷方式直接写入 `C:\Users\Public\Desktop`。安装器以原始登录用户上下文创建 `MOS 平台.lnk`，并保留开始菜单入口；桌面快捷方式创建失败只记录诊断，不再使整个安装回滚。这样可绕过部分真实 Windows 电脑对公共桌面目录返回 `0x80070005 拒绝访问` 的情况。
