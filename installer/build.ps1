@@ -320,11 +320,17 @@ Write-Host "Using ISCC: $iscc"
 & $iscc $issPath
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed: $LASTEXITCODE" }
 
-$exe = Join-Path $DistRoot "MOS-GOV-V0.2.4-Setup.exe"
-if (-not (Test-Path $exe)) { throw "Installer was not produced." }
+# 产物文件名从安装脚本的 AppVersion 解析而来，升版本时不再需要改这里。
+$issAppVersion = $null
+if ($sourceText -match '#define\s+AppVersion\s+"([0-9][0-9.]*)"') { $issAppVersion = $Matches[1] }
+if (-not $issAppVersion) { throw "Could not read AppVersion from the installer script." }
+$exeName = "MOS-GOV-V$issAppVersion-Setup.exe"
+
+$exe = Join-Path $DistRoot $exeName
+if (-not (Test-Path $exe)) { throw "Installer was not produced. Expected: $exe" }
 $hash = (Get-FileHash $exe -Algorithm SHA256).Hash
-$jsonPath = Join-Path $DistRoot "MOS-GOV-V0.2.4-Setup.sha256.json"
-$json = @{ product="MOS-GOV 教会治理平台"; version="0.2.4"; installer=(Split-Path $exe -Leaf); sha256=$hash; builtAtUtc=(Get-Date).ToUniversalTime().ToString("o") } |
+$jsonPath = Join-Path $DistRoot ($exeName + ".sha256.json")
+$json = @{ product="MOS-GOV 教会治理平台"; version="$issAppVersion"; installer=$exeName; sha256=$hash; builtAtUtc=(Get-Date).ToUniversalTime().ToString("o") } |
     ConvertTo-Json
 # 与 .iss 同理：显式写入 UTF-8 BOM，避免 product 字段中的中文在不同 PowerShell 版本下损坏。
 [System.IO.File]::WriteAllText($jsonPath,$json,$utf8Bom)
