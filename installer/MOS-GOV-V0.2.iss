@@ -143,48 +143,32 @@ end;
 
 procedure CreateUserDesktopShortcut;
 var
-  Helper, Params, UserShortcut: String;
-  ResultCode: Integer;
+  UserShortcut, Target, IconFile: String;
 begin
-  Helper := ExpandConstant('{app}\runtime\Create-MOS-DesktopShortcut.ps1');
   UserShortcut := ExpandConstant('{userdesktop}\MOS 平台.lnk');
-
-  if not FileExists(Helper) then
-  begin
-    Log('WARN: desktop shortcut helper missing: ' + Helper);
-    exit;
-  end;
-
-  Params :=
-    '-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + Helper + '"' +
-    ' -Target "' + ExpandConstant('{app}\runtime\MOSLauncher.exe') + '"' +
-    ' -Icon "' + ExpandConstant('{app}\runtime\MOS.ico') + '"' +
-    ' -Shortcut "' + UserShortcut + '"';
+  Target := ExpandConstant('{app}\runtime\MOSLauncher.exe');
+  IconFile := ExpandConstant('{app}\runtime\MOS.ico');
 
   Log('Creating per-user desktop shortcut: ' + UserShortcut);
-  if not ExecAsOriginalUser(
-    ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
-    Params,
-    ExpandConstant('{app}\runtime'),
-    SW_HIDE,
-    ewWaitUntilTerminated,
-    ResultCode
-  ) then
-  begin
-    Log('WARN: could not launch original-user shortcut helper. Error=' + SysErrorMessage(ResultCode));
-    exit;
+  try
+    CreateShellLink(
+      UserShortcut,
+      '启动 MOS 平台',
+      Target,
+      '',
+      ExpandConstant('{app}\runtime'),
+      IconFile,
+      0,
+      SW_SHOWNORMAL
+    );
+    if FileExists(UserShortcut) then
+      Log('Desktop shortcut created: ' + UserShortcut)
+    else
+      Log('WARN: CreateShellLink returned but shortcut is missing: ' + UserShortcut);
+  except
+    Log('WARN: per-user desktop shortcut creation failed: ' + GetExceptionMessage);
+    Log('WARN: installation continues; Start Menu MOS 平台 entry remains available.');
   end;
-
-  if ResultCode <> 0 then
-  begin
-    Log('WARN: original-user shortcut helper returned ' + IntToStr(ResultCode) + '. Installation continues.');
-    exit;
-  end;
-
-  if FileExists(UserShortcut) then
-    Log('Desktop shortcut created: ' + UserShortcut)
-  else
-    Log('WARN: shortcut helper returned success but shortcut is missing: ' + UserShortcut);
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
