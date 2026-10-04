@@ -1,4 +1,4 @@
-﻿#define AppVersion "0.2.3"
+﻿#define AppVersion "0.2.4"
 
 [Setup]
 AppId={{5F78C9D9-08D7-43A6-9C69-2D1D0BAF2F65}
@@ -13,7 +13,7 @@ DisableProgramGroupPage=yes
 PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
-OutputBaseFilename=MOS-GOV-V0.2.3-Setup
+OutputBaseFilename=MOS-GOV-V0.2.4-Setup
 OutputDir={{OUTPUT_DIR}}
 Compression=lzma2/ultra64
 SolidCompression=yes
@@ -37,10 +37,6 @@ Source: "{{PAYLOAD_ROOT}}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubd
 Name: "{group}\MOS 平台"; Filename: "{app}\runtime\MOSLauncher.exe"; WorkingDir: "{app}"; IconFilename: "{app}\runtime\MOS.ico"; Comment: "启动 MOS 平台"; IconIndex: 0
 Name: "{group}\MOS 诊断"; Filename: "{app}\runtime\MOS-Diagnose.cmd"; WorkingDir: "{app}\runtime"; IconFilename: "{app}\runtime\MOS.ico"; Comment: "检查 MOS 平台安装状态"; IconIndex: 0
 Name: "{group}\新建教会（清除旧数据）"; Filename: "{app}\runtime\reset-church.cmd"; WorkingDir: "{app}\runtime"
-
-[Registry]
-Root: HKLM; Subkey: "SOFTWARE\MOS-GOV"; ValueType: string; ValueName: "InstallPath"; ValueData: "{app}"; Flags: uninsdeletekey
-Root: HKLM; Subkey: "SOFTWARE\MOS-GOV"; ValueType: string; ValueName: "Version"; ValueData: "{#AppVersion}"; Flags: uninsdeletekey
 
 [Run]
 Filename: "{app}\runtime\MOSLauncher.exe"; Description: "立即打开 MOS 平台"; WorkingDir: "{app}"; Flags: postinstall nowait skipifsilent runasoriginaluser
