@@ -93,7 +93,7 @@ jobs:
           if ($iss -notmatch 'IconFilename:\s*"\{app\}\\runtime\\MOS\.ico"') { throw "Shortcuts must use MOS.ico." }
           if ($iss -notmatch '立即打开 MOS 平台') { throw "Finish page must offer '立即打开 MOS 平台'." }
           if ($iss -notmatch 'ResetExistingData') { throw "Installer must keep the explicit existing-data reset confirmation." }
-          if ($iss -notmatch '#define AppVersion "0\.2\.3"') { throw "AppVersion must be 0.2.4." }
+          if ($iss -notmatch '#define AppVersion "0\.2\.4"') { throw "AppVersion must be 0.2.4." }
           Write-Host "Shortcut / service / finish-page configuration validated."
 
       - name: Validate PowerShell runtime scripts
