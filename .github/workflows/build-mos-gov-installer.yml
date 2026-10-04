@@ -39,7 +39,6 @@ jobs:
             "installer\runtime\MOSLauncher.vbs",
             "installer\runtime\MOSLauncher.ps1",
             "installer\runtime\MOS-Diagnose.cmd",
-            "installer\runtime\Create-MOS-DesktopShortcut.ps1",
             "installer\runtime\MOS-Diagnose.ps1",
             "installer\runtime\install-runtime.cmd",
             "installer\runtime\install-runtime.ps1",
@@ -89,8 +88,8 @@ jobs:
           if ($iss -match 'ç|å|æ|骞冲彴') { throw "Installer script contains mojibake; it must be saved as UTF-8." }
           if ($iss -notmatch 'MOSLauncher\.exe') { throw "Shortcuts must target MOSLauncher.exe." }
           if ($iss -match '\{commondesktop\}.*MOS 平台') { throw "Desktop shortcut must not target the common/public desktop." }
-          if ($iss -notmatch 'ExecAsOriginalUser') { throw "Desktop shortcut must be created as the original logged-in user." }
-          if ($iss -notmatch 'Create-MOS-DesktopShortcut\.ps1') { throw "Per-user desktop shortcut helper is missing." }
+          if ($iss -notmatch 'CreateShellLink') { throw "Installer must create the per-user desktop shortcut through Inno Setup." }
+          if ($iss -notmatch '\{userdesktop\}\\MOS 平台\.lnk') { throw "Installer must target the logged-in user's desktop, not the common/public desktop." }
           if ($iss -notmatch 'IconFilename:\s*"\{app\}\\runtime\\MOS\.ico"') { throw "Shortcuts must use MOS.ico." }
           if ($iss -notmatch '立即打开 MOS 平台') { throw "Finish page must offer '立即打开 MOS 平台'." }
           if ($iss -notmatch 'ResetExistingData') { throw "Installer must keep the explicit existing-data reset confirmation." }
