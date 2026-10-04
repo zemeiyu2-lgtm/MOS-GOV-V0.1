@@ -1,12 +1,12 @@
 **********************
 PowerShell transcript start
-Start time: 20261003141518
+Start time: 20261004083159
 Username: runnervmfi6oq\runneradmin
 RunAs User: runnervmfi6oq\runneradmin
 Configuration Name: 
 Machine: runnervmfi6oq (Microsoft Windows NT 10.0.26100.0)
-Host Application: C:\Program Files\PowerShell\7\pwsh.dll -command . 'D:\a\_temp\bf65d849-9c0f-4a7a-a2ea-aeae094288cf.ps1'
-Process ID: 2160
+Host Application: C:\Program Files\PowerShell\7\pwsh.dll -command . 'D:\a\_temp\ad6e5958-9fc6-41ad-9833-19bdf35b4804.ps1'
+Process ID: 5200
 PSVersion: 7.6.6
 PSEdition: Core
 GitCommitId: 7.6.6
@@ -17,20 +17,18 @@ PSRemotingProtocolVersion: 2.4
 SerializationVersion: 1.1.0.1
 WSManStackVersion: 3.0
 **********************
-Starting installer: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\dist\MOS-GOV-V0.2.1-Setup.exe
-Installer launcher PID: 876
+Starting installer: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\dist\MOS-GOV-V0.2.2-Setup.exe
+Installer launcher PID: 8060
 installer launcher exited: True
 installer launcher exit code: 0
-runtime install completed marker: True
+runtime install completed marker: False
 desktop lnk count: 1
 desktop lnk names: C:\Users\Public\Desktop\MOS 平台.lnk
 expected lnk name: MOS 平台
-apache service: Running
-maria service: Running
-Desktop shortcut: C:\Users\Public\Desktop\MOS 平台.lnk
-Shortcut target:
-SMOKE TEST FAILED: Shortcut target must be MOSLauncher.exe.
+apache service: MISSING
+maria service: MISSING
+SMOKE TEST FAILED: MOS-GOV runtime installation reported a fatal error: 2026-10-04T08:32:42 FATAL: The following error occurred while loading the extended type data file: Error in TypeData "System.Security.AccessControl.ObjectSecurity": The member AuditToString is already present.
 **********************
 PowerShell transcript end
-End time: 20261003141624
+End time: 20261004083245
 **********************

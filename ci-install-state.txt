@@ -1,8 +1,8 @@
 installer launcher exited: True
 installer launcher exit code: 0
-runtime install completed marker: True
+runtime install completed marker: False
 desktop lnk count: 1
 desktop lnk names: C:\Users\Public\Desktop\MOS 平台.lnk
 expected lnk name: MOS 平台
-apache service: Running
-maria service: Running
+apache service: MISSING
+maria service: MISSING
