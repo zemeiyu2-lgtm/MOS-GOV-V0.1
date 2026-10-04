@@ -1,4 +1,4 @@
-﻿#define AppVersion "0.2.2"
+﻿#define AppVersion "0.2.3"
 
 [Setup]
 AppId={{5F78C9D9-08D7-43A6-9C69-2D1D0BAF2F65}
@@ -13,7 +13,7 @@ DisableProgramGroupPage=yes
 PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
-OutputBaseFilename=MOS-GOV-V0.2.2-Setup
+OutputBaseFilename=MOS-GOV-V0.2.3-Setup
 OutputDir={{OUTPUT_DIR}}
 Compression=lzma2/ultra64
 SolidCompression=yes
@@ -34,7 +34,6 @@ PrivilegesRequiredOverridesAllowed=dialog
 Source: "{{PAYLOAD_ROOT}}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{commondesktop}\MOS 平台"; Filename: "{app}\runtime\MOSLauncher.exe"; WorkingDir: "{app}"; IconFilename: "{app}\runtime\MOS.ico"; Comment: "启动 MOS 平台"; IconIndex: 0
 Name: "{group}\MOS 平台"; Filename: "{app}\runtime\MOSLauncher.exe"; WorkingDir: "{app}"; IconFilename: "{app}\runtime\MOS.ico"; Comment: "启动 MOS 平台"; IconIndex: 0
 Name: "{group}\MOS 诊断"; Filename: "{app}\runtime\MOS-Diagnose.cmd"; WorkingDir: "{app}\runtime"; IconFilename: "{app}\runtime\MOS.ico"; Comment: "检查 MOS 平台安装状态"; IconIndex: 0
 Name: "{group}\新建教会（清除旧数据）"; Filename: "{app}\runtime\reset-church.cmd"; WorkingDir: "{app}\runtime"
@@ -142,6 +141,52 @@ begin
   Result := True;
 end;
 
+procedure CreateUserDesktopShortcut;
+var
+  ScriptPath, TargetPath, WorkDir, IconPath, Params, PsExe: String;
+  ResultCode: Integer;
+begin
+  { 公共桌面 C:\Users\Public\Desktop 在真实 Windows 环境可能被组织策略/安全软件拒绝。
+    因此桌面入口改为“原始登录用户”上下文创建，避免管理员安装令牌写公共桌面。 }
+  ScriptPath := ExpandConstant('{app}\runtime\create-mos-shortcut.ps1');
+  TargetPath := ExpandConstant('{app}\runtime\MOSLauncher.exe');
+  WorkDir := ExpandConstant('{app}');
+  IconPath := ExpandConstant('{app}\runtime\MOS.ico');
+  PsExe := ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe');
+
+  if not FileExists(ScriptPath) then
+  begin
+    Log('WARN: shortcut helper missing: ' + ScriptPath);
+    exit;
+  end;
+
+  Params :=
+    '-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' +
+    ScriptPath + '" "' + TargetPath + '" "' + WorkDir + '" "' + IconPath + '"';
+
+  if not ExecAsOriginalUser(
+    PsExe,
+    Params,
+    ExpandConstant('{app}\runtime'),
+    SW_HIDE,
+    ewWaitUntilTerminated,
+    ResultCode
+  ) then
+  begin
+    Log('WARN: unable to execute per-user shortcut helper. ErrorCode=' +
+      IntToStr(ResultCode) + ' Message=' + SysErrorMessage(ResultCode));
+    exit;
+  end;
+
+  if ResultCode <> 0 then
+  begin
+    Log('WARN: per-user shortcut helper returned exit code ' + IntToStr(ResultCode));
+    exit;
+  end;
+
+  Log('Per-user MOS desktop shortcut creation completed.');
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   RuntimeScript, RuntimeParams, BootstrapHint: String;
@@ -209,6 +254,7 @@ begin
       );
       Abort;
     end;
+    CreateUserDesktopShortcut;
   end;
 end;
 
