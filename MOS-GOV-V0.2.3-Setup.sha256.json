@@ -1,0 +1,13 @@
+{
+  "product": "MOS-GOV 教会治理平台",
+  "version": "0.2.3",
+  "installer": "MOS-GOV-V0.2.3-Setup.exe",
+  "bytes": 116272246,
+  "sha256": "d72aded41195045d1dbfb0dd39ca2f64eed68db83005dfbc21cd119140051f9c",
+  "runId": "37193170296",
+  "runAttempt": "1",
+  "commit": "940e45d5e6360bbcedab98ed7eef78fc8f644c30",
+  "branch": "feature/mos-gov-v0.2.2-installer-init-fix",
+  "runnerOs": "win25-vs2026",
+  "builtAtUtc": "2026-10-04T09:49:31.2194341Z"
+}
