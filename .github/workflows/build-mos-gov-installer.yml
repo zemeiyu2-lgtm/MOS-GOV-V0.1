@@ -10,7 +10,7 @@ on:
       - main
       - feature/mos-gov-v0.2-installer
       - feature/mos-gov-v0.2-installation-final
-      - feature/mos-gov-v0.2.3-installer-init-fix
+      - feature/mos-gov-v0.2.2-installer-init-fix
   workflow_dispatch:
 
 permissions:
@@ -94,7 +94,7 @@ jobs:
           if ($iss -notmatch 'IconFilename:\s*"\{app\}\\runtime\\MOS\.ico"') { throw "Shortcuts must use MOS.ico." }
           if ($iss -notmatch '立即打开 MOS 平台') { throw "Finish page must offer '立即打开 MOS 平台'." }
           if ($iss -notmatch 'ResetExistingData') { throw "Installer must keep the explicit existing-data reset confirmation." }
-          if ($iss -notmatch '#define AppVersion "0\.2\.2"') { throw "AppVersion must be 0.2.2." }
+          if ($iss -notmatch '#define AppVersion "0\.2\.3"') { throw "AppVersion must be 0.2.3." }
           Write-Host "Shortcut / service / finish-page configuration validated."
 
       - name: Validate PowerShell runtime scripts
@@ -370,7 +370,7 @@ jobs:
           $metaPath = Join-Path $root "MOS-GOV-V0.2.3-Setup.sha256.json"
           $meta = [ordered]@{
             product    = "MOS-GOV 教会治理平台"
-            version    = "0.2.2"
+            version    = "0.2.3"
             installer  = $env:SETUP_EXE
             bytes      = $size
             sha256     = $hash.ToLowerInvariant()
