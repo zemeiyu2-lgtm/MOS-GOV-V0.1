@@ -48,7 +48,7 @@ jobs:
             "installer\runtime\uninstall-runtime.cmd",
             "installer\runtime\uninstall-runtime.ps1",
             "installer\runtime\enable-mosgov.php",
-  "installer\runtime\create-mos-shortcut.ps1"
+            "installer\runtime\create-mos-shortcut.ps1"
           )
           foreach ($path in $required) {
             if (-not (Test-Path (Join-Path $env:GITHUB_WORKSPACE $path))) {
