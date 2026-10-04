@@ -36,10 +36,23 @@ function Write-Utf8NoBom([string]$Path,[string]$Content) {
     [System.IO.File]::WriteAllText($Path,$Content,$utf8)
 }
 
-function Write-InstallLog([string]$Message) {
-    Ensure-Dir $LogRoot
-    Add-Content -Path (Join-Path $LogRoot "installer.log") -Value "$(Get-Date -Format s) $Message"
+$BootstrapTempLog = Join-Path $env:TEMP "MOS-GOV-runtime-bootstrap.log"
+
+function Write-BootstrapLog([string]$Message) {
+    $line = "$(Get-Date -Format s) $Message"
+    try { Add-Content -LiteralPath $BootstrapTempLog -Value $line -ErrorAction SilentlyContinue } catch {}
+    try {
+        if ($LogRoot) {
+            Ensure-Dir $LogRoot
+            Add-Content -LiteralPath (Join-Path $LogRoot "bootstrap.log") -Value $line -ErrorAction SilentlyContinue
+        }
+    } catch {}
     Write-Host $Message
+}
+
+function Write-InstallLog([string]$Message) {
+    Write-BootstrapLog $Message
+    try { Add-Content -LiteralPath (Join-Path $LogRoot "installer.log") -Value "$(Get-Date -Format s) $Message" -ErrorAction SilentlyContinue } catch {}
 }
 
 function Test-PortFree([int]$Port) {
@@ -68,8 +81,25 @@ function New-RandomPassword([int]$Length=32) {
 }
 
 function Protect-Directory([string]$Path) {
-    & icacls.exe $Path /inheritance:r /grant:r "*S-1-5-18:(OI)(CI)(F)" "*S-1-5-32-544:(OI)(CI)(F)" | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "Could not protect $Path." }
+    # 使用 .NET ACL API，避免 icacls 在不同语言/Windows 环境下的参数解析差异。
+    # 保留 SYSTEM + Administrators 完整控制，并关闭继承。
+    try {
+        $acl = Get-Acl -LiteralPath $Path
+        $acl.SetAccessRuleProtection($true, $false)
+        $acl.SetAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule(
+            (New-Object System.Security.Principal.SecurityIdentifier("S-1-5-18")),
+            "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow"
+        )))
+        $acl.SetAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule(
+            (New-Object System.Security.Principal.SecurityIdentifier("S-1-5-32-544")),
+            "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow"
+        )))
+        Set-Acl -LiteralPath $Path -AclObject $acl
+        Write-BootstrapLog "ACL protection applied: $Path"
+    } catch {
+        Write-BootstrapLog ("ACL protection failed for {0}: {1}" -f $Path, $_.Exception.Message)
+        throw
+    }
 }
 
 function Invoke-MariaClient {
@@ -384,16 +414,22 @@ default-character-set=utf8mb4
     }
 }
 
-Ensure-Dir $ProgramDataRoot,$DataRoot,$ConfigRoot,$SecretRoot,$LogRoot
-Write-Utf8NoBom -Path (Join-Path $ConfigRoot "runtime-started.txt") -Content "$(Get-Date -Format o)"
-Protect-Directory $ProgramDataRoot
-Protect-Directory $SecretRoot
-Write-InstallLog "MOS-GOV one-click installation starting."
+# 第一条语句就建立可追踪的临时诊断日志；即使 ProgramData/ACL 初始化失败，
+# 用户也能在 %TEMP%\\MOS-GOV-runtime-bootstrap.log 找到真正的第一失败点。
+Write-BootstrapLog "Bootstrap entry. PSVersion=$($PSVersionTable.PSVersion) Is64Bit=$([Environment]::Is64BitOperatingSystem) User=$([Environment]::UserName)"
 
 trap {
+    try { Write-BootstrapLog ("FATAL: {0}" -f $_.Exception.Message) } catch {}
     try { Write-InstallLog ("FATAL: {0}" -f $_.Exception.Message) } catch {}
     exit 1
 }
+
+Ensure-Dir $ProgramDataRoot,$DataRoot,$ConfigRoot,$SecretRoot,$LogRoot
+Write-Utf8NoBom -Path (Join-Path $ConfigRoot "runtime-started.txt") -Content "$(Get-Date -Format o)"
+Write-BootstrapLog "ProgramData directories created."
+Protect-Directory $ProgramDataRoot
+Protect-Directory $SecretRoot
+Write-InstallLog "MOS-GOV one-click installation starting."
 
 if (-not [Environment]::Is64BitOperatingSystem) { throw "MOS-GOV requires Windows x64." }
 
