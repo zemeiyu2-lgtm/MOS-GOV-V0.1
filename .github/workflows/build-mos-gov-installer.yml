@@ -1,7 +1,7 @@
-name: Build MOS-GOV V0.2.3 Windows Installer
+name: Build MOS-GOV V0.2.4 Windows Installer
 
 concurrency:
-  group: mos-gov-v0.2.3-installer
+  group: mos-gov-v0.2.4-installer
   cancel-in-progress: true
 
 on:
@@ -17,7 +17,7 @@ permissions:
   contents: write
 
 env:
-  SETUP_EXE: MOS-GOV-V0.2.3-Setup.exe
+  SETUP_EXE: MOS-GOV-V0.2.4-Setup.exe
 
 jobs:
   build:
@@ -93,7 +93,7 @@ jobs:
           if ($iss -notmatch 'IconFilename:\s*"\{app\}\\runtime\\MOS\.ico"') { throw "Shortcuts must use MOS.ico." }
           if ($iss -notmatch '立即打开 MOS 平台') { throw "Finish page must offer '立即打开 MOS 平台'." }
           if ($iss -notmatch 'ResetExistingData') { throw "Installer must keep the explicit existing-data reset confirmation." }
-          if ($iss -notmatch '#define AppVersion "0\.2\.3"') { throw "AppVersion must be 0.2.3." }
+          if ($iss -notmatch '#define AppVersion "0\.2\.3"') { throw "AppVersion must be 0.2.4." }
           Write-Host "Shortcut / service / finish-page configuration validated."
 
       - name: Validate PowerShell runtime scripts
@@ -343,7 +343,7 @@ jobs:
           Write-Host ("FILE   " + $exe)
           # 作业日志需要登录才能查看，因此同时把哈希写入 Step Summary，
           # 并在下一步提交到仓库根目录（公开可匿名读取），供安装前校验。
-          "## MOS-GOV V0.2.3 安装包校验值`n`n| 项目 | 值 |`n| --- | --- |`n| 文件 | ``$env:SETUP_EXE`` |`n| 字节数 | $size |`n| SHA-256 | ``$hash`` |" |
+          "## MOS-GOV V0.2.4 安装包校验值`n`n| 项目 | 值 |`n| --- | --- |`n| 文件 | ``$env:SETUP_EXE`` |`n| 字节数 | $size |`n| SHA-256 | ``$hash`` |" |
             Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
 
       - name: Publish installer checksum
@@ -358,7 +358,7 @@ jobs:
           $root = $env:GITHUB_WORKSPACE
 
           # 1) 标准 SHA256SUMS 文本（同一行含文件名，便于 certutil / sha256sum 直接校验）
-          $sumsPath = Join-Path $root "MOS-GOV-V0.2.3-Setup.sha256.txt"
+          $sumsPath = Join-Path $root "MOS-GOV-V0.2.4-Setup.sha256.txt"
           $sumsLine = ("{0}  {1}" -f $hash.ToLowerInvariant(), $env:SETUP_EXE)
           [System.IO.File]::WriteAllText(
             $sumsPath,
@@ -366,10 +366,10 @@ jobs:
             (New-Object System.Text.UTF8Encoding($false)))
 
           # 2) 结构化元数据，记录是哪一次运行、哪一个提交产出的
-          $metaPath = Join-Path $root "MOS-GOV-V0.2.3-Setup.sha256.json"
+          $metaPath = Join-Path $root "MOS-GOV-V0.2.4-Setup.sha256.json"
           $meta = [ordered]@{
             product    = "MOS-GOV 教会治理平台"
-            version    = "0.2.3"
+            version    = "0.2.4"
             installer  = $env:SETUP_EXE
             bytes      = $size
             sha256     = $hash.ToLowerInvariant()
@@ -389,7 +389,7 @@ jobs:
 
           git config user.name "mos-gov-ci"
           git config user.email "mos-gov-ci@users.noreply.github.com"
-          $files = @("MOS-GOV-V0.2.3-Setup.sha256.txt", "MOS-GOV-V0.2.3-Setup.sha256.json")
+          $files = @("MOS-GOV-V0.2.4-Setup.sha256.txt", "MOS-GOV-V0.2.4-Setup.sha256.json")
 
           # 分支可能已被其他提交推进（例如诊断提交或人工提交），直接 push 会因非快进被拒，
           # 而 pull 在历史不相关时会直接失败。校验值文件是本次运行的生成物、与历史无关，
@@ -423,7 +423,7 @@ jobs:
           git add @files
           git diff --cached --quiet
           if ($LASTEXITCODE -eq 0) { Write-Host "Checksum unchanged; nothing to commit."; exit 0 }
-          git commit -m "ci: publish MOS-GOV V0.2.3 installer checksum [skip ci]"
+          git commit -m "ci: publish MOS-GOV V0.2.4 installer checksum [skip ci]"
           if ($LASTEXITCODE -ne 0) { throw "git commit failed for checksum." }
           git push origin ("HEAD:" + $env:GITHUB_REF_NAME)
           if ($LASTEXITCODE -ne 0) { throw "git push failed for checksum commit." }
@@ -435,10 +435,10 @@ jobs:
       - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
-          name: MOS-GOV-V0.2.3-Windows-Installer
+          name: MOS-GOV-V0.2.4-Windows-Installer
           path: |
             dist/${{ env.SETUP_EXE }}
-            dist/MOS-GOV-V0.2.3-Setup.sha256.json
+            dist/MOS-GOV-V0.2.4-Setup.sha256.json
           if-no-files-found: error
           retention-days: 30
 
