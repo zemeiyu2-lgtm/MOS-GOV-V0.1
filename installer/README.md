@@ -1,8 +1,8 @@
-# MOS-GOV V0.2.3 一体化 Windows 安装器
+# MOS-GOV V0.2.4 一体化 Windows 安装器
 
 本安装器的目标是：**一台没有预装 ChurchCRM、PHP、Apache、MariaDB 的 Windows x64 电脑，也能从一个 Setup.exe 开始完成 MOS-GOV 本地部署。**
 
-## V0.2.3 相对 V0.2.2 的桌面入口兼容修复
+## V0.2.4 相对 V0.2.2 的桌面入口兼容修复
 
 V0.2 的真实问题是**安装后入口链路**：
 
@@ -76,11 +76,11 @@ powershell -ExecutionPolicy Bypass -File installer\build.ps1
 
 构建脚本会下载并校验固定版本的 ChurchCRM、PHP、Apache、MariaDB，并校验 Microsoft Visual C++ Redistributable 的 Authenticode 签名，然后生成：
 
-dist\MOS-GOV-V0.2.3-Setup.exe
+dist\MOS-GOV-V0.2.4-Setup.exe
 
 以及：
 
-dist\MOS-GOV-V0.2.3-Setup.sha256.json
+dist\MOS-GOV-V0.2.4-Setup.sha256.json
 
 ## 正式安装包不包含
 
@@ -123,7 +123,7 @@ C:\ProgramData\MOS-GOV
 
 MOS-GOV 中文体验冻结点：7b0b8e8
 
-V0.2.3 安装初始化修复：直接执行 runtime CMD，增加 %TEMP%\MOS-GOV-runtime-bootstrap.log / ProgramData bootstrap.log，并将目录 ACL 设置改为 .NET API，避免真实 Windows 环境中初始化早期返回码 1 且无 installer.log。
+V0.2.4 安装初始化修复：直接执行 runtime CMD，增加 %TEMP%\MOS-GOV-runtime-bootstrap.log / ProgramData bootstrap.log，并将目录 ACL 设置改为 .NET API，避免真实 Windows 环境中初始化早期返回码 1 且无 installer.log。
 
 权限语义修复：44941a7
 
@@ -134,5 +134,5 @@ ChurchCRM 组件版本固定于 7.7.0，PHP 固定于 8.4.25，Apache 固定于 
 安装器是独立部署工程，不修改 ChurchCRM Core。
 
 
-### V0.2.3 桌面入口修复
-V0.2.3 不再使用 `{commondesktop}` 创建唯一桌面入口。安装完成后由 Inno Setup 的 `ExecAsOriginalUser` 调用用户态 PowerShell 创建真正登录用户的 `MOS 平台.lnk`，公共桌面拒绝访问不会再导致安装失败；开始菜单入口仍保留。
+### V0.2.4 桌面入口修复
+V0.2.4 不再使用 `{commondesktop}` 创建唯一桌面入口。安装完成后由 Inno Setup 的 `ExecAsOriginalUser` 调用用户态 PowerShell 创建真正登录用户的 `MOS 平台.lnk`，公共桌面拒绝访问不会再导致安装失败；开始菜单入口仍保留。
