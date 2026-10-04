@@ -11,6 +11,7 @@ on:
       - feature/mos-gov-v0.2-installer
       - feature/mos-gov-v0.2-installation-final
       - feature/mos-gov-v0.2.3-installer-init-fix
+      - feature/mos-gov-v0.2.3-shortcut-fix
   workflow_dispatch:
 
 permissions:
