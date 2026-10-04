@@ -1,15 +1,10 @@
-MOS-GOV CI failure diagnostics @ 2026-10-04T10:25:25.1055752Z
+MOS-GOV CI failure diagnostics @ 2026-10-04T11:21:38.4798179Z
 runner image: win25-vs2026 / Windows
 
 === Inno Setup log (tail 150) ===
 (missing)
 
 === build.ps1 output (tail 80) ===
-   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\php-win.exe
-   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\php.exe
-   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\php.ini-development
-   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\php.ini-production
-   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\php8apache2_4.dll
    Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\php8embed.lib
    Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\php8phpdbg.dll
    Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\php8ts.dll
@@ -81,10 +76,15 @@ runner image: win25-vs2026 / Windows
 
 Warning: The [Setup] section directive "PrivilegesRequired" is set to "admin" but per-user areas (userdesktop) are used by the script. Regardless of the version of Windows, if the installation is running in administrative install mode then you should be careful about making any per-user area changes: such changes may not achieve what you are intending. See the "UsedUserAreasWarning" topic in help file for more information.
 
-Successful compile (125.500 sec). Resulting Setup program filename is:
-D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\dist\MOS-GOV-V0.2.3-Setup.exe
-Created: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\dist\MOS-GOV-V0.2.3-Setup.exe
-SHA256: BAA35C681F5843403440A42849C3697FF4C400F4485952BFE0565748B9E2D89E
+Successful compile (128.687 sec). Resulting Setup program filename is:
+D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\dist\MOS-GOV-V0.2.5-Setup.exe
+Installer was not produced.
+At D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer\build.ps1:324 char:30
++ if (-not (Test-Path $exe)) { throw "Installer was not produced." }
++                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OperationStopped: (Installer was not produced.:String) [], RuntimeException
+    + FullyQualifiedErrorId : Installer was not produced.
+ 
 
 === runtime installer.log (tail 120) ===
 (missing)
@@ -137,6 +137,11 @@ LocalAddress LocalPort RemoteAddress RemotePort State  AppliedSetting OwningProc
 
 
 === dist ===
+
+Name                        Length
+----                        ------
+MOS-GOV-V0.2.5-Setup.exe 116273537
+
 
 === httpd.conf Listen ===
 (missing)
@@ -219,6 +224,6 @@ Windows Kits
 Windows PowerShell
 WiX Toolset v3.14
 === generated build script: shortcut lines (ISCC input) ===
-(missing: build script was not generated)
+AppName=MOS 平台
 === launcher log (tail 40) ===
 (missing)
