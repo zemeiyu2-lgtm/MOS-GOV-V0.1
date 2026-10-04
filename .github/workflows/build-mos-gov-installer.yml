@@ -1,7 +1,7 @@
-name: Build MOS-GOV V0.2.1 Windows Installer
+name: Build MOS-GOV V0.2.2 Windows Installer
 
 concurrency:
-  group: mos-gov-v0.2.1-installer
+  group: mos-gov-v0.2.2-installer
   cancel-in-progress: true
 
 on:
@@ -17,7 +17,7 @@ permissions:
   contents: write
 
 env:
-  SETUP_EXE: MOS-GOV-V0.2.1-Setup.exe
+  SETUP_EXE: MOS-GOV-V0.2.2-Setup.exe
 
 jobs:
   build:
@@ -90,7 +90,7 @@ jobs:
           if ($iss -notmatch 'IconFilename:\s*"\{app\}\\runtime\\MOS\.ico"') { throw "Shortcuts must use MOS.ico." }
           if ($iss -notmatch '立即打开 MOS 平台') { throw "Finish page must offer '立即打开 MOS 平台'." }
           if ($iss -notmatch 'ResetExistingData') { throw "Installer must keep the explicit existing-data reset confirmation." }
-          if ($iss -notmatch '#define AppVersion "0\.2\.1"') { throw "AppVersion must be 0.2.1." }
+          if ($iss -notmatch '#define AppVersion "0\.2\.1"') { throw "AppVersion must be 0.2.2." }
           Write-Host "Shortcut / service / finish-page configuration validated."
 
       - name: Validate PowerShell runtime scripts
