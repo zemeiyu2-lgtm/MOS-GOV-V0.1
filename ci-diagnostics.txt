@@ -1,157 +1,8 @@
-MOS-GOV CI failure diagnostics @ 2026-10-04T08:32:45.8115402Z
+MOS-GOV CI failure diagnostics @ 2026-10-04T08:51:00.5463986Z
 runner image: win25-vs2026 / Windows
 
 === Inno Setup log (tail 150) ===
-2026-10-04 08:32:38.853   -- File entry --
-2026-10-04 08:32:38.854   Dest filename: C:\Program Files\MOS-GOV\PHP\extras\sbom\php.openvex.json
-2026-10-04 08:32:38.854   Time stamp of our file: 2026-08-25 18:45:10.000
-2026-10-04 08:32:38.854   Installing the file.
-2026-10-04 08:32:38.855   Successfully installed the file.
-2026-10-04 08:32:38.855   -- File entry --
-2026-10-04 08:32:38.855   Dest filename: C:\Program Files\MOS-GOV\PHP\extras\sbom\php.spdx.json
-2026-10-04 08:32:38.855   Time stamp of our file: 2026-08-25 18:45:10.000
-2026-10-04 08:32:38.855   Installing the file.
-2026-10-04 08:32:38.862   Successfully installed the file.
-2026-10-04 08:32:38.862   -- File entry --
-2026-10-04 08:32:38.862   Dest filename: C:\Program Files\MOS-GOV\PHP\extras\ssl\legacy.dll
-2026-10-04 08:32:38.862   Time stamp of our file: 2026-08-25 18:44:34.000
-2026-10-04 08:32:38.862   Installing the file.
-2026-10-04 08:32:38.862   Creating directory: C:\Program Files\MOS-GOV\PHP\extras\ssl
-2026-10-04 08:32:38.867   Successfully installed the file.
-2026-10-04 08:32:38.867   -- File entry --
-2026-10-04 08:32:38.867   Dest filename: C:\Program Files\MOS-GOV\PHP\extras\ssl\openssl.cnf
-2026-10-04 08:32:38.867   Time stamp of our file: 2026-08-25 18:45:00.000
-2026-10-04 08:32:38.867   Installing the file.
-2026-10-04 08:32:38.869   Successfully installed the file.
-2026-10-04 08:32:38.869   -- File entry --
-2026-10-04 08:32:38.869   Dest filename: C:\Program Files\MOS-GOV\PHP\lib\enchant\libenchant2_hunspell.dll
-2026-10-04 08:32:38.869   Time stamp of our file: 2026-08-25 18:44:34.000
-2026-10-04 08:32:38.869   Installing the file.
-2026-10-04 08:32:38.869   Creating directory: C:\Program Files\MOS-GOV\PHP\lib
-2026-10-04 08:32:38.869   Creating directory: C:\Program Files\MOS-GOV\PHP\lib\enchant
-2026-10-04 08:32:38.896   Successfully installed the file.
-2026-10-04 08:32:38.896   -- File entry --
-2026-10-04 08:32:38.896   Dest filename: C:\Program Files\MOS-GOV\prereqs\vc_redist.x64.exe
-2026-10-04 08:32:38.896   Time stamp of our file: 2026-10-04 08:29:40.000
-2026-10-04 08:32:38.896   Installing the file.
-2026-10-04 08:32:38.896   Creating directory: C:\Program Files\MOS-GOV\prereqs
-2026-10-04 08:32:39.242   Successfully installed the file.
-2026-10-04 08:32:39.242   -- File entry --
-2026-10-04 08:32:39.242   Dest filename: C:\Program Files\MOS-GOV\runtime\enable-mosgov.php
-2026-10-04 08:32:39.242   Time stamp of our file: 2026-10-04 08:29:24.000
-2026-10-04 08:32:39.242   Installing the file.
-2026-10-04 08:32:39.242   Creating directory: C:\Program Files\MOS-GOV\runtime
-2026-10-04 08:32:39.243   Successfully installed the file.
-2026-10-04 08:32:39.243   -- File entry --
-2026-10-04 08:32:39.243   Dest filename: C:\Program Files\MOS-GOV\runtime\install-runtime.cmd
-2026-10-04 08:32:39.243   Time stamp of our file: 2026-10-04 08:29:24.000
-2026-10-04 08:32:39.243   Installing the file.
-2026-10-04 08:32:39.244   Successfully installed the file.
-2026-10-04 08:32:39.244   -- File entry --
-2026-10-04 08:32:39.245   Dest filename: C:\Program Files\MOS-GOV\runtime\install-runtime.ps1
-2026-10-04 08:32:39.245   Time stamp of our file: 2026-10-04 08:29:24.000
-2026-10-04 08:32:39.245   Installing the file.
-2026-10-04 08:32:39.249   Successfully installed the file.
-2026-10-04 08:32:39.249   -- File entry --
-2026-10-04 08:32:39.250   Dest filename: C:\Program Files\MOS-GOV\runtime\MOS-Diagnose.cmd
-2026-10-04 08:32:39.250   Time stamp of our file: 2026-10-04 08:29:24.000
-2026-10-04 08:32:39.250   Installing the file.
-2026-10-04 08:32:39.250   Successfully installed the file.
-2026-10-04 08:32:39.251   -- File entry --
-2026-10-04 08:32:39.251   Dest filename: C:\Program Files\MOS-GOV\runtime\MOS-Diagnose.ps1
-2026-10-04 08:32:39.251   Time stamp of our file: 2026-10-04 08:29:24.000
-2026-10-04 08:32:39.251   Installing the file.
-2026-10-04 08:32:39.252   Successfully installed the file.
-2026-10-04 08:32:39.252   -- File entry --
-2026-10-04 08:32:39.252   Dest filename: C:\Program Files\MOS-GOV\runtime\MOS.ico
-2026-10-04 08:32:39.252   Time stamp of our file: 2026-10-04 08:29:24.000
-2026-10-04 08:32:39.252   Installing the file.
-2026-10-04 08:32:39.258   Successfully installed the file.
-2026-10-04 08:32:39.258   -- File entry --
-2026-10-04 08:32:39.258   Dest filename: C:\Program Files\MOS-GOV\runtime\MOSLauncher.exe
-2026-10-04 08:32:39.259   Time stamp of our file: 2026-10-04 08:29:24.000
-2026-10-04 08:32:39.259   Installing the file.
-2026-10-04 08:32:39.466   Successfully installed the file.
-2026-10-04 08:32:39.466   -- File entry --
-2026-10-04 08:32:39.466   Dest filename: C:\Program Files\MOS-GOV\runtime\MOSLauncher.ps1
-2026-10-04 08:32:39.467   Time stamp of our file: 2026-10-04 08:29:24.000
-2026-10-04 08:32:39.467   Installing the file.
-2026-10-04 08:32:39.468   Successfully installed the file.
-2026-10-04 08:32:39.468   -- File entry --
-2026-10-04 08:32:39.468   Dest filename: C:\Program Files\MOS-GOV\runtime\MOSLauncher.vbs
-2026-10-04 08:32:39.468   Time stamp of our file: 2026-10-04 08:29:24.000
-2026-10-04 08:32:39.468   Installing the file.
-2026-10-04 08:32:39.469   Successfully installed the file.
-2026-10-04 08:32:39.469   -- File entry --
-2026-10-04 08:32:39.469   Dest filename: C:\Program Files\MOS-GOV\runtime\reset-church.cmd
-2026-10-04 08:32:39.469   Time stamp of our file: 2026-10-04 08:29:24.000
-2026-10-04 08:32:39.469   Installing the file.
-2026-10-04 08:32:39.470   Successfully installed the file.
-2026-10-04 08:32:39.470   -- File entry --
-2026-10-04 08:32:39.470   Dest filename: C:\Program Files\MOS-GOV\runtime\reset-church.ps1
-2026-10-04 08:32:39.471   Time stamp of our file: 2026-10-04 08:29:24.000
-2026-10-04 08:32:39.471   Installing the file.
-2026-10-04 08:32:39.471   Successfully installed the file.
-2026-10-04 08:32:39.471   -- File entry --
-2026-10-04 08:32:39.472   Dest filename: C:\Program Files\MOS-GOV\runtime\uninstall-runtime.cmd
-2026-10-04 08:32:39.472   Time stamp of our file: 2026-10-04 08:29:24.000
-2026-10-04 08:32:39.472   Installing the file.
-2026-10-04 08:32:39.473   Successfully installed the file.
-2026-10-04 08:32:39.473   -- File entry --
-2026-10-04 08:32:39.473   Dest filename: C:\Program Files\MOS-GOV\runtime\uninstall-runtime.ps1
-2026-10-04 08:32:39.473   Time stamp of our file: 2026-10-04 08:29:24.000
-2026-10-04 08:32:39.473   Installing the file.
-2026-10-04 08:32:39.474   Successfully installed the file.
-2026-10-04 08:32:39.475   -- Icon entry --
-2026-10-04 08:32:39.475   Dest filename: C:\Users\Public\Desktop\MOS 平台.lnk
-2026-10-04 08:32:39.475   Creating the icon.
-2026-10-04 08:32:40.964   Successfully created the icon.
-2026-10-04 08:32:40.975   -- Icon entry --
-2026-10-04 08:32:40.975   Dest filename: C:\ProgramData\Microsoft\Windows\Start Menu\Programs\MOS 平台\MOS 平台.lnk
-2026-10-04 08:32:40.975   Creating directory: C:\ProgramData\Microsoft\Windows\Start Menu\Programs\MOS 平台
-2026-10-04 08:32:40.982   Creating the icon.
-2026-10-04 08:32:40.985   Successfully created the icon.
-2026-10-04 08:32:40.994   -- Icon entry --
-2026-10-04 08:32:40.994   Dest filename: C:\ProgramData\Microsoft\Windows\Start Menu\Programs\MOS 平台\MOS 诊断.lnk
-2026-10-04 08:32:41.017   Creating the icon.
-2026-10-04 08:32:41.020   Successfully created the icon.
-2026-10-04 08:32:41.025   -- Icon entry --
-2026-10-04 08:32:41.025   Dest filename: C:\ProgramData\Microsoft\Windows\Start Menu\Programs\MOS 平台\新建教会（清除旧数据）.lnk
-2026-10-04 08:32:41.032   Creating the icon.
-2026-10-04 08:32:41.058   Successfully created the icon.
-2026-10-04 08:32:41.063   -- Registry entry --
-2026-10-04 08:32:41.063   Key: HKEY_LOCAL_MACHINE\SOFTWARE\MOS-GOV
-2026-10-04 08:32:41.063   Value name: InstallPath
-2026-10-04 08:32:41.063   Creating or opening the key.
-2026-10-04 08:32:41.063   Creating or setting the value.
-2026-10-04 08:32:41.063   Successfully created or set the value.
-2026-10-04 08:32:41.063   -- Registry entry --
-2026-10-04 08:32:41.063   Key: HKEY_LOCAL_MACHINE\SOFTWARE\MOS-GOV
-2026-10-04 08:32:41.063   Value name: Version
-2026-10-04 08:32:41.063   Creating or opening the key.
-2026-10-04 08:32:41.063   Creating or setting the value.
-2026-10-04 08:32:41.064   Successfully created or set the value.
-2026-10-04 08:32:41.064   Saving uninstall information.
-2026-10-04 08:32:41.064   Creating new uninstall key: HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Uninstall\{5F78C9D9-08D7-43A6-9C69-2D1D0BAF2F65}_is1
-2026-10-04 08:32:41.064   Writing uninstall key values.
-2026-10-04 08:32:41.064   Detected previous non administrative install? No
-2026-10-04 08:32:41.064   Detected previous administrative 32-bit install? No
-2026-10-04 08:32:41.139   Installation process succeeded.
-2026-10-04 08:32:41.139   MOS-GOV runtime bootstrap starting: C:\Program Files\MOS-GOV\runtime\install-runtime.cmd
-2026-10-04 08:32:41.139   ResetExistingData=0
-2026-10-04 08:32:42.272   Runtime bootstrap exit code=1
-2026-10-04 08:32:42.272   FATAL: runtime bootstrap failed with exit code 1
-2026-10-04 08:32:42.272   Defaulting to 0 for suppressed message box (OK):
-                          MOS-GOV 运行环境初始化失败。安装程序返回码：1.
-                          
-                          请查看以下诊断文件：
-                          %TEMP%\MOS-GOV-runtime-bootstrap.log
-                          C:\ProgramData\MOS-GOV\logs\bootstrap.log
-                          C:\ProgramData\MOS-GOV\logs\installer.log
-2026-10-04 08:32:42.272   CurStepChanged raised an exception.
-2026-10-04 08:32:42.272   Need to restart Windows? No
-2026-10-04 08:32:42.275   Deinitializing Setup.
-2026-10-04 08:32:42.282   Log closed.
+(missing)
 
 === build.ps1 output (tail 80) ===
    Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\php-cgi.exe
@@ -236,14 +87,7 @@ Created: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\dist\MOS-GOV-V0.2.2-Setup.exe
 SHA256: A6665F9C77211A93058522CCFD2F6F9E1183B8B58D0474498A3213F914874285
 
 === runtime installer.log (tail 120) ===
-2026-10-04T08:32:42 FATAL: The following error occurred while loading the extended type data file: Error in TypeData "System.Security.AccessControl.ObjectSecurity": The member AuditToString is already present.
-Error in TypeData "System.Security.AccessControl.ObjectSecurity": The member AccessToString is already present.
-Error in TypeData "System.Security.AccessControl.ObjectSecurity": The member Sddl is already present.
-Error in TypeData "System.Security.AccessControl.ObjectSecurity": The member Access is already present.
-Error in TypeData "System.Security.AccessControl.ObjectSecurity": The member Group is already present.
-Error in TypeData "System.Security.AccessControl.ObjectSecurity": The member Owner is already present.
-Error in TypeData "System.Security.AccessControl.ObjectSecurity": The member Path is already present.
-
+(missing)
 
 === smoke-test install snapshot ===
 installer launcher exited: True
@@ -276,14 +120,8 @@ LocalAddress LocalPort RemoteAddress RemotePort State  AppliedSetting OwningProc
 
 === dist ===
 
-Name                                Length
-----                                ------
-MOS-GOV-V0.2.2-Setup.exe         116271744
-MOS-GOV-V0.2.2-Setup.sha256.json       262
-
-
 === httpd.conf Listen ===
-Listen 80
+(missing)
 === apache error log (tail 60) ===
 (missing)
 === smoke test transcript (tail 120) ===
@@ -323,12 +161,7 @@ End time: 20261004083245
 **********************
 
 === desktop shortcuts actually present ===
-Firefox.lnk
-Google Chrome.lnk
-Microsoft Edge.lnk
-MOS 平台.lnk
-R 4.6.1.lnk
-Unity Hub.lnk
+
 === start menu groups actually present ===
 7-Zip
 Accessibility
@@ -342,7 +175,6 @@ ImageMagick 7.1.2 Q16-HDRI (64-bit)
 Inno Setup 6
 LLVM
 Maintenance
-MOS 平台
 MySQL
 Node.js
 OpenSSL
@@ -365,7 +197,6 @@ Windows Kits
 Windows PowerShell
 WiX Toolset v3.14
 === generated build script: shortcut lines (ISCC input) ===
-AppName=MOS 平台
-Name: "{commondesktop}\MOS 平台"; Filename: "{app}\runtime\MOSLauncher.exe"; WorkingDir: "{app}"; IconFilename: "{app}\runtime\MOS.ico"; Comment: "启动 MOS 平台"; IconIndex: 0
+(missing: build script was not generated)
 === launcher log (tail 40) ===
 (missing)
