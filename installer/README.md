@@ -1,8 +1,8 @@
-# MOS-GOV V0.2.1 一体化 Windows 安装器
+# MOS-GOV V0.2.2 一体化 Windows 安装器
 
 本安装器的目标是：**一台没有预装 ChurchCRM、PHP、Apache、MariaDB 的 Windows x64 电脑，也能从一个 Setup.exe 开始完成 MOS-GOV 本地部署。**
 
-## V0.2.1 相对 V0.2 的修复
+## V0.2.2 相对 V0.2.2 的安装初始化修复
 
 V0.2 的真实问题是**安装后入口链路**：
 
@@ -76,11 +76,11 @@ powershell -ExecutionPolicy Bypass -File installer\build.ps1
 
 构建脚本会下载并校验固定版本的 ChurchCRM、PHP、Apache、MariaDB，并校验 Microsoft Visual C++ Redistributable 的 Authenticode 签名，然后生成：
 
-dist\MOS-GOV-V0.2-Setup.exe
+dist\MOS-GOV-V0.2.2-Setup.exe
 
 以及：
 
-dist\MOS-GOV-V0.2-Setup.sha256.json
+dist\MOS-GOV-V0.2.2-Setup.sha256.json
 
 ## 正式安装包不包含
 
@@ -122,6 +122,8 @@ C:\ProgramData\MOS-GOV
 ## 构建基线
 
 MOS-GOV 中文体验冻结点：7b0b8e8
+
+V0.2.2 安装初始化修复：直接执行 runtime CMD，增加 %TEMP%\MOS-GOV-runtime-bootstrap.log / ProgramData bootstrap.log，并将目录 ACL 设置改为 .NET API，避免真实 Windows 环境中初始化早期返回码 1 且无 installer.log。
 
 权限语义修复：44941a7
 
