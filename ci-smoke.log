@@ -1,12 +1,12 @@
 **********************
 PowerShell transcript start
-Start time: 20261004090636
+Start time: 20261004091144
 Username: runnervmfi6oq\runneradmin
 RunAs User: runnervmfi6oq\runneradmin
 Configuration Name: 
 Machine: runnervmfi6oq (Microsoft Windows NT 10.0.26100.0)
-Host Application: C:\Program Files\PowerShell\7\pwsh.dll -command . 'D:\a\_temp\392c5469-1616-4e87-bba1-2e45941e1dc6.ps1'
-Process ID: 10008
+Host Application: C:\Program Files\PowerShell\7\pwsh.dll -command . 'D:\a\_temp\4dc6cb43-e720-4898-92ec-0a7a25887012.ps1'
+Process ID: 7332
 PSVersion: 7.6.6
 PSEdition: Core
 GitCommitId: 7.6.6
@@ -18,9 +18,8 @@ SerializationVersion: 1.1.0.1
 WSManStackVersion: 3.0
 **********************
 Starting installer: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\dist\MOS-GOV-V0.2.3-Setup.exe
-Installer launcher PID: 8836
-installer launcher exited: True
-installer launcher exit code: 0
+Installer launcher PID: 3968
+installer launcher exited: False
 runtime install completed marker: True
 desktop lnk count: 0
 desktop lnk names: 
@@ -30,5 +29,5 @@ maria service: Running
 SMOKE TEST FAILED: No MOS desktop shortcut was created (expected name 'MOS 平台').
 **********************
 PowerShell transcript end
-End time: 20261004090732
+End time: 20261004091310
 **********************
