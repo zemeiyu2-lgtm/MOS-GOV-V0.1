@@ -1,4 +1,4 @@
-﻿#define AppVersion "0.2.2"
+﻿#define AppVersion "0.2.3"
 
 [Setup]
 AppId={{5F78C9D9-08D7-43A6-9C69-2D1D0BAF2F65}
@@ -13,7 +13,7 @@ DisableProgramGroupPage=yes
 PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
-OutputBaseFilename=MOS-GOV-V0.2.2-Setup
+OutputBaseFilename=MOS-GOV-V0.2.3-Setup
 OutputDir={{OUTPUT_DIR}}
 Compression=lzma2/ultra64
 SolidCompression=yes
@@ -34,7 +34,6 @@ PrivilegesRequiredOverridesAllowed=dialog
 Source: "{{PAYLOAD_ROOT}}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{commondesktop}\MOS 平台"; Filename: "{app}\runtime\MOSLauncher.exe"; WorkingDir: "{app}"; IconFilename: "{app}\runtime\MOS.ico"; Comment: "启动 MOS 平台"; IconIndex: 0
 Name: "{group}\MOS 平台"; Filename: "{app}\runtime\MOSLauncher.exe"; WorkingDir: "{app}"; IconFilename: "{app}\runtime\MOS.ico"; Comment: "启动 MOS 平台"; IconIndex: 0
 Name: "{group}\MOS 诊断"; Filename: "{app}\runtime\MOS-Diagnose.cmd"; WorkingDir: "{app}\runtime"; IconFilename: "{app}\runtime\MOS.ico"; Comment: "检查 MOS 平台安装状态"; IconIndex: 0
 Name: "{group}\新建教会（清除旧数据）"; Filename: "{app}\runtime\reset-church.cmd"; WorkingDir: "{app}\runtime"
@@ -142,6 +141,52 @@ begin
   Result := True;
 end;
 
+procedure CreateUserDesktopShortcut;
+var
+  Helper, Params, UserShortcut: String;
+  ResultCode: Integer;
+begin
+  Helper := ExpandConstant('{app}\runtime\Create-MOS-DesktopShortcut.ps1');
+  UserShortcut := ExpandConstant('{userdesktop}\MOS 平台.lnk');
+
+  if not FileExists(Helper) then
+  begin
+    Log('WARN: desktop shortcut helper missing: ' + Helper);
+    exit;
+  end;
+
+  Params :=
+    '-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + Helper + '"' +
+    ' -Target "' + ExpandConstant('{app}\runtime\MOSLauncher.exe') + '"' +
+    ' -Icon "' + ExpandConstant('{app}\runtime\MOS.ico') + '"' +
+    ' -Shortcut "' + UserShortcut + '"';
+
+  Log('Creating per-user desktop shortcut: ' + UserShortcut);
+  if not ExecAsOriginalUser(
+    ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
+    Params,
+    ExpandConstant('{app}\runtime'),
+    SW_HIDE,
+    ewWaitUntilTerminated,
+    ResultCode
+  ) then
+  begin
+    Log('WARN: could not launch original-user shortcut helper. Error=' + SysErrorMessage(ResultCode));
+    exit;
+  end;
+
+  if ResultCode <> 0 then
+  begin
+    Log('WARN: original-user shortcut helper returned ' + IntToStr(ResultCode) + '. Installation continues.');
+    exit;
+  end;
+
+  if FileExists(UserShortcut) then
+    Log('Desktop shortcut created: ' + UserShortcut)
+  else
+    Log('WARN: shortcut helper returned success but shortcut is missing: ' + UserShortcut);
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   RuntimeScript, RuntimeParams, BootstrapHint: String;
@@ -209,8 +254,15 @@ begin
       );
       Abort;
     end;
+
+    { Desktop shortcut is deliberately created after runtime initialization, as the original logged-in user.
+      Failure here must never roll back an otherwise successful MOS platform installation. }
+    CreateUserDesktopShortcut;
   end;
 end;
+
+[UninstallDelete]
+Type: files; Name: "{userdesktop}\MOS 平台.lnk"
 
 [UninstallRun]
 Filename: "{cmd}"; Parameters: "/c ""{app}\runtime\uninstall-runtime.cmd"""; Flags: runhidden waituntilterminated logoutput; RunOnceId: "RemoveMOSGovServices"; WorkingDir: "{app}\runtime"
