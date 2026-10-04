@@ -1,8 +1,26 @@
-2026-10-04T08:32:42 FATAL: The following error occurred while loading the extended type data file: Error in TypeData "System.Security.AccessControl.ObjectSecurity": The member AuditToString is already present.
-Error in TypeData "System.Security.AccessControl.ObjectSecurity": The member AccessToString is already present.
-Error in TypeData "System.Security.AccessControl.ObjectSecurity": The member Sddl is already present.
-Error in TypeData "System.Security.AccessControl.ObjectSecurity": The member Access is already present.
-Error in TypeData "System.Security.AccessControl.ObjectSecurity": The member Group is already present.
-Error in TypeData "System.Security.AccessControl.ObjectSecurity": The member Owner is already present.
-Error in TypeData "System.Security.AccessControl.ObjectSecurity": The member Path is already present.
-
+2026-10-04T09:42:35 MOS-GOV one-click installation starting.
+2026-10-04T09:42:36 Using HTTP port 8080 and MariaDB port 3307. ResetData=False UpgradeMode=False
+2026-10-04T09:42:36 Starting Microsoft VC++ Redistributable installation.
+2026-10-04T09:42:38 Microsoft VC++ Redistributable exit code: 0.
+2026-10-04T09:42:38 Configuring PHP.
+2026-10-04T09:42:38 PHP configuration completed.
+2026-10-04T09:42:38 PHP BCMath support verified.
+2026-10-04T09:42:38 Installing MariaDB.
+2026-10-04T09:43:00 MariaDB service installation completed.
+2026-10-04T09:43:00 Waiting for MariaDB.
+2026-10-04T09:43:01 MariaDB is ready.
+2026-10-04T09:43:01 churchcrm database is missing; a fresh schema import will be performed.
+2026-10-04T09:43:01 Configuring ChurchCRM.
+2026-10-04T09:43:01 ChurchCRM configuration completed.
+2026-10-04T09:43:01 Configuring Apache.
+2026-10-04T09:43:01 Validating Apache configuration.
+2026-10-04T09:43:01 Apache httpd -t: Syntax OK
+2026-10-04T09:43:01 Apache configuration is valid.
+2026-10-04T09:43:02 Apache service installation completed.
+2026-10-04T09:43:02 Importing official ChurchCRM schema and seed data.
+2026-10-04T09:43:04 Official ChurchCRM schema import completed.
+2026-10-04T09:43:04 Waiting for ChurchCRM HTTP endpoint.
+2026-10-04T09:43:04 ChurchCRM HTTP endpoint is reachable.
+2026-10-04T09:43:04 Importing MOS-GOV plugin database schema.
+2026-10-04T09:43:05 MOS-GOV plugin database schema import completed.
+2026-10-04T09:43:05 MOS-GOV installation completed.

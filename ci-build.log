@@ -2,7 +2,7 @@ Downloading ChurchCRM-7.7.0.zip (attempt 1/3)
 Downloading php-8.4.25-Win32-vs17-x64.zip (attempt 1/3)
 Downloading httpd-2.4.69-Win64-VS18.zip (attempt 1/3)
 Downloading mariadb-11.8.9-winx64.zip (attempt 1/3)
-Build script generated and encoding-verified: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\MOS-GOV-V0.2.iss (CJK chars: 492)
+Build script generated and encoding-verified: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\MOS-GOV-V0.2.iss (CJK chars: 490)
 Using ISCC: C:\ProgramData\Chocolatey\bin\ISCC.exe
 Inno Setup 6 Command-Line Compiler
 Copyright (C) 1997-2026 Jordan Russell. All rights reserved.
@@ -60,11 +60,11 @@ Reading [Code] section
 Parsing [Icons] section, line 37
 Parsing [Icons] section, line 38
 Parsing [Icons] section, line 39
-Parsing [Icons] section, line 40
+Parsing [Registry] section, line 42
 Parsing [Registry] section, line 43
-Parsing [Registry] section, line 44
-Parsing [Run] section, line 47
-Parsing [UninstallRun] section, line 216
+Parsing [UninstallDelete] section, line 265
+Parsing [Run] section, line 46
+Parsing [UninstallRun] section, line 268
 Parsing [Files] section, line 34
 Compiling [Code] section
 Creating setup files
@@ -8427,8 +8427,9 @@ Creating setup files
    Updating version info (Setup.exe)
    Updating manifest (Setup.exe)
 
+Warning: The [Setup] section directive "PrivilegesRequired" is set to "admin" but per-user areas (userdesktop) are used by the script. Regardless of the version of Windows, if the installation is running in administrative install mode then you should be careful about making any per-user area changes: such changes may not achieve what you are intending. See the "UsedUserAreasWarning" topic in help file for more information.
 
-Successful compile (124.703 sec). Resulting Setup program filename is:
-D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\dist\MOS-GOV-V0.2.2-Setup.exe
-Created: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\dist\MOS-GOV-V0.2.2-Setup.exe
-SHA256: A6665F9C77211A93058522CCFD2F6F9E1183B8B58D0474498A3213F914874285
+Successful compile (125.500 sec). Resulting Setup program filename is:
+D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\dist\MOS-GOV-V0.2.3-Setup.exe
+Created: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\dist\MOS-GOV-V0.2.3-Setup.exe
+SHA256: BAA35C681F5843403440A42849C3697FF4C400F4485952BFE0565748B9E2D89E
