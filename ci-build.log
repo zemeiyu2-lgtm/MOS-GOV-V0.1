@@ -8409,6 +8409,7 @@ Creating setup files
    Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\extras\ssl\openssl.cnf
    Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\lib\enchant\libenchant2_hunspell.dll
    Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\prereqs\vc_redist.x64.exe
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\runtime\create-mos-shortcut.ps1
    Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\runtime\enable-mosgov.php
    Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\runtime\install-runtime.cmd
    Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\runtime\install-runtime.ps1
@@ -8427,7 +8428,7 @@ Creating setup files
    Updating manifest (Setup.exe)
 
 
-Successful compile (130.750 sec). Resulting Setup program filename is:
+Successful compile (113.563 sec). Resulting Setup program filename is:
 D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\dist\MOS-GOV-V0.2.3-Setup.exe
 Created: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\dist\MOS-GOV-V0.2.3-Setup.exe
-SHA256: F4D4417501E8C3DCD2B9D18FD2EFB3AF39F342EDC8A610A67367781144626B26
+SHA256: 7E712E6D6A4B752901C1226841933D8E86BB362F4F87D8421ED9533EC670F79D
