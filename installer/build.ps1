@@ -184,6 +184,7 @@ Copy-Item (Join-Path $PSScriptRoot "runtime/uninstall-runtime.ps1") (Join-Path $
 Copy-Item (Join-Path $PSScriptRoot "runtime/reset-church.cmd") (Join-Path $payloadRuntime "reset-church.cmd") -Force
 Copy-Item (Join-Path $PSScriptRoot "runtime/reset-church.ps1") (Join-Path $payloadRuntime "reset-church.ps1") -Force
 Copy-Item (Join-Path $PSScriptRoot "runtime/enable-mosgov.php") (Join-Path $payloadRuntime "enable-mosgov.php") -Force
+Copy-Item (Join-Path $PSScriptRoot "runtime/create-mos-shortcut.ps1") (Join-Path $payloadRuntime "create-mos-shortcut.ps1") -Force
 # V0.2.1 平台入口资源：启动器 / 图标 / 诊断工具
 foreach ($runtimeAsset in @(
     "MOSLauncher.exe",
