@@ -12,10 +12,46 @@ $DownloadRoot = Join-Path $BuildRoot "downloads"
 $ExtractRoot = Join-Path $BuildRoot "extract"
 $PayloadRoot = Join-Path $BuildRoot "payload"
 $DistRoot = Join-Path $RepoRoot "dist"
+# V0.2.5：持久下载缓存。installer-build 每次构建都会清空，180MB 载荷在慢速
+# 网络下要重新下载近一小时；把已验证过的副本存到 LOCALAPPDATA，下次直接复用。
+$DownloadCacheRoot = Join-Path $env:LOCALAPPDATA "MOS-GOV-BuildCache"
 
-Remove-Item $BuildRoot -Recurse -Force -ErrorAction SilentlyContinue
-Remove-Item $DistRoot -Recurse -Force -ErrorAction SilentlyContinue
-New-Item -ItemType Directory -Force -Path $DownloadRoot,$ExtractRoot,$PayloadRoot,$DistRoot | Out-Null
+# PowerShell 5.1 的 Remove-Item -Recurse 在几万个文件的树上可能极慢甚至假死；
+# 改用 .NET API 直接删除，速度提升一个数量级以上。
+foreach ($tree in @($BuildRoot, $DistRoot)) {
+    if (Test-Path -LiteralPath $tree) {
+        try {
+            [System.IO.Directory]::Delete($tree, $true)
+        } catch {
+            Write-Warning ("Slow fallback for {0}: {1}" -f $tree, $_.Exception.Message)
+            Remove-Item $tree -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+New-Item -ItemType Directory -Force -Path $DownloadRoot,$ExtractRoot,$PayloadRoot,$DistRoot,$DownloadCacheRoot | Out-Null
+
+function Save-ToCache([string]$Path,[string]$Sha256) {
+    try {
+        $cached = Join-Path $DownloadCacheRoot ([IO.Path]::GetFileName($Path))
+        if (-not (Test-Path -LiteralPath $cached)) {
+            Copy-Item -LiteralPath $Path -Destination $cached -Force
+        }
+    } catch { }
+}
+
+function Try-Cache([string]$Name,[string]$Sha256) {
+    $cached = Join-Path $DownloadCacheRoot $Name
+    if (-not (Test-Path -LiteralPath $cached)) { return $false }
+    $actual = (Get-FileHash $cached -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($actual -ne $Sha256.ToLowerInvariant()) {
+        Write-Host "Cache copy of $Name is stale (hash mismatch); ignoring."
+        return $false
+    }
+    $path = Join-Path $DownloadRoot $Name
+    Copy-Item -LiteralPath $cached -Destination $path -Force
+    Write-Host "Using cached copy of $Name"
+    return $true
+}
 
 function Test-ZipReadable([string]$Path) {
     try {
@@ -33,6 +69,7 @@ function Test-ZipReadable([string]$Path) {
 
 function Get-File([string]$Name,[string]$Url,[string]$Sha256) {
     $path = Join-Path $DownloadRoot $Name
+    if (Try-Cache $Name $Sha256) { return $path }
     $curl = Get-Command curl.exe -ErrorAction SilentlyContinue
     for ($attempt = 1; $attempt -le 3; $attempt++) {
         Remove-Item $path -Force -ErrorAction SilentlyContinue
@@ -64,6 +101,7 @@ function Get-File([string]$Name,[string]$Url,[string]$Sha256) {
 
         $actual = (Get-FileHash $path -Algorithm SHA256).Hash.ToLowerInvariant()
         if ($actual -eq $Sha256.ToLowerInvariant()) {
+            Save-ToCache $path $Sha256
             return $path
         }
 
@@ -117,12 +155,18 @@ $apacheZip = Get-File ("httpd-" + $Manifest.apache.version + "-Win64-VS18.zip") 
 $mariaZip = Get-File "mariadb-11.8.9-winx64.zip" $Manifest.mariadb.url $Manifest.mariadb.sha256
 
 $vcPath = Join-Path $DownloadRoot "vc_redist.x64.exe"
-$curl = Get-Command curl.exe -ErrorAction SilentlyContinue
-if ($curl) {
-    & $curl.Source -L --fail --retry 4 --retry-delay 2 --silent --show-error --output $vcPath $Manifest.vcRuntime.url
-    if ($LASTEXITCODE -ne 0) { throw "Download failed for Microsoft VC++ Redistributable." }
+if (Test-Path -LiteralPath (Join-Path $DownloadCacheRoot "vc_redist.x64.exe")) {
+    Copy-Item -LiteralPath (Join-Path $DownloadCacheRoot "vc_redist.x64.exe") -Destination $vcPath -Force
+    Write-Host "Using cached copy of vc_redist.x64.exe"
 } else {
-    Invoke-WebRequest -Uri $Manifest.vcRuntime.url -OutFile $vcPath -UseBasicParsing -MaximumRedirection 10
+    $curl = Get-Command curl.exe -ErrorAction SilentlyContinue
+    if ($curl) {
+        & $curl.Source -L --fail --retry 4 --retry-delay 2 --silent --show-error --output $vcPath $Manifest.vcRuntime.url
+        if ($LASTEXITCODE -ne 0) { throw "Download failed for Microsoft VC++ Redistributable." }
+    } else {
+        Invoke-WebRequest -Uri $Manifest.vcRuntime.url -OutFile $vcPath -UseBasicParsing -MaximumRedirection 10
+    }
+    Copy-Item -LiteralPath $vcPath -Destination (Join-Path $DownloadCacheRoot "vc_redist.x64.exe") -Force
 }
 $sig = Get-AuthenticodeSignature $vcPath
 # 空值安全：签名状态不可用时 $sig.SignerCertificate 为 $null，直接取 .Subject 会在

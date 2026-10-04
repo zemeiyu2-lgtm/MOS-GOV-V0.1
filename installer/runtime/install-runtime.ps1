@@ -289,7 +289,19 @@ function Install-MariaDb([int]$Port,[string]$RootPassword) {
     if (Test-Path -LiteralPath $DataRoot) {
         $remaining = @(Get-ChildItem -LiteralPath $DataRoot -Force -ErrorAction SilentlyContinue)
         if ($remaining.Count -gt 0) {
-            throw "MariaDB data directory is not empty. Use the explicit new-church reset operation before initializing a fresh database."
+            # V0.2.5：全新安装遇到"非空数据目录 + 无安装状态"几乎总是上一次
+            # 安装中断留下的残骸（Ensure-Dir 在任何初始化之前就会创建 data 目录）。
+            # 直接 throw 会让用户永久卡死在返回码 1。改为自动备份迁移，绝不丢数据。
+            Ensure-Dir $BackupRoot
+            $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
+            $orphan = Join-Path $BackupRoot ("orphan-data-" + $stamp)
+            Write-InstallLog "Fresh install found a non-empty data directory without installation state (leftover from an earlier failed attempt). Moving it to $orphan."
+            try {
+                Move-Item -LiteralPath $DataRoot -Destination $orphan -Force
+                Write-InstallLog "Leftover data directory moved to $orphan. Proceeding with a fresh database."
+            } catch {
+                throw ("Could not move the leftover data directory to the backups folder. Free or rename '" + $DataRoot + "' manually, then run the installer again. Original error: " + $_.Exception.Message)
+            }
         }
     }
     Ensure-Dir $DataRoot
@@ -471,6 +483,24 @@ if ($UpgradeMode) {
 }
 
 Write-InstallLog "Using HTTP port $HttpPort and MariaDB port $DbPort. ResetData=$ResetData UpgradeMode=$UpgradeMode"
+
+# V0.2.5：升级模式沿用固定端口。安装器在 PrepareToInstall 已停掉 MOS 服务，
+# 此时若端口仍被监听，必然是其他程序占用 —— Apache/MariaDB 随后必然启动失败。
+# 提前给出带进程名的明确失败原因，而不是让用户面对笼统的"服务未到达 Running"。
+if ($UpgradeMode) {
+    foreach ($portCheck in @(@('HTTP', $script:HttpPort), @('MariaDB', $script:DbPort))) {
+        $label = $portCheck[0]
+        $portNumber = [int]$portCheck[1]
+        $conn = Get-NetTCPConnection -LocalPort $portNumber -State Listen -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+        if ($conn) {
+            $procName = 'unknown'
+            try { $procName = (Get-Process -Id $conn.OwningProcess -ErrorAction Stop).ProcessName } catch {}
+            throw ("Port conflict: the configured $label port $portNumber is already in use by process '$procName' (PID $($conn.OwningProcess)). Stop or uninstall that program, then run the installer again.")
+        }
+    }
+    Write-InstallLog "Port pre-check passed (HTTP $HttpPort, MariaDB $DbPort are free)."
+}
 
 $vc = Join-Path $AppRoot "prereqs/vc_redist.x64.exe"
 if (Test-Path $vc) {

@@ -1,4 +1,4 @@
-﻿#define AppVersion "0.2.4"
+﻿#define AppVersion "0.2.5"
 
 [Setup]
 AppId={{5F78C9D9-08D7-43A6-9C69-2D1D0BAF2F65}
@@ -13,7 +13,7 @@ DisableProgramGroupPage=yes
 PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
-OutputBaseFilename=MOS-GOV-V0.2.4-Setup
+OutputBaseFilename=MOS-GOV-V0.2.5-Setup
 OutputDir={{OUTPUT_DIR}}
 Compression=lzma2/ultra64
 SolidCompression=yes
@@ -28,7 +28,10 @@ CloseApplications=yes
 RestartApplications=no
 CreateAppDir=yes
 MinVersion=10.0.17763
-PrivilegesRequiredOverridesAllowed=dialog
+; V0.2.5 removed PrivilegesRequiredOverridesAllowed: the runtime init (Windows
+; services, ProgramData ACL, VC++ redist) and MOSLauncher.exe (requireAdministrator
+; manifest) demand full admin rights. A per-user install can never work and would
+; fail in the runtime bootstrap with exit code 1 (#Requires -RunAsAdministrator).
 
 [Files]
 Source: "{{PAYLOAD_ROOT}}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -167,9 +170,83 @@ begin
   end;
 end;
 
+{ 把 bootstrap 日志（ANSI 文本）读成字符串，供失败弹窗直接展示第一失败点。 }
+function ReadLogAsText(const FileName: String; var Content: String): Boolean;
+var
+  Buf: AnsiString;
+  I: Integer;
+  Ch: AnsiChar;
+begin
+  Result := False;
+  Content := '';
+  if not FileExists(FileName) then
+    Exit;
+  try
+    if not LoadStringFromFile(FileName, Buf) then
+      Exit;
+  except
+    Exit;
+  end;
+  for I := 1 to Length(Buf) do
+  begin
+    Ch := Buf[I];
+    if (Ch = #13) or (Ch = #10) then
+      Content := Content + #13#10
+    else if (Ord(Ch) >= 32) and (Ord(Ch) < 127) then
+      Content := Content + Chr(Ord(Ch))
+    else
+      Content := Content + ' ';
+  end;
+  Result := True;
+end;
+
+{ 在日志文本中从后往前找包含 Needle 的最后一行（如 'FATAL:'）。 }
+function FindLastLineContaining(const Content, Needle: String; var Line: String): Boolean;
+var
+  I, LineStart, LineEnd: Integer;
+begin
+  Result := False;
+  Line := '';
+  if Length(Content) < Length(Needle) then
+    Exit;
+  for I := Length(Content) - Length(Needle) + 1 downto 1 do
+  begin
+    if Copy(Content, I, Length(Needle)) = Needle then
+    begin
+      LineStart := I;
+      while (LineStart > 1) and (Copy(Content, LineStart - 1, 1) <> #10) do
+        LineStart := LineStart - 1;
+      LineEnd := I;
+      while (LineEnd <= Length(Content)) and (Copy(Content, LineEnd, 1) <> #13) and
+            (Copy(Content, LineEnd, 1) <> #10) do
+        LineEnd := LineEnd + 1;
+      Line := Copy(Content, LineStart, LineEnd - LineStart);
+      Result := True;
+      Exit;
+    end;
+  end;
+end;
+
+{ 失败原因摘要：bootstrap 日志的最后一行 FATAL。 }
+function BootstrapFailureDetail: String;
+var
+  LogPath, Content, Line: String;
+begin
+  Result := '';
+  LogPath := GetEnv('TEMP');
+  while (Length(LogPath) > 0) and (Copy(LogPath, Length(LogPath), 1) = '\') do
+    LogPath := Copy(LogPath, 1, Length(LogPath) - 1);
+  LogPath := LogPath + '\MOS-GOV-runtime-bootstrap.log';
+  if ReadLogAsText(LogPath, Content) then
+  begin
+    if FindLastLineContaining(Content, 'FATAL:', Line) and (Line <> '') then
+      Result := Line;
+  end;
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 var
-  RuntimeScript, RuntimeParams, BootstrapHint: String;
+  RuntimeScript, RuntimeParams, BootstrapHint, Detail: String;
 begin
   if CurStep = ssPostInstall then
   begin
@@ -223,15 +300,34 @@ begin
     if RuntimeResultCode <> 0 then
     begin
       Log('FATAL: runtime bootstrap failed with exit code ' + IntToStr(RuntimeResultCode));
-      SuppressibleMsgBox(
-        'MOS-GOV 运行环境初始化失败。安装程序返回码：' + IntToStr(RuntimeResultCode) +
-        '.' + #13#10#13#10 +
-        '请查看以下诊断文件：' + #13#10 +
-        '%TEMP%\MOS-GOV-runtime-bootstrap.log' + #13#10 +
-        'C:\ProgramData\MOS-GOV\logs\bootstrap.log' + #13#10 +
-        'C:\ProgramData\MOS-GOV\logs\installer.log',
-        mbError, MB_OK, 0
-      );
+      Detail := BootstrapFailureDetail;
+      if Detail <> '' then
+        Log('FATAL detail from bootstrap log: ' + Detail);
+      if Detail <> '' then
+      begin
+        SuppressibleMsgBox(
+          'MOS-GOV 运行环境初始化失败。安装程序返回码：' + IntToStr(RuntimeResultCode) +
+          '.' + #13#10#13#10 +
+          '失败原因：' + #13#10 + Detail + #13#10#13#10 +
+          '完整诊断文件：' + #13#10 +
+          '%TEMP%\MOS-GOV-runtime-bootstrap.log' + #13#10 +
+          'C:\ProgramData\MOS-GOV\logs\bootstrap.log' + #13#10 +
+          'C:\ProgramData\MOS-GOV\logs\installer.log',
+          mbError, MB_OK, 0
+        );
+      end
+      else
+      begin
+        SuppressibleMsgBox(
+          'MOS-GOV 运行环境初始化失败。安装程序返回码：' + IntToStr(RuntimeResultCode) +
+          '.' + #13#10#13#10 +
+          '请查看以下诊断文件：' + #13#10 +
+          '%TEMP%\MOS-GOV-runtime-bootstrap.log' + #13#10 +
+          'C:\ProgramData\MOS-GOV\logs\bootstrap.log' + #13#10 +
+          'C:\ProgramData\MOS-GOV\logs\installer.log',
+          mbError, MB_OK, 0
+        );
+      end;
       Abort;
     end;
 
