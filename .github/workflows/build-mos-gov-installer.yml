@@ -481,7 +481,10 @@ jobs:
           $report += "=== smoke test transcript (tail 120) ==="
           if (Test-Path "$env:GITHUB_WORKSPACE\ci-smoke.log") { $report += (Get-Content "$env:GITHUB_WORKSPACE\ci-smoke.log" -Tail 120) } else { $report += "(missing: smoke transcript not captured)" }
           $report += ""
-          $report += "=== desktop shortcuts actually present ==="
+          $report += "=== shortcut helper diagnostics ==="
+           if (Test-Path "$env:TEMP\MOS-GOV-shortcut.log") { $report += (Get-Content "$env:TEMP\MOS-GOV-shortcut.log" -Tail 80) } else { $report += "(missing)" }
+           $report += ""
+           $report += "=== desktop shortcuts actually present ==="
           $report += ((Get-ChildItem ([Environment]::GetFolderPath('Desktop')) -Filter '*.lnk' -ErrorAction SilentlyContinue |
                        Select-Object -ExpandProperty Name) -join "`r`n")
           $report += "=== start menu groups actually present ==="
