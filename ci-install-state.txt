@@ -1,4 +1,5 @@
-installer launcher exited: False
+installer launcher exited: True
+installer launcher exit code: 0
 runtime install completed marker: True
 desktop lnk count: 0
 desktop lnk names: 
