@@ -1,11 +1,11 @@
 # MOS 平台用户桌面快捷方式创建器
 # 由 Inno Setup 通过 ExecAsOriginalUser 调用，确保写入真正登录用户的桌面。
-$ErrorActionPreference = 'Stop'
 param(
     [Parameter(Mandatory=$true)][string]$Target,
     [Parameter(Mandatory=$true)][string]$Icon,
     [Parameter(Mandatory=$true)][string]$Shortcut
 )
+$ErrorActionPreference = 'Stop'
 $parent = Split-Path -Parent $Shortcut
 if (-not (Test-Path -LiteralPath $parent)) {
     New-Item -ItemType Directory -Path $parent -Force | Out-Null
