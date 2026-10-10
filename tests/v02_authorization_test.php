@@ -86,7 +86,7 @@ $ctx = GovernanceContext::forUser($member);
 $hasInheritedScope = count(array_filter($ctx->scopes(), static fn (array $s): bool =>
     $s['scope_type'] === 'group' && (int) ($s['scope_id'] ?? 0) === 887766
 )) > 0;
-$mosGovCheck('active role contributes its configured scope', $hasInheritedScope);
+$mosGovCheck('role scope template alone does not grant concrete person scope', !$hasInheritedScope);
 
 $stmt = $conn->prepare("UPDATE gov_role SET status = 'inactive' WHERE id = :rid");
 $stmt->bindValue(':rid', (int) $a01['id'], PDO::PARAM_INT);
