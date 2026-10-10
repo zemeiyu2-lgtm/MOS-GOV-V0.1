@@ -89,7 +89,8 @@ if ($member === null) {
 }
 
 $personId = (int) $member->getPersonId();
-$mosGovResetIdentity($personId);
+// The shared selector guarantees this user has no governance identity;
+// do not delete existing governance records as test setup.
 $identityId = $service->provisionIdentity($personId);
 $mosGovTrack('identity', $identityId);
 
