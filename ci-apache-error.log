@@ -1,5 +1,5 @@
-[Sat Oct 10 14:06:59.785036 2026] [mpm_winnt:notice] [pid 1940:tid 452] AH00455: Apache/2.4.69 (Win64) PHP/8.4.25 configured -- resuming normal operations
-[Sat Oct 10 14:06:59.786795 2026] [mpm_winnt:notice] [pid 1940:tid 452] AH00456: Apache Lounge VS18 Server built: Oct  1 2026 09:34:06
-[Sat Oct 10 14:06:59.786795 2026] [core:notice] [pid 1940:tid 452] AH00094: Command line: 'C:\\Program Files\\MOS-GOV\\Apache24\\bin\\httpd.exe -d C:/Program Files/MOS-GOV/Apache24 -f C:\\Program Files\\MOS-GOV\\Apache24\\conf\\httpd.conf'
-[Sat Oct 10 14:06:59.786795 2026] [mpm_winnt:notice] [pid 1940:tid 452] AH00418: Parent: Created child process 7020
-[Sat Oct 10 14:07:00.106073 2026] [mpm_winnt:notice] [pid 7020:tid 492] AH00354: Child: Starting 64 worker threads.
+[Sat Oct 10 15:05:41.691891 2026] [mpm_winnt:notice] [pid 7536:tid 468] AH00455: Apache/2.4.69 (Win64) PHP/8.4.25 configured -- resuming normal operations
+[Sat Oct 10 15:05:41.691891 2026] [mpm_winnt:notice] [pid 7536:tid 468] AH00456: Apache Lounge VS18 Server built: Oct  1 2026 09:34:06
+[Sat Oct 10 15:05:41.691891 2026] [core:notice] [pid 7536:tid 468] AH00094: Command line: 'C:\\Program Files\\MOS-GOV\\Apache24\\bin\\httpd.exe -d C:/Program Files/MOS-GOV/Apache24 -f C:\\Program Files\\MOS-GOV\\Apache24\\conf\\httpd.conf'
+[Sat Oct 10 15:05:41.693899 2026] [mpm_winnt:notice] [pid 7536:tid 468] AH00418: Parent: Created child process 6384
+[Sat Oct 10 15:05:41.931218 2026] [mpm_winnt:notice] [pid 6384:tid 440] AH00354: Child: Starting 64 worker threads.
