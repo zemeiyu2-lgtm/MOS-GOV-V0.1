@@ -90,8 +90,8 @@ jobs:
           if ($iss -notmatch 'MOSLauncher\.exe') { throw "Shortcuts must target MOSLauncher.exe." }
           if ($iss -match '\{commondesktop\}.*MOS 平台') { throw "Desktop shortcut must not target the common/public desktop." }
           if ($iss -notmatch 'CreateShellLink') { throw "Installer must create the per-user desktop shortcut through Inno Setup." }
-          if ($iss -notmatch '\{userdesktop\}\\MOS 平台\.lnk') { throw "Installer must target the logged-in user's desktop, not the common/public desktop." }
-          if ($iss -notmatch 'IconFilename:\s*"\{app\}\\runtime\\MOS\.ico"') { throw "Shortcuts must use MOS.ico." }
+          if ($iss -notmatch '\{userdesktop\}\MOS 平台\.lnk') { throw "Installer must target the logged-in user's desktop, not the common/public desktop." }
+          if ($iss -notmatch 'IconFilename:\s*"\{app\}\runtime\MOS\.ico"') { throw "Shortcuts must use MOS.ico." }
           if ($iss -notmatch '立即打开 MOS 平台') { throw "Finish page must offer '立即打开 MOS 平台'." }
           if ($iss -notmatch 'ResetExistingData') { throw "Installer must keep the explicit existing-data reset confirmation." }
           if ($iss -notmatch '#define AppVersion "0\.2\.5"') { throw "AppVersion must be 0.2.5." }
@@ -337,10 +337,10 @@ jobs:
         shell: pwsh
         run: |
           $targets = @(
-            "C:\\ProgramData\\MOS-GOV",
-            "C:\\ProgramData\\MOS-GOV\\data",
-            "C:\\ProgramData\\MOS-GOV\\secrets",
-            "C:\\ProgramData\\MOS-GOV\\secrets\\mariadb-root.txt"
+            "C:\ProgramData\MOS-GOV",
+            "C:\ProgramData\MOS-GOV\data",
+            "C:\ProgramData\MOS-GOV\secrets",
+            "C:\ProgramData\MOS-GOV\secrets\mariadb-root.txt"
           )
           $forbiddenSids = @("S-1-1-0", "S-1-5-11", "S-1-5-32-545")
           $requiredSids = @("S-1-5-18", "S-1-5-32-544")
