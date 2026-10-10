@@ -433,7 +433,7 @@ trap {
     exit 1
 }
 
-Ensure-Dir $ProgramDataRoot,$DataRoot,$ConfigRoot,$SecretRoot,$LogRoot
+Ensure-Dir $ProgramDataRoot,$DataRoot,$BackupRoot,$ConfigRoot,$SecretRoot,$LogRoot
 Write-Utf8NoBom -Path (Join-Path $ConfigRoot "runtime-started.txt") -Content "$(Get-Date -Format o)"
 Write-BootstrapLog "ProgramData directories created."
 Protect-Directory $ProgramDataRoot
