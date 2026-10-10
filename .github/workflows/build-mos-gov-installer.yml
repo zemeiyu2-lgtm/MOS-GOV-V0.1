@@ -333,6 +333,53 @@ jobs:
           Write-Host "Installer smoke test passed."
           Stop-Transcript | Out-Null
 
+      - name: Run MOS-GOV 14-suite regression tests
+        shell: pwsh
+        timeout-minutes: 15
+        run: |
+          $appRoot = Join-Path $env:ProgramFiles "MOS-GOV"
+          $php = Join-Path $appRoot "PHP\php.exe"
+          $pluginRoot = Join-Path $appRoot "ChurchCRM\plugins\community\mos-gov"
+          $httpdConf = Join-Path $appRoot "Apache24\conf\httpd.conf"
+          $runner = Join-Path $pluginRoot "tests\run_all.php"
+          $userHelper = Join-Path $pluginRoot "tests\ci_test_users.php"
+          foreach ($path in @($php, $httpdConf, $runner, $userHelper)) {
+            if (-not (Test-Path -LiteralPath $path)) { throw "Regression prerequisite is missing: $path" }
+          }
+
+          $listenLine = (Select-String -Path $httpdConf -Pattern '^\s*Listen\s+' | Select-Object -First 1).Line
+          if (-not $listenLine) { throw "Could not determine the configured Apache HTTP port." }
+          $port = [int]($listenLine -replace '^\s*Listen\s+(?:[^:\s]+:)?','')
+          $env:MOSGOV_BASE_URL = "http://127.0.0.1:$port"
+          $env:MOSGOV_CI_TEST_MODE = "1"
+          $env:MOSGOV_CI_STATE_FILE = Join-Path $env:TEMP "mosgov-ci-test-users-state.json"
+          $testLog = Join-Path $env:GITHUB_WORKSPACE "ci-regression.log"
+          Remove-Item $testLog -Force -ErrorAction SilentlyContinue
+
+          $prepareExit = 1
+          $testExit = 1
+          $cleanupExit = 0
+          $prepared = $false
+          try {
+            & $php $userHelper prepare 2>&1 | Tee-Object -FilePath $testLog -Append
+            $prepareExit = $LASTEXITCODE
+            if ($prepareExit -eq 0) {
+              $prepared = $true
+              & $php $runner 2>&1 | Tee-Object -FilePath $testLog -Append
+              $testExit = $LASTEXITCODE
+            }
+          } finally {
+            if ($prepared -or (Test-Path -LiteralPath $env:MOSGOV_CI_STATE_FILE)) {
+              & $php $userHelper cleanup 2>&1 | Tee-Object -FilePath $testLog -Append
+              $cleanupExit = $LASTEXITCODE
+            }
+          }
+
+          if ($prepareExit -ne 0) { throw "Could not prepare isolated ChurchCRM regression users (exit $prepareExit)." }
+          if ($cleanupExit -ne 0) { throw "Could not safely clean up isolated ChurchCRM regression users (exit $cleanupExit)." }
+          if ($testExit -ne 0) { throw "MOS-GOV 14-suite regression runner failed or was blocked (exit $testExit). See ci-regression.log." }
+          Write-Host "All 14 regression suites passed; temporary CI users were cleaned up."
+
       - name: Verify installed data and secret ACLs
         shell: pwsh
         run: |
@@ -502,6 +549,9 @@ jobs:
           $report += ""
           $report += "=== runtime installer.log (tail 120) ==="
           if (Test-Path "C:\ProgramData\MOS-GOV\logs\installer.log") { $report += (Get-Content "C:\ProgramData\MOS-GOV\logs\installer.log" -Tail 120) } else { $report += "(missing)" }
+          $report += ""
+          $report += "=== PHP regression suite (tail 250) ==="
+          if (Test-Path "$env:GITHUB_WORKSPACE\ci-regression.log") { $report += (Get-Content "$env:GITHUB_WORKSPACE\ci-regression.log" -Tail 250) } else { $report += "(missing)" }
           $report += ""
           $report += "=== smoke-test install snapshot ==="
           if (Test-Path "$env:GITHUB_WORKSPACE\ci-install-state.txt") { $report += (Get-Content "$env:GITHUB_WORKSPACE\ci-install-state.txt") } else { $report += "(missing)" }
