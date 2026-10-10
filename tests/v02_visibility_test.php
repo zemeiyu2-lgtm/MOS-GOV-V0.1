@@ -79,12 +79,10 @@ GovAuthorization::reset();
 $ctx = GovernanceContext::forUser($member);
 $mosGovCheck('explicit P5 allow row unlocks P5 for the role', VisibilityResolver::canSeeLevel($ctx, 'P5'));
 
-// mask check
+// With an explicit P5 grant, sensitive content must remain visible.
 $rows = [['id' => 1, 'title' => 'T', 'minutes' => 'SECRET', 'notes' => 'N']];
-$masked = GovernancePolicy::filterFields($ctx, 'meeting', $rows);
-$mosGovCheck('P5 content masked when not allowed', true, 'check below');
-// with P5 allowed the content stays visible
-$mosGovCheck('P5 content visible with explicit grant', $masked[0]['minutes'] === 'SECRET');
+$filtered = GovernancePolicy::filterFields($ctx, 'meeting', $rows);
+$mosGovCheck('P5 content visible with explicit grant', ($filtered[0]['minutes'] ?? null) === 'SECRET');
 
 // without the grant the same row must be masked
 $stmt = Propel\Runtime\Propel::getConnection()->prepare("UPDATE gov_visibility_rule SET status = 'inactive' WHERE id = :id");
