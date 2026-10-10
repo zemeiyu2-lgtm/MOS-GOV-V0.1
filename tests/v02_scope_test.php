@@ -80,7 +80,7 @@ $scopes = $ctx->scopes();
 $mosGovCheck('context carries group 12 scope', in_array(12, array_map(static fn ($s) => $s['scope_id'], $scopes), true), json_encode($scopes));
 
 // A future-dated identity scope must not become effective early.
-$conn = \\Propel\\Runtime\\Propel::getConnection();
+$conn = \Propel\Runtime\Propel::getConnection();
 $futureStart = date('Y-m-d', strtotime('+1 day'));
 $stmt = $conn->prepare('UPDATE gov_identity_scope SET start_date = :start WHERE id = :id');
 $stmt->bindValue(':start', $futureStart, \PDO::PARAM_STR);
