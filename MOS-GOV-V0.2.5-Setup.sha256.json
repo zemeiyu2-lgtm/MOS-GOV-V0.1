@@ -2,12 +2,12 @@
   "product": "MOS-GOV 教会治理平台",
   "version": "0.2.5",
   "installer": "MOS-GOV-V0.2.5-Setup.exe",
-  "bytes": 116263835,
-  "sha256": "dc13928605192224aa792ea8608441bf938daf7382663651c1f99a56be5b4c67",
-  "runId": "38051801723",
+  "bytes": 116269338,
+  "sha256": "c0863fcfab7f782da0af52ffd7ba70fcb1e24aa96f0ec54ca994ec8b24eb90b3",
+  "runId": "38053337697",
   "runAttempt": "1",
-  "commit": "78d0c866c6a88809e085708efaf8ea01f9c60458",
+  "commit": "0aa3880a394f22bcfc1d47e55bb64ab1e1862ffc",
   "branch": "feature/mos-gov-v0.2.5-boot-fix",
   "runnerOs": "win25-vs2026",
-  "builtAtUtc": "2026-10-10T12:27:54.7971480Z"
+  "builtAtUtc": "2026-10-10T12:52:05.3571156Z"
 }
