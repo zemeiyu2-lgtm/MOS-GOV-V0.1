@@ -98,7 +98,7 @@ try {
         }
 
         if ($temporaryAdminKey !== null) {
-            $stmt = $conn->prepare('UPDATE user_usr SET usr_apiKey = :key WHERE usr_per_ID = :id AND (usr_apiKey IS NULL OR usr_apiKey = "")');
+            $stmt = $conn->prepare("UPDATE user_usr SET usr_apiKey = :key WHERE usr_per_ID = :id AND (usr_apiKey IS NULL OR usr_apiKey = '')");
             $stmt->bindValue(':key', $temporaryAdminKey, \PDO::PARAM_STR);
             $stmt->bindValue(':id', (int) $admin['usr_per_ID'], \PDO::PARAM_INT);
             $stmt->execute();
@@ -162,11 +162,11 @@ try {
 
         foreach ($accounts as $account) {
             $stmt = $conn->prepare(
-                'SELECT u.usr_per_ID, p.per_Email, p.per_FirstName, p.per_LastName
+                "SELECT u.usr_per_ID, p.per_Email, p.per_FirstName, p.per_LastName
                  FROM user_usr u
                  INNER JOIN person_per p ON p.per_ID = u.usr_per_ID
-                 WHERE u.usr_UserName = :username AND u.usr_apiKey LIKE "mosgov-ci-user-%"
-                 LIMIT 1'
+                 WHERE u.usr_UserName = :username AND u.usr_apiKey LIKE 'mosgov-ci-user-%'
+                 LIMIT 1"
             );
             $stmt->bindValue(':username', $account['username'], \PDO::PARAM_STR);
             $stmt->execute();
@@ -181,7 +181,7 @@ try {
             }
 
             $personId = (int) $row['usr_per_ID'];
-            $stmt = $conn->prepare('DELETE FROM user_usr WHERE usr_per_ID = :id AND usr_UserName = :username AND usr_apiKey LIKE "mosgov-ci-user-%"');
+            $stmt = $conn->prepare("DELETE FROM user_usr WHERE usr_per_ID = :id AND usr_UserName = :username AND usr_apiKey LIKE 'mosgov-ci-user-%'");
             $stmt->bindValue(':id', $personId, \PDO::PARAM_INT);
             $stmt->bindValue(':username', $account['username'], \PDO::PARAM_STR);
             $stmt->execute();
