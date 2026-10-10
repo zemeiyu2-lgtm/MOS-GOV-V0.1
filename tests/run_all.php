@@ -34,6 +34,7 @@ $suites = [
 
 $results = [];
 $failed = 0;
+$blocked = 0;
 $php = PHP_BINARY;
 
 foreach ($suites as $label => $script) {
@@ -56,6 +57,9 @@ foreach ($suites as $label => $script) {
 
     if ($exitCode === 0) {
         $results[$label] = 'PASS';
+    } elseif ($exitCode === 2) {
+        $results[$label] = 'BLOCKED (one or more checks skipped)';
+        $blocked++;
     } else {
         $results[$label] = 'FAIL (exit ' . $exitCode . ')';
         $failed++;
@@ -69,8 +73,10 @@ foreach ($results as $label => $result) {
     printf("%-40s %s%s", $label, $result, PHP_EOL);
 }
 echo str_repeat('-', 72) . PHP_EOL;
-echo($failed === 0
-    ? 'ALL ' . count($suites) . ' SUITES PASSED'
-    : $failed . ' of ' . count($suites) . ' SUITES FAILED') . PHP_EOL;
-
-exit($failed === 0 ? 0 : 1);
+if ($failed === 0 && $blocked === 0) {
+    echo 'ALL ' . count($suites) . ' SUITES PASSED' . PHP_EOL;
+    exit(0);
+}
+echo $failed . ' FAILED; ' . $blocked . ' BLOCKED; ' . count($suites) . ' TOTAL SUITES' . PHP_EOL;
+echo 'BLOCKED suites are not counted as passing; resolve skipped prerequisites before release.' . PHP_EOL;
+exit(1);
