@@ -35,8 +35,8 @@ $statePath = getenv('MOSGOV_CI_STATE_FILE')
     ?: sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'mosgov-ci-test-users-state.json';
 
 $accountTemplates = [
-    ['username_prefix' => 'mosgov_ci_readonly_', 'last_prefix' => 'ReadOnly-', 'email_prefix' => 'mosgov-ci-readonly-', 'edit_records' => 0],
-    ['username_prefix' => 'mosgov_ci_editor_', 'last_prefix' => 'Editor-', 'email_prefix' => 'mosgov-ci-editor-', 'edit_records' => 1],
+    ['username_prefix' => 'mosgov_ci_readonly_', 'last_prefix' => 'ReadOnly-', 'email_prefix' => 'mos-ro-', 'edit_records' => 0],
+    ['username_prefix' => 'mosgov_ci_editor_', 'last_prefix' => 'Editor-', 'email_prefix' => 'mos-ed-', 'edit_records' => 1],
 ];
 
 $fail = static function (string $message): never {
