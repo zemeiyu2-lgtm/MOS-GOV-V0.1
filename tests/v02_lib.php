@@ -85,7 +85,16 @@ $mosGovCleanup = function () use (&$mosGovV2): void {
 $mosGovFinish = function (string $suiteName) use (&$mosGovV2): void {
     echo PHP_EOL . $suiteName . ': ' . $mosGovV2['checks'] . ' checks, '
         . $mosGovV2['failures'] . ' FAIL, ' . $mosGovV2['skips'] . ' skip' . PHP_EOL;
-    exit($mosGovV2['failures'] === 0 ? 0 : 1);
+    if ($mosGovV2['failures'] > 0) {
+        echo '[FAIL] Suite has failed assertions.' . PHP_EOL;
+        exit(1);
+    }
+    if ($mosGovV2['skips'] > 0) {
+        echo '[BLOCKED] Suite contains skipped checks; this is not a passing result.' . PHP_EOL;
+        exit(2);
+    }
+    echo '[PASS] Suite completed with no failed or skipped checks.' . PHP_EOL;
+    exit(0);
 };
 
 /**
