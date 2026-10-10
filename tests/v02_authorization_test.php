@@ -64,6 +64,46 @@ GovAuthorization::reset();
 $decision = GovernancePolicy::decide($member, 'view', 'governance');
 $mosGovCheck('A01 with active role → module view allowed', $decision->allowed, $decision->reason);
 
+// Effective-date and role-status regression checks.
+$futureStart = date('Y-m-d', strtotime('+1 day'));
+$futureRoleAttachId = $service->attachRole($identityId, (int) $b03['id'], null, $futureStart);
+$mosGovTrack('identity_role', $futureRoleAttachId);
+GovAuthorization::reset();
+$ctx = GovernanceContext::forUser($member);
+$activeCodes = array_column($ctx->activeRoles(), 'role_code');
+$mosGovCheck('future-dated identity role has no authority yet', !in_array('B03', $activeCodes, true), json_encode($activeCodes));
+
+// Role deactivation must remove both its authority and inherited scopes.
+$roleScopeId = $repo->insert('role_scope', [
+    'role_id' => (int) $a01['id'],
+    'scope_type' => 'group',
+    'scope_id' => 887766,
+    'scope_mode' => 'direct',
+]);
+$mosGovTrack('role_scope', $roleScopeId);
+GovAuthorization::reset();
+$ctx = GovernanceContext::forUser($member);
+$hasInheritedScope = count(array_filter($ctx->scopes(), static fn (array $s): bool =>
+    $s['scope_type'] === 'group' && (int) ($s['scope_id'] ?? 0) === 887766
+)) > 0;
+$mosGovCheck('active role contributes its configured scope', $hasInheritedScope);
+
+$stmt = $conn->prepare("UPDATE gov_role SET status = 'inactive' WHERE id = :rid");
+$stmt->bindValue(':rid', (int) $a01['id'], PDO::PARAM_INT);
+$stmt->execute();
+GovAuthorization::reset();
+$ctx = GovernanceContext::forUser($member);
+$activeCodes = array_column($ctx->activeRoles(), 'role_code');
+$hasInheritedScope = count(array_filter($ctx->scopes(), static fn (array $s): bool =>
+    $s['scope_type'] === 'group' && (int) ($s['scope_id'] ?? 0) === 887766
+)) > 0;
+$mosGovCheck('inactive role no longer grants authority', !in_array('A01', $activeCodes, true), json_encode($activeCodes));
+$mosGovCheck('inactive role no longer contributes inherited scope', !$hasInheritedScope);
+$stmt = $conn->prepare("UPDATE gov_role SET status = 'active' WHERE id = :rid");
+$stmt->bindValue(':rid', (int) $a01['id'], PDO::PARAM_INT);
+$stmt->execute();
+GovAuthorization::reset();
+
 $mosGovSection('3. Step 6 — appointment lifecycle (§15)');
 
 // end the bound identity role via an ended appointment: authority must stop.
