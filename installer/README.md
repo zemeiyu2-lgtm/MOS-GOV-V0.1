@@ -12,6 +12,8 @@ V0.2.5 的重点是提高真实 Windows 安装的可靠性与失败可诊断性�
 - 对上次安装中断留下的非空数据库目录，先移动到 `C:\\ProgramData\\MOS-GOV\\backups`，再继续初始化，不直接删除残留数据。
 - 构建脚本使用经 SHA-256 校验的本地下载缓存，减少重复下载；产物文件名由安装脚本中的 `AppVersion` 自动生成。
 
+**依赖校验说明（2026-10-10）：** Apache Lounge 官方发布的 `httpd-2.4.69-261002-Win64-VS18.zip.txt` 公布 SHA-256 为 `ca272e0b75abad78b1e4029a0753b20ff2232d2d857e8eebeea5d469c5776977`。安装清单已同步该官方值，仍保留下载后的 SHA-256 强制校验。官方校验页：https://www.apachelounge.com/download/VS18/binaries/httpd-2.4.69-261002-Win64-VS18.zip.txt
+
 **CI 已验证的范围：** Windows runner 成功构建安装包，并执行静默全新安装；等待运行环境完成标记；检查桌面/开始菜单快捷方式、Apache 与 MariaDB 服务状态、ChurchCRM 登录页和 MOS-GOV 插件入口。
 
 **尚未覆盖的验收范围：** 14 套应用回归测试在隔离 ChurchCRM + MariaDB 环境重新执行、升级保留数据、新建教会/旧数据备份、真实数据与密钥目录 ACL 检查，以及正式发布记录。安装器冒烟测试通过不等于以上项目全部通过。
