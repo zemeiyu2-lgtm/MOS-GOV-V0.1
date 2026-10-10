@@ -76,8 +76,8 @@ final class GovernanceContext
         // 2. active identity roles joined to the role + appointment lifecycle
         $stmt = $conn->prepare(
             'SELECT ir.id AS identity_role_id, ir.appointment_id, ir.start_date AS ir_start, ir.end_date AS ir_end,
-                    r.id AS role_id, r.name AS role_name, r.role_code,
-                    a.status AS appointment_status, a.end_date AS appointment_end
+                    r.id AS role_id, r.name AS role_name, r.role_code, r.status AS role_status,
+                    a.status AS appointment_status, a.start_date AS appointment_start, a.end_date AS appointment_end
              FROM gov_identity_role ir
              JOIN gov_role r ON r.id = ir.role_id
              LEFT JOIN gov_appointment a ON a.id = ir.appointment_id
@@ -97,11 +97,20 @@ final class GovernanceContext
             $appointmentActive = true;
             if ($appointmentId !== null) {
                 $appointmentActive = ($row['appointment_status'] ?? '') === 'active';
+                if ($appointmentActive && !empty($row['appointment_start']) && $row['appointment_start'] > $today) {
+                    $appointmentActive = false;
+                }
                 if ($appointmentActive && !empty($row['appointment_end']) && $row['appointment_end'] < $today) {
                     $appointmentActive = false;
                 }
             }
-            // identity_role window
+            // Role status and identity-role appointment window both constrain authority.
+            if (($row['role_status'] ?? '') !== 'active') {
+                $appointmentActive = false;
+            }
+            if ($appointmentActive && !empty($row['ir_start']) && $row['ir_start'] > $today) {
+                $appointmentActive = false;
+            }
             if ($appointmentActive && !empty($row['ir_end']) && $row['ir_end'] < $today) {
                 $appointmentActive = false;
             }
@@ -127,11 +136,22 @@ final class GovernanceContext
         $scopeRows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
         $stmt = $conn->prepare(
-            'SELECT rs.scope_type, rs.scope_id FROM gov_role_scope rs
-             JOIN gov_identity_role ir ON ir.role_id = rs.role_id
-             WHERE ir.identity_id = :iid'
+            'SELECT DISTINCT rs.scope_type, rs.scope_id FROM gov_role_scope rs
+             JOIN gov_identity_role ir ON ir.role_id = rs.role_id AND ir.identity_id = :iid AND ir.status = :iractive
+             JOIN gov_role r ON r.id = ir.role_id AND r.status = :ractive
+             LEFT JOIN gov_appointment a ON a.id = ir.appointment_id
+             WHERE (ir.start_date IS NULL OR ir.start_date <= CURRENT_DATE())
+               AND (ir.end_date IS NULL OR ir.end_date >= CURRENT_DATE())
+               AND (ir.appointment_id IS NULL OR (
+                    a.id IS NOT NULL AND a.status = :aactive
+                    AND (a.start_date IS NULL OR a.start_date <= CURRENT_DATE())
+                    AND (a.end_date IS NULL OR a.end_date >= CURRENT_DATE())
+               ))'
         );
         $stmt->bindValue(':iid', $identityId, \PDO::PARAM_INT);
+        $stmt->bindValue(':iractive', 'active');
+        $stmt->bindValue(':ractive', 'active');
+        $stmt->bindValue(':aactive', 'active');
         $stmt->execute();
         foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $rs) {
             $scopeRows[] = [
