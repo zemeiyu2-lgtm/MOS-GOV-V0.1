@@ -1,4 +1,4 @@
-MOS-GOV CI failure diagnostics @ 2026-10-10T11:32:32.4570015Z
+MOS-GOV CI failure diagnostics @ 2026-10-10T11:50:12.2403781Z
 runner image: win25-vs2026 / Windows
 
 === Inno Setup log (tail 150) ===
