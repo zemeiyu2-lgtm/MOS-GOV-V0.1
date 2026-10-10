@@ -57,10 +57,19 @@ try {
 }
 
 section('3. STATUS after enable');
-echo 'isActive: ' . var_export(PluginManager::isPluginActive($pluginId), true) . PHP_EOL;
+$activeAfterEnable = PluginManager::isPluginActive($pluginId);
+echo 'isActive: ' . var_export($activeAfterEnable, true) . PHP_EOL;
+if (!$activeAfterEnable) {
+    $failures++;
+    echo 'ASSERTION FAILED: plugin is not active after enablePlugin.' . PHP_EOL;
+}
 echo 'quarantined: ' . var_export(PluginManager::isPluginQuarantined($pluginId), true) . PHP_EOL;
 $plugin = PluginManager::getPlugin($pluginId);
 echo 'instance loaded: ' . ($plugin !== null ? 'yes (' . get_class($plugin) . ')' : 'NO') . PHP_EOL;
+if ($plugin === null) {
+    $failures++;
+    echo 'ASSERTION FAILED: plugin instance was not loaded.' . PHP_EOL;
+}
 if ($plugin !== null) {
     // boot() is invoked by loadPlugin(); confirm the instance is functional.
     echo 'boot() already ran via loadPlugin; getId(): ' . $plugin->getId() . PHP_EOL;
@@ -75,6 +84,16 @@ try {
     PluginManager::registerPluginRoutes($app);
     $routes = $app->getRouteCollector()->getRoutes();
     echo 'routes registered by active plugins: ' . count($routes) . PHP_EOL;
+    $mosGovRoutes = array_values(array_filter(
+        $routes,
+        static fn ($route): bool => str_starts_with($route->getPattern(), '/mos-gov')
+    ));
+    if ($mosGovRoutes === []) {
+        $failures++;
+        echo 'ASSERTION FAILED: no MOS-GOV routes were registered.' . PHP_EOL;
+    } else {
+        echo 'MOS-GOV routes registered: ' . count($mosGovRoutes) . PHP_EOL;
+    }
     foreach ($routes as $route) {
         echo '  ' . implode('|', $route->getMethods()) . ' ' . $route->getPattern() . PHP_EOL;
     }
