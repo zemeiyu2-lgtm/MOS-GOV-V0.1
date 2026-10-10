@@ -81,22 +81,22 @@ function New-RandomPassword([int]$Length=32) {
 }
 
 function Protect-Directory([string]$Path) {
-    # ACL 强化必须“尽力而为”，不能成为安装的单点失败。
-    # 某些真实 Windows 环境/安全软件会让 icacls 对已有 ProgramData 目录返回非零；
-    # 这不应阻止平台安装。失败会明确记录 WARN，后续诊断可见。
+    # Fail closed: governance data and secrets must never be left with weak ACLs.
+    # A failed ACL operation is an installation failure, not a warning.
+    if (-not (Test-Path -LiteralPath $Path -PathType Container)) {
+        throw "Cannot secure missing directory: $Path"
+    }
     try {
         $aclOutput = @(& icacls.exe $Path /inheritance:r /grant:r "*S-1-5-18:(OI)(CI)(F)" "*S-1-5-32-544:(OI)(CI)(F)" 2>&1)
         $aclExit = $LASTEXITCODE
         foreach ($line in $aclOutput) { Write-BootstrapLog ("icacls: " + [string]$line) }
         if ($aclExit -ne 0) {
-            Write-BootstrapLog ("WARN: ACL hardening could not be applied to {0} (exit {1}); installation will continue." -f $Path,$aclExit)
-            return $false
+            throw ("icacls failed for {0} with exit code {1}." -f $Path,$aclExit)
         }
         Write-BootstrapLog "ACL protection applied: $Path"
-        return $true
     } catch {
-        Write-BootstrapLog ("WARN: ACL hardening exception for {0}: {1}; installation will continue." -f $Path, $_.Exception.Message)
-        return $false
+        Write-BootstrapLog ("FATAL: ACL protection failed for {0}: {1}" -f $Path, $_.Exception.Message)
+        throw
     }
 }
 function Invoke-MariaClient {
@@ -437,7 +437,11 @@ Ensure-Dir $ProgramDataRoot,$DataRoot,$ConfigRoot,$SecretRoot,$LogRoot
 Write-Utf8NoBom -Path (Join-Path $ConfigRoot "runtime-started.txt") -Content "$(Get-Date -Format o)"
 Write-BootstrapLog "ProgramData directories created."
 Protect-Directory $ProgramDataRoot
+Protect-Directory $DataRoot
+Protect-Directory $BackupRoot
+Protect-Directory $ConfigRoot
 Protect-Directory $SecretRoot
+Protect-Directory $LogRoot
 Write-InstallLog "MOS-GOV one-click installation starting."
 
 if (-not [Environment]::Is64BitOperatingSystem) { throw "MOS-GOV requires Windows x64." }
