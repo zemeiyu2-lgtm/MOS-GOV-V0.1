@@ -1,12 +1,12 @@
 **********************
 PowerShell transcript start
-Start time: 20261004094204
+Start time: 20261010135057
 Username: runnervmfi6oq\runneradmin
 RunAs User: runnervmfi6oq\runneradmin
 Configuration Name: 
 Machine: runnervmfi6oq (Microsoft Windows NT 10.0.26100.0)
-Host Application: C:\Program Files\PowerShell\7\pwsh.dll -command . 'D:\a\_temp\45ca6ca1-dc8f-41e8-9042-e5c44c2c66e7.ps1'
-Process ID: 6208
+Host Application: C:\Program Files\PowerShell\7\pwsh.dll -command . 'D:\a\_temp\94f741a5-c524-4904-98d5-efb32230e885.ps1'
+Process ID: 8544
 PSVersion: 7.6.6
 PSEdition: Core
 GitCommitId: 7.6.6
@@ -17,18 +17,27 @@ PSRemotingProtocolVersion: 2.4
 SerializationVersion: 1.1.0.1
 WSManStackVersion: 3.0
 **********************
-Starting installer: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\dist\MOS-GOV-V0.2.3-Setup.exe
-Installer launcher PID: 6180
+Starting installer: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\dist\MOS-GOV-V0.2.5-Setup.exe
+Installer launcher PID: 9484
 installer launcher exited: True
 installer launcher exit code: 0
 runtime install completed marker: True
-desktop lnk count: 0
-desktop lnk names: 
+desktop lnk count: 1
+desktop lnk names: C:\Users\runneradmin\Desktop\MOS 平台.lnk
 expected lnk name: MOS 平台
 apache service: Running
 maria service: Running
-SMOKE TEST FAILED: No MOS desktop shortcut was created (expected name 'MOS 平台').
+Desktop shortcut: C:\Users\runneradmin\Desktop\MOS 平台.lnk
+Shortcut references MOSLauncher.exe: True
+Shortcut references MOS.ico: True
+COM TargetPath (informational): ''
+COM IconLocation (informational): ',0'
+Start-menu group: C:\ProgramData\Microsoft\Windows\Start Menu\Programs\MOS 平台 (3 shortcuts)
+Detected HTTP port: 8080
+Real page check passed at http://127.0.0.1:8080/session/begin
+MOS-GOV plugin endpoint: HTTP 200
+Installer smoke test passed.
 **********************
 PowerShell transcript end
-End time: 20261004094305
+End time: 20261010135209
 **********************

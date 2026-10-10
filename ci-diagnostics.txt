@@ -1,98 +1,352 @@
-MOS-GOV CI failure diagnostics @ 2026-10-10T11:50:12.2403781Z
+MOS-GOV CI failure diagnostics @ 2026-10-10T13:52:11.6497499Z
 runner image: win25-vs2026 / Windows
 
 === Inno Setup log (tail 150) ===
-(missing)
+2026-10-10 13:51:31.421   Successfully installed the file.
+2026-10-10 13:51:31.421   -- File entry --
+2026-10-10 13:51:31.421   Dest filename: C:\Program Files\MOS-GOV\PHP\ext\php_xsl.dll
+2026-10-10 13:51:31.421   Time stamp of our file: 2026-08-25 18:44:34.000
+2026-10-10 13:51:31.421   Installing the file.
+2026-10-10 13:51:31.431   Successfully installed the file.
+2026-10-10 13:51:31.431   -- File entry --
+2026-10-10 13:51:31.431   Dest filename: C:\Program Files\MOS-GOV\PHP\ext\php_zend_test.dll
+2026-10-10 13:51:31.431   Time stamp of our file: 2026-08-25 18:44:34.000
+2026-10-10 13:51:31.431   Installing the file.
+2026-10-10 13:51:31.438   Successfully installed the file.
+2026-10-10 13:51:31.438   -- File entry --
+2026-10-10 13:51:31.438   Dest filename: C:\Program Files\MOS-GOV\PHP\ext\php_zip.dll
+2026-10-10 13:51:31.438   Time stamp of our file: 2026-08-25 18:44:34.000
+2026-10-10 13:51:31.438   Installing the file.
+2026-10-10 13:51:31.452   Successfully installed the file.
+2026-10-10 13:51:31.452   -- File entry --
+2026-10-10 13:51:31.452   Dest filename: C:\Program Files\MOS-GOV\PHP\extras\sbom\php.cdx.json
+2026-10-10 13:51:31.453   Time stamp of our file: 2026-08-25 18:45:10.000
+2026-10-10 13:51:31.453   Installing the file.
+2026-10-10 13:51:31.453   Creating directory: C:\Program Files\MOS-GOV\PHP\extras
+2026-10-10 13:51:31.453   Creating directory: C:\Program Files\MOS-GOV\PHP\extras\sbom
+2026-10-10 13:51:31.459   Successfully installed the file.
+2026-10-10 13:51:31.459   -- File entry --
+2026-10-10 13:51:31.459   Dest filename: C:\Program Files\MOS-GOV\PHP\extras\sbom\php.openvex.json
+2026-10-10 13:51:31.459   Time stamp of our file: 2026-08-25 18:45:10.000
+2026-10-10 13:51:31.459   Installing the file.
+2026-10-10 13:51:31.462   Successfully installed the file.
+2026-10-10 13:51:31.462   -- File entry --
+2026-10-10 13:51:31.462   Dest filename: C:\Program Files\MOS-GOV\PHP\extras\sbom\php.spdx.json
+2026-10-10 13:51:31.462   Time stamp of our file: 2026-08-25 18:45:10.000
+2026-10-10 13:51:31.462   Installing the file.
+2026-10-10 13:51:31.469   Successfully installed the file.
+2026-10-10 13:51:31.469   -- File entry --
+2026-10-10 13:51:31.469   Dest filename: C:\Program Files\MOS-GOV\PHP\extras\ssl\legacy.dll
+2026-10-10 13:51:31.469   Time stamp of our file: 2026-08-25 18:44:34.000
+2026-10-10 13:51:31.469   Installing the file.
+2026-10-10 13:51:31.469   Creating directory: C:\Program Files\MOS-GOV\PHP\extras\ssl
+2026-10-10 13:51:31.473   Successfully installed the file.
+2026-10-10 13:51:31.473   -- File entry --
+2026-10-10 13:51:31.473   Dest filename: C:\Program Files\MOS-GOV\PHP\extras\ssl\openssl.cnf
+2026-10-10 13:51:31.473   Time stamp of our file: 2026-08-25 18:45:00.000
+2026-10-10 13:51:31.473   Installing the file.
+2026-10-10 13:51:31.475   Successfully installed the file.
+2026-10-10 13:51:31.475   -- File entry --
+2026-10-10 13:51:31.475   Dest filename: C:\Program Files\MOS-GOV\PHP\lib\enchant\libenchant2_hunspell.dll
+2026-10-10 13:51:31.475   Time stamp of our file: 2026-08-25 18:44:34.000
+2026-10-10 13:51:31.475   Installing the file.
+2026-10-10 13:51:31.475   Creating directory: C:\Program Files\MOS-GOV\PHP\lib
+2026-10-10 13:51:31.475   Creating directory: C:\Program Files\MOS-GOV\PHP\lib\enchant
+2026-10-10 13:51:31.500   Successfully installed the file.
+2026-10-10 13:51:31.500   -- File entry --
+2026-10-10 13:51:31.500   Dest filename: C:\Program Files\MOS-GOV\prereqs\vc_redist.x64.exe
+2026-10-10 13:51:31.500   Time stamp of our file: 2026-10-10 13:48:30.000
+2026-10-10 13:51:31.500   Installing the file.
+2026-10-10 13:51:31.500   Creating directory: C:\Program Files\MOS-GOV\prereqs
+2026-10-10 13:51:31.835   Successfully installed the file.
+2026-10-10 13:51:31.835   -- File entry --
+2026-10-10 13:51:31.837   Dest filename: C:\Program Files\MOS-GOV\runtime\enable-mosgov.php
+2026-10-10 13:51:31.837   Time stamp of our file: 2026-10-10 13:48:12.000
+2026-10-10 13:51:31.837   Installing the file.
+2026-10-10 13:51:31.837   Creating directory: C:\Program Files\MOS-GOV\runtime
+2026-10-10 13:51:31.837   Successfully installed the file.
+2026-10-10 13:51:31.837   -- File entry --
+2026-10-10 13:51:31.839   Dest filename: C:\Program Files\MOS-GOV\runtime\install-runtime.cmd
+2026-10-10 13:51:31.839   Time stamp of our file: 2026-10-10 13:48:12.000
+2026-10-10 13:51:31.839   Installing the file.
+2026-10-10 13:51:31.839   Successfully installed the file.
+2026-10-10 13:51:31.839   -- File entry --
+2026-10-10 13:51:31.839   Dest filename: C:\Program Files\MOS-GOV\runtime\install-runtime.ps1
+2026-10-10 13:51:31.839   Time stamp of our file: 2026-10-10 13:48:12.000
+2026-10-10 13:51:31.839   Installing the file.
+2026-10-10 13:51:31.845   Successfully installed the file.
+2026-10-10 13:51:31.845   -- File entry --
+2026-10-10 13:51:31.845   Dest filename: C:\Program Files\MOS-GOV\runtime\MOS-Diagnose.cmd
+2026-10-10 13:51:31.845   Time stamp of our file: 2026-10-10 13:48:12.000
+2026-10-10 13:51:31.845   Installing the file.
+2026-10-10 13:51:31.847   Successfully installed the file.
+2026-10-10 13:51:31.847   -- File entry --
+2026-10-10 13:51:31.847   Dest filename: C:\Program Files\MOS-GOV\runtime\MOS-Diagnose.ps1
+2026-10-10 13:51:31.847   Time stamp of our file: 2026-10-10 13:48:12.000
+2026-10-10 13:51:31.847   Installing the file.
+2026-10-10 13:51:31.849   Successfully installed the file.
+2026-10-10 13:51:31.849   -- File entry --
+2026-10-10 13:51:31.849   Dest filename: C:\Program Files\MOS-GOV\runtime\MOS.ico
+2026-10-10 13:51:31.849   Time stamp of our file: 2026-10-10 13:48:12.000
+2026-10-10 13:51:31.849   Installing the file.
+2026-10-10 13:51:31.855   Successfully installed the file.
+2026-10-10 13:51:31.855   -- File entry --
+2026-10-10 13:51:31.855   Dest filename: C:\Program Files\MOS-GOV\runtime\MOSLauncher.exe
+2026-10-10 13:51:31.855   Time stamp of our file: 2026-10-10 13:48:12.000
+2026-10-10 13:51:31.855   Installing the file.
+2026-10-10 13:51:32.064   Successfully installed the file.
+2026-10-10 13:51:32.064   -- File entry --
+2026-10-10 13:51:32.064   Dest filename: C:\Program Files\MOS-GOV\runtime\MOSLauncher.ps1
+2026-10-10 13:51:32.065   Time stamp of our file: 2026-10-10 13:48:12.000
+2026-10-10 13:51:32.065   Installing the file.
+2026-10-10 13:51:32.066   Successfully installed the file.
+2026-10-10 13:51:32.066   -- File entry --
+2026-10-10 13:51:32.066   Dest filename: C:\Program Files\MOS-GOV\runtime\MOSLauncher.vbs
+2026-10-10 13:51:32.066   Time stamp of our file: 2026-10-10 13:48:12.000
+2026-10-10 13:51:32.066   Installing the file.
+2026-10-10 13:51:32.067   Successfully installed the file.
+2026-10-10 13:51:32.068   -- File entry --
+2026-10-10 13:51:32.068   Dest filename: C:\Program Files\MOS-GOV\runtime\reset-church.cmd
+2026-10-10 13:51:32.068   Time stamp of our file: 2026-10-10 13:48:12.000
+2026-10-10 13:51:32.068   Installing the file.
+2026-10-10 13:51:32.068   Successfully installed the file.
+2026-10-10 13:51:32.068   -- File entry --
+2026-10-10 13:51:32.068   Dest filename: C:\Program Files\MOS-GOV\runtime\reset-church.ps1
+2026-10-10 13:51:32.068   Time stamp of our file: 2026-10-10 13:48:12.000
+2026-10-10 13:51:32.068   Installing the file.
+2026-10-10 13:51:32.070   Successfully installed the file.
+2026-10-10 13:51:32.070   -- File entry --
+2026-10-10 13:51:32.070   Dest filename: C:\Program Files\MOS-GOV\runtime\uninstall-runtime.cmd
+2026-10-10 13:51:32.070   Time stamp of our file: 2026-10-10 13:48:12.000
+2026-10-10 13:51:32.070   Installing the file.
+2026-10-10 13:51:32.070   Successfully installed the file.
+2026-10-10 13:51:32.071   -- File entry --
+2026-10-10 13:51:32.071   Dest filename: C:\Program Files\MOS-GOV\runtime\uninstall-runtime.ps1
+2026-10-10 13:51:32.071   Time stamp of our file: 2026-10-10 13:48:12.000
+2026-10-10 13:51:32.071   Installing the file.
+2026-10-10 13:51:32.071   Successfully installed the file.
+2026-10-10 13:51:32.071   -- Icon entry --
+2026-10-10 13:51:32.073   Dest filename: C:\ProgramData\Microsoft\Windows\Start Menu\Programs\MOS 平台\MOS 平台.lnk
+2026-10-10 13:51:32.073   Creating directory: C:\ProgramData\Microsoft\Windows\Start Menu\Programs\MOS 平台
+2026-10-10 13:51:32.101   Creating the icon.
+2026-10-10 13:51:32.672   Successfully created the icon.
+2026-10-10 13:51:32.676   -- Icon entry --
+2026-10-10 13:51:32.676   Dest filename: C:\ProgramData\Microsoft\Windows\Start Menu\Programs\MOS 平台\MOS 诊断.lnk
+2026-10-10 13:51:32.684   Creating the icon.
+2026-10-10 13:51:32.687   Successfully created the icon.
+2026-10-10 13:51:32.692   -- Icon entry --
+2026-10-10 13:51:32.692   Dest filename: C:\ProgramData\Microsoft\Windows\Start Menu\Programs\MOS 平台\新建教会（清除旧数据）.lnk
+2026-10-10 13:51:32.698   Creating the icon.
+2026-10-10 13:51:32.703   Successfully created the icon.
+2026-10-10 13:51:32.707   Saving uninstall information.
+2026-10-10 13:51:32.707   Creating new uninstall key: HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Uninstall\{5F78C9D9-08D7-43A6-9C69-2D1D0BAF2F65}_is1
+2026-10-10 13:51:32.707   Writing uninstall key values.
+2026-10-10 13:51:32.707   Detected previous non administrative install? No
+2026-10-10 13:51:32.707   Detected previous administrative 32-bit install? No
+2026-10-10 13:51:32.755   Installation process succeeded.
+2026-10-10 13:51:32.755   MOS-GOV runtime bootstrap starting: C:\Program Files\MOS-GOV\runtime\install-runtime.cmd
+2026-10-10 13:51:32.755   ResetExistingData=0
+2026-10-10 13:52:05.832   Runtime bootstrap exit code=0
+2026-10-10 13:52:05.832   Creating per-user desktop shortcut: C:\Users\runneradmin\Desktop\MOS 平台.lnk
+2026-10-10 13:52:05.840   Desktop shortcut created: C:\Users\runneradmin\Desktop\MOS 平台.lnk
+2026-10-10 13:52:05.840   Need to restart Windows? No
+2026-10-10 13:52:05.842   Deinitializing Setup.
+2026-10-10 13:52:05.852   Log closed.
 
 === build.ps1 output (tail 80) ===
-Downloading ChurchCRM-7.7.0.zip (attempt 1/3)
-Downloading php-8.4.25-Win32-vs17-x64.zip (attempt 1/3)
-Downloading httpd-2.4.69-Win64-VS18.zip (attempt 1/3)
-WARNING: SHA256 mismatch for httpd-2.4.69-Win64-VS18.zip. Expected 
-9b47a2363a71fef6209c88e79743db81311e1753c4564e007141934123132c10, got 
-ca272e0b75abad78b1e4029a0753b20ff2232d2d857e8eebeea5d469c5776977.
-Downloading httpd-2.4.69-Win64-VS18.zip (attempt 2/3)
-WARNING: SHA256 mismatch for httpd-2.4.69-Win64-VS18.zip. Expected 
-9b47a2363a71fef6209c88e79743db81311e1753c4564e007141934123132c10, got 
-ca272e0b75abad78b1e4029a0753b20ff2232d2d857e8eebeea5d469c5776977.
-Downloading httpd-2.4.69-Win64-VS18.zip (attempt 3/3)
-WARNING: SHA256 mismatch for httpd-2.4.69-Win64-VS18.zip. Expected 
-9b47a2363a71fef6209c88e79743db81311e1753c4564e007141934123132c10, got 
-ca272e0b75abad78b1e4029a0753b20ff2232d2d857e8eebeea5d469c5776977.
-Unable to obtain a verified copy of httpd-2.4.69-Win64-VS18.zip after 3 attempts.
-At D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer\build.ps1:111 char:5
-+     throw "Unable to obtain a verified copy of $Name after 3 attempts ...
-+     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : OperationStopped: (Unable to obtai...ter 3 attempts.:String) [], RuntimeException
-    + FullyQualifiedErrorId : Unable to obtain a verified copy of httpd-2.4.69-Win64-VS18.zip after 3 attempts.
- 
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\php-win.exe
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\php.exe
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\php.ini-development
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\php.ini-production
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\php8apache2_4.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\php8embed.lib
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\php8phpdbg.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\php8ts.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\phpdbg.exe
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\readme-redist-bins.txt
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\README.md
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\snapshot.txt
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\dev\php8ts.lib
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_bz2.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_com_dotnet.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_curl.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_dba.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_dl_test.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_enchant.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_exif.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_ffi.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_fileinfo.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_ftp.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_gd.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_gettext.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_gmp.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_intl.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_ldap.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_mbstring.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_mysqli.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_odbc.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_opcache.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_openssl.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_pdo_firebird.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_pdo_mysql.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_pdo_odbc.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_pdo_pgsql.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_pdo_sqlite.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_pgsql.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_shmop.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_snmp.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_soap.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_sockets.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_sodium.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_sqlite3.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_sysvshm.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_tidy.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_xsl.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_zend_test.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\ext\php_zip.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\extras\sbom\php.cdx.json
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\extras\sbom\php.openvex.json
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\extras\sbom\php.spdx.json
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\extras\ssl\legacy.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\extras\ssl\openssl.cnf
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\lib\enchant\libenchant2_hunspell.dll
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\prereqs\vc_redist.x64.exe
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\runtime\enable-mosgov.php
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\runtime\install-runtime.cmd
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\runtime\install-runtime.ps1
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\runtime\MOS-Diagnose.cmd
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\runtime\MOS-Diagnose.ps1
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\runtime\MOS.ico
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\runtime\MOSLauncher.exe
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\runtime\MOSLauncher.ps1
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\runtime\MOSLauncher.vbs
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\runtime\reset-church.cmd
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\runtime\reset-church.ps1
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\runtime\uninstall-runtime.cmd
+   Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\runtime\uninstall-runtime.ps1
+   Compressing Setup program executable
+   Updating version info (Setup.exe)
+   Updating manifest (Setup.exe)
+
+Warning: The [Setup] section directive "PrivilegesRequired" is set to "admin" but per-user areas (userdesktop) are used by the script. Regardless of the version of Windows, if the installation is running in administrative install mode then you should be careful about making any per-user area changes: such changes may not achieve what you are intending. See the "UsedUserAreasWarning" topic in help file for more information.
+
+Successful compile (134.234 sec). Resulting Setup program filename is:
+D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\dist\MOS-GOV-V0.2.5-Setup.exe
+Created: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\dist\MOS-GOV-V0.2.5-Setup.exe
+SHA256: E7FF021E525415248A9FA62CE8FB964656E7ED73BD966504F2564BF34BD543AB
 
 === runtime installer.log (tail 120) ===
-(missing)
+2026-10-10T13:51:33 MOS-GOV one-click installation starting.
+2026-10-10T13:51:34 Using HTTP port 8080 and MariaDB port 3307. ResetData=False UpgradeMode=False
+2026-10-10T13:51:34 Starting Microsoft VC++ Redistributable installation.
+2026-10-10T13:51:36 Microsoft VC++ Redistributable exit code: 0.
+2026-10-10T13:51:36 Configuring PHP.
+2026-10-10T13:51:36 PHP configuration completed.
+2026-10-10T13:51:36 PHP BCMath support verified.
+2026-10-10T13:51:36 Installing MariaDB.
+2026-10-10T13:52:00 MariaDB service installation completed.
+2026-10-10T13:52:00 Waiting for MariaDB.
+2026-10-10T13:52:00 MariaDB is ready.
+2026-10-10T13:52:00 churchcrm database is missing; a fresh schema import will be performed.
+2026-10-10T13:52:00 Configuring ChurchCRM.
+2026-10-10T13:52:00 ChurchCRM configuration completed.
+2026-10-10T13:52:00 Configuring Apache.
+2026-10-10T13:52:00 Validating Apache configuration.
+2026-10-10T13:52:00 Apache httpd -t: Syntax OK
+2026-10-10T13:52:00 Apache configuration is valid.
+2026-10-10T13:52:02 Apache service installation completed.
+2026-10-10T13:52:02 Importing official ChurchCRM schema and seed data.
+2026-10-10T13:52:04 Official ChurchCRM schema import completed.
+2026-10-10T13:52:04 Waiting for ChurchCRM HTTP endpoint.
+2026-10-10T13:52:04 ChurchCRM HTTP endpoint is reachable.
+2026-10-10T13:52:04 Importing MOS-GOV plugin database schema.
+2026-10-10T13:52:05 MOS-GOV plugin database schema import completed.
+2026-10-10T13:52:05 MOS-GOV installation completed.
+
+=== PHP regression suite (tail 250) ===
+CI test-user helper failed: Refusing to reuse existing user mosgov_ci_readonly.
 
 === smoke-test install snapshot ===
 installer launcher exited: True
 installer launcher exit code: 0
 runtime install completed marker: True
-desktop lnk count: 0
-desktop lnk names: 
+desktop lnk count: 1
+desktop lnk names: C:\Users\runneradmin\Desktop\MOS 平台.lnk
 expected lnk name: MOS 平台
 apache service: Running
 maria service: Running
 
 === collected runtime installer.log (tail 150) ===
-2026-10-04T09:42:35 MOS-GOV one-click installation starting.
-2026-10-04T09:42:36 Using HTTP port 8080 and MariaDB port 3307. ResetData=False UpgradeMode=False
-2026-10-04T09:42:36 Starting Microsoft VC++ Redistributable installation.
-2026-10-04T09:42:38 Microsoft VC++ Redistributable exit code: 0.
-2026-10-04T09:42:38 Configuring PHP.
-2026-10-04T09:42:38 PHP configuration completed.
-2026-10-04T09:42:38 PHP BCMath support verified.
-2026-10-04T09:42:38 Installing MariaDB.
-2026-10-04T09:43:00 MariaDB service installation completed.
-2026-10-04T09:43:00 Waiting for MariaDB.
-2026-10-04T09:43:01 MariaDB is ready.
-2026-10-04T09:43:01 churchcrm database is missing; a fresh schema import will be performed.
-2026-10-04T09:43:01 Configuring ChurchCRM.
-2026-10-04T09:43:01 ChurchCRM configuration completed.
-2026-10-04T09:43:01 Configuring Apache.
-2026-10-04T09:43:01 Validating Apache configuration.
-2026-10-04T09:43:01 Apache httpd -t: Syntax OK
-2026-10-04T09:43:01 Apache configuration is valid.
-2026-10-04T09:43:02 Apache service installation completed.
-2026-10-04T09:43:02 Importing official ChurchCRM schema and seed data.
-2026-10-04T09:43:04 Official ChurchCRM schema import completed.
-2026-10-04T09:43:04 Waiting for ChurchCRM HTTP endpoint.
-2026-10-04T09:43:04 ChurchCRM HTTP endpoint is reachable.
-2026-10-04T09:43:04 Importing MOS-GOV plugin database schema.
-2026-10-04T09:43:05 MOS-GOV plugin database schema import completed.
-2026-10-04T09:43:05 MOS-GOV installation completed.
+2026-10-10T13:51:33 MOS-GOV one-click installation starting.
+2026-10-10T13:51:34 Using HTTP port 8080 and MariaDB port 3307. ResetData=False UpgradeMode=False
+2026-10-10T13:51:34 Starting Microsoft VC++ Redistributable installation.
+2026-10-10T13:51:36 Microsoft VC++ Redistributable exit code: 0.
+2026-10-10T13:51:36 Configuring PHP.
+2026-10-10T13:51:36 PHP configuration completed.
+2026-10-10T13:51:36 PHP BCMath support verified.
+2026-10-10T13:51:36 Installing MariaDB.
+2026-10-10T13:52:00 MariaDB service installation completed.
+2026-10-10T13:52:00 Waiting for MariaDB.
+2026-10-10T13:52:00 MariaDB is ready.
+2026-10-10T13:52:00 churchcrm database is missing; a fresh schema import will be performed.
+2026-10-10T13:52:00 Configuring ChurchCRM.
+2026-10-10T13:52:00 ChurchCRM configuration completed.
+2026-10-10T13:52:00 Configuring Apache.
+2026-10-10T13:52:00 Validating Apache configuration.
+2026-10-10T13:52:00 Apache httpd -t: Syntax OK
+2026-10-10T13:52:00 Apache configuration is valid.
+2026-10-10T13:52:02 Apache service installation completed.
+2026-10-10T13:52:02 Importing official ChurchCRM schema and seed data.
+2026-10-10T13:52:04 Official ChurchCRM schema import completed.
+2026-10-10T13:52:04 Waiting for ChurchCRM HTTP endpoint.
+2026-10-10T13:52:04 ChurchCRM HTTP endpoint is reachable.
+2026-10-10T13:52:04 Importing MOS-GOV plugin database schema.
+2026-10-10T13:52:05 MOS-GOV plugin database schema import completed.
+2026-10-10T13:52:05 MOS-GOV installation completed.
 
 === services ===
+
+Status  Name            DisplayName
+------  ----            -----------
+Running MOS-GOV-Apache  MOS-GOV-Apache
+Running MOS-GOV-MariaDB MOS-GOV-MariaDB
+
 
 === listening ports (80/8080/8081/3306/3307) ===
 
 LocalAddress LocalPort RemoteAddress RemotePort State  AppliedSetting OwningProcess
 ------------ --------- ------------- ---------- -----  -------------- -------------
 ::           80        ::            0          Listen                4
+127.0.0.1    8080      0.0.0.0       0          Listen                2320
+127.0.0.1    3307      0.0.0.0       0          Listen                3520
 
 
 === dist ===
 
+Name                                    Length
+----                                    ------
+MOS-GOV-V0.2.5-Setup.exe             116269338
+MOS-GOV-V0.2.5-Setup.exe.sha256.json       262
+
+
 === httpd.conf Listen ===
-(missing)
+Listen 127.0.0.1:8080
 === apache error log (tail 60) ===
-(missing)
+[Sat Oct 10 13:52:01.708075 2026] [mpm_winnt:notice] [pid 2320:tid 424] AH00455: Apache/2.4.69 (Win64) PHP/8.4.25 configured -- resuming normal operations
+[Sat Oct 10 13:52:01.708075 2026] [mpm_winnt:notice] [pid 2320:tid 424] AH00456: Apache Lounge VS18 Server built: Oct  1 2026 09:34:06
+[Sat Oct 10 13:52:01.708075 2026] [core:notice] [pid 2320:tid 424] AH00094: Command line: 'C:\\Program Files\\MOS-GOV\\Apache24\\bin\\httpd.exe -d C:/Program Files/MOS-GOV/Apache24 -f C:\\Program Files\\MOS-GOV\\Apache24\\conf\\httpd.conf'
+[Sat Oct 10 13:52:01.710087 2026] [mpm_winnt:notice] [pid 2320:tid 424] AH00418: Parent: Created child process 3416
+[Sat Oct 10 13:52:02.023512 2026] [mpm_winnt:notice] [pid 3416:tid 492] AH00354: Child: Starting 64 worker threads.
 === smoke test transcript (tail 120) ===
 **********************
 PowerShell transcript start
-Start time: 20261004094204
+Start time: 20261010135057
 Username: runnervmfi6oq\runneradmin
 RunAs User: runnervmfi6oq\runneradmin
 Configuration Name: 
 Machine: runnervmfi6oq (Microsoft Windows NT 10.0.26100.0)
-Host Application: C:\Program Files\PowerShell\7\pwsh.dll -command . 'D:\a\_temp\45ca6ca1-dc8f-41e8-9042-e5c44c2c66e7.ps1'
-Process ID: 6208
+Host Application: C:\Program Files\PowerShell\7\pwsh.dll -command . 'D:\a\_temp\94f741a5-c524-4904-98d5-efb32230e885.ps1'
+Process ID: 8544
 PSVersion: 7.6.6
 PSEdition: Core
 GitCommitId: 7.6.6
@@ -103,20 +357,29 @@ PSRemotingProtocolVersion: 2.4
 SerializationVersion: 1.1.0.1
 WSManStackVersion: 3.0
 **********************
-Starting installer: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\dist\MOS-GOV-V0.2.3-Setup.exe
-Installer launcher PID: 6180
+Starting installer: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\dist\MOS-GOV-V0.2.5-Setup.exe
+Installer launcher PID: 9484
 installer launcher exited: True
 installer launcher exit code: 0
 runtime install completed marker: True
-desktop lnk count: 0
-desktop lnk names: 
+desktop lnk count: 1
+desktop lnk names: C:\Users\runneradmin\Desktop\MOS 平台.lnk
 expected lnk name: MOS 平台
 apache service: Running
 maria service: Running
-SMOKE TEST FAILED: No MOS desktop shortcut was created (expected name 'MOS 平台').
+Desktop shortcut: C:\Users\runneradmin\Desktop\MOS 平台.lnk
+Shortcut references MOSLauncher.exe: True
+Shortcut references MOS.ico: True
+COM TargetPath (informational): ''
+COM IconLocation (informational): ',0'
+Start-menu group: C:\ProgramData\Microsoft\Windows\Start Menu\Programs\MOS 平台 (3 shortcuts)
+Detected HTTP port: 8080
+Real page check passed at http://127.0.0.1:8080/session/begin
+MOS-GOV plugin endpoint: HTTP 200
+Installer smoke test passed.
 **********************
 PowerShell transcript end
-End time: 20261004094305
+End time: 20261010135209
 **********************
 
 === desktop shortcuts actually present ===
@@ -138,6 +401,7 @@ ImageMagick 7.1.2 Q16-HDRI (64-bit)
 Inno Setup 6
 LLVM
 Maintenance
+MOS 平台
 MySQL
 Node.js
 OpenSSL
@@ -160,6 +424,6 @@ Windows Kits
 Windows PowerShell
 WiX Toolset v3.14
 === generated build script: shortcut lines (ISCC input) ===
-(missing: build script was not generated)
+AppName=MOS 平台
 === launcher log (tail 40) ===
 (missing)

@@ -1,8 +1,8 @@
 installer launcher exited: True
 installer launcher exit code: 0
 runtime install completed marker: True
-desktop lnk count: 0
-desktop lnk names: 
+desktop lnk count: 1
+desktop lnk names: C:\Users\runneradmin\Desktop\MOS 平台.lnk
 expected lnk name: MOS 平台
 apache service: Running
 maria service: Running
