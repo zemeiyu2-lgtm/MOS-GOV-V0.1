@@ -34,21 +34,9 @@ $mode = $argv[1] ?? '';
 $statePath = getenv('MOSGOV_CI_STATE_FILE')
     ?: sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'mosgov-ci-test-users-state.json';
 
-$accounts = [
-    [
-        'username' => 'mosgov_ci_readonly',
-        'first' => 'MOS-GOV CI',
-        'last' => 'ReadOnly',
-        'email' => 'mosgov-ci-readonly@example.invalid',
-        'edit_records' => 0,
-    ],
-    [
-        'username' => 'mosgov_ci_editor',
-        'first' => 'MOS-GOV CI',
-        'last' => 'Editor',
-        'email' => 'mosgov-ci-editor@example.invalid',
-        'edit_records' => 1,
-    ],
+$accountTemplates = [
+    ['username_prefix' => 'mosgov_ci_readonly_', 'last_prefix' => 'ReadOnly-', 'email_prefix' => 'mosgov-ci-readonly-', 'edit_records' => 0],
+    ['username_prefix' => 'mosgov_ci_editor_', 'last_prefix' => 'Editor-', 'email_prefix' => 'mosgov-ci-editor-', 'edit_records' => 1],
 ];
 
 $fail = static function (string $message): never {
@@ -60,6 +48,18 @@ try {
     if ($mode === 'prepare') {
         if (is_file($statePath)) {
             throw new \RuntimeException('CI state file already exists; run cleanup before preparing another test run.');
+        }
+
+        $runTag = bin2hex(random_bytes(8));
+        $accounts = [];
+        foreach ($accountTemplates as $template) {
+            $accounts[] = [
+                'username' => $template['username_prefix'] . $runTag,
+                'first' => 'MOS-GOV CI',
+                'last' => $template['last_prefix'] . $runTag,
+                'email' => $template['email_prefix'] . $runTag . '@example.invalid',
+                'edit_records' => $template['edit_records'],
+            ];
         }
 
         $conn->beginTransaction();
@@ -92,6 +92,7 @@ try {
             'admin_person_id' => (int) $admin['usr_per_ID'],
             'admin_original_api_key' => $originalAdminKey,
             'admin_temporary_api_key' => $temporaryAdminKey,
+            'accounts' => $accounts,
         ];
         if (file_put_contents($statePath, json_encode($state, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR), LOCK_EX) === false) {
             throw new \RuntimeException('Could not write CI state file.');
@@ -154,8 +155,17 @@ try {
         $state = json_decode((string) file_get_contents($statePath), true, 512, JSON_THROW_ON_ERROR);
         if (!is_array($state) || empty($state['admin_person_id'])
             || !array_key_exists('admin_original_api_key', $state)
-            || !array_key_exists('admin_temporary_api_key', $state)) {
+            || !array_key_exists('admin_temporary_api_key', $state)
+            || !isset($state['accounts']) || !is_array($state['accounts']) || count($state['accounts']) !== 2) {
             throw new \RuntimeException('CI state file is invalid.');
+        }
+        $accounts = $state['accounts'];
+        foreach ($accounts as $account) {
+            foreach (['username', 'first', 'last', 'email', 'edit_records'] as $requiredKey) {
+                if (!array_key_exists($requiredKey, $account)) {
+                    throw new \RuntimeException('CI state file contains an invalid account entry.');
+                }
+            }
         }
 
         $conn->beginTransaction();
