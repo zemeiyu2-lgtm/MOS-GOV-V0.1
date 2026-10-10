@@ -80,18 +80,18 @@ $scopes = $ctx->scopes();
 $mosGovCheck('context carries group 12 scope', in_array(12, array_map(static fn ($s) => $s['scope_id'], $scopes), true), json_encode($scopes));
 
 // A future-dated identity scope must not become effective early.
-$conn = Propel\\Runtime\\Propel::getConnection();
+$conn = Propel\Runtime\\Propel::getConnection();
 $futureStart = date('Y-m-d', strtotime('+1 day'));
 $stmt = $conn->prepare('UPDATE gov_identity_scope SET start_date = :start WHERE id = :id');
-$stmt->bindValue(':start', $futureStart, \\PDO::PARAM_STR);
-$stmt->bindValue(':id', $assignId, \\PDO::PARAM_INT);
+$stmt->bindValue(':start', $futureStart, \PDO::PARAM_STR);
+$stmt->bindValue(':id', $assignId, \PDO::PARAM_INT);
 $stmt->execute();
 GovAuthorization::reset();
 $futureCtx = GovernanceContext::forUser($member);
 $futureScopeIds = array_map(static fn ($s) => $s['scope_id'], $futureCtx->scopes());
 $mosGovCheck('future-dated identity scope has no authority yet', !in_array(12, $futureScopeIds, true), json_encode($futureCtx->scopes()));
 $stmt = $conn->prepare('UPDATE gov_identity_scope SET start_date = NULL WHERE id = :id');
-$stmt->bindValue(':id', $assignId, \\PDO::PARAM_INT);
+$stmt->bindValue(':id', $assignId, \PDO::PARAM_INT);
 $stmt->execute();
 GovAuthorization::reset();
 
