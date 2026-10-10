@@ -52,29 +52,43 @@ try {
 
         $ciRunId = preg_replace('/[^A-Za-z0-9]/', '', (string) (getenv('GITHUB_RUN_ID') ?: 'local'));
         $ciAttempt = preg_replace('/[^A-Za-z0-9]/', '', (string) (getenv('GITHUB_RUN_ATTEMPT') ?: '1'));
-        $runTag = $ciRunId . '_' . $ciAttempt . '_' . bin2hex(random_bytes(4));
+
+        // Allocate a fresh, collision-checked tag. A stale account from an
+        // interrupted runner must cause a retry, never account reuse/deletion.
+        $findUser = $conn->prepare('SELECT usr_per_ID FROM user_usr WHERE usr_UserName = :username LIMIT 1');
         $accounts = [];
-        foreach ($accountTemplates as $template) {
-            $accounts[] = [
-                'username' => $template['username_prefix'] . $runTag,
-                'first' => 'MOS-GOV CI',
-                'last' => $template['last_prefix'] . $runTag,
-                'email' => $template['email_prefix'] . $runTag . '@example.invalid',
-                'edit_records' => $template['edit_records'],
-            ];
+        $collision = true;
+        for ($tagAttempt = 0; $tagAttempt < 10; $tagAttempt++) {
+            $runTag = $ciRunId . '_' . $ciAttempt . '_' . bin2hex(random_bytes(8));
+            $accounts = [];
+            foreach ($accountTemplates as $template) {
+                $accounts[] = [
+                    'username' => $template['username_prefix'] . $runTag,
+                    'first' => 'MOS-GOV CI',
+                    'last' => $template['last_prefix'] . $runTag,
+                    'email' => $template['email_prefix'] . $runTag . '@example.invalid',
+                    'edit_records' => $template['edit_records'],
+                ];
+            }
+
+            $collision = false;
+            foreach ($accounts as $account) {
+                $findUser->bindValue(':username', $account['username'], \\PDO::PARAM_STR);
+                $findUser->execute();
+                if ($findUser->fetchColumn() !== false) {
+                    $collision = true;
+                    break;
+                }
+            }
+            if (!$collision) {
+                break;
+            }
+        }
+        if ($collision) {
+            throw new \\RuntimeException('Could not allocate unique disposable CI usernames after 10 attempts; no existing account was changed.');
         }
 
         $conn->beginTransaction();
-
-        // Refuse collisions rather than ever repurposing a pre-existing account.
-        $findUser = $conn->prepare('SELECT usr_per_ID FROM user_usr WHERE usr_UserName = :username LIMIT 1');
-        foreach ($accounts as $account) {
-            $findUser->bindValue(':username', $account['username'], \PDO::PARAM_STR);
-            $findUser->execute();
-            if ($findUser->fetchColumn() !== false) {
-                throw new \RuntimeException('Refusing to reuse existing user ' . $account['username'] . '.');
-            }
-        }
 
         $admin = $conn->query(
             'SELECT usr_per_ID, usr_apiKey FROM user_usr WHERE usr_Admin = 1 ORDER BY usr_per_ID ASC LIMIT 1'
