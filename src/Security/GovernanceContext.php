@@ -135,34 +135,10 @@ final class GovernanceContext
         $stmt->execute();
         $scopeRows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
-        $stmt = $conn->prepare(
-            'SELECT DISTINCT rs.scope_type, rs.scope_id FROM gov_role_scope rs
-             JOIN gov_identity_role ir ON ir.role_id = rs.role_id AND ir.identity_id = :iid AND ir.status = :iractive
-             JOIN gov_role r ON r.id = ir.role_id AND r.status = :ractive
-             LEFT JOIN gov_appointment a ON a.id = ir.appointment_id
-             WHERE (ir.start_date IS NULL OR ir.start_date <= CURRENT_DATE())
-               AND (ir.end_date IS NULL OR ir.end_date >= CURRENT_DATE())
-               AND (ir.appointment_id IS NULL OR (
-                    a.id IS NOT NULL AND a.status = :aactive
-                    AND (a.start_date IS NULL OR a.start_date <= CURRENT_DATE())
-                    AND (a.end_date IS NULL OR a.end_date >= CURRENT_DATE())
-               ))'
-        );
-        $stmt->bindValue(':iid', $identityId, \PDO::PARAM_INT);
-        $stmt->bindValue(':iractive', 'active');
-        $stmt->bindValue(':ractive', 'active');
-        $stmt->bindValue(':aactive', 'active');
-        $stmt->execute();
-        foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $rs) {
-            $scopeRows[] = [
-                'identity_id' => $identityId,
-                'scope_type' => $rs['scope_type'],
-                'scope_id' => $rs['scope_id'],
-                'source_type' => 'inherited',
-                'status' => 'active',
-                'end_date' => null,
-            ];
-        }
+        // gov_role_scope is a role's theoretical scope template, not a concrete
+        // grant to every person holding that role. Concrete per-person scope is
+        // sourced from gov_identity_scope (and constrained by active authority).
+        // Do not widen access by promoting template rows into effective scopes.
 
         $scopes = [];
         foreach ($scopeRows as $s) {
