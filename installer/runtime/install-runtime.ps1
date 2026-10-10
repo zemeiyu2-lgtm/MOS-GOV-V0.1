@@ -87,11 +87,17 @@ function Protect-Directory([string]$Path) {
         throw "Cannot secure missing directory: $Path"
     }
     try {
-        $aclOutput = @(& icacls.exe $Path /inheritance:r /grant:r "*S-1-5-18:(OI)(CI)(F)" "*S-1-5-32-544:(OI)(CI)(F)" 2>&1)
+        $removeOutput = @(& icacls.exe $Path /inheritance:r /remove "*S-1-1-0" "*S-1-5-11" "*S-1-5-32-545" 2>&1)
+        $removeExit = $LASTEXITCODE
+        foreach ($line in $removeOutput) { Write-BootstrapLog ("icacls remove: " + [string]$line) }
+        if ($removeExit -ne 0) {
+            throw ("icacls could not remove broad-access principals from {0} (exit code {1})." -f $Path,$removeExit)
+        }
+        $aclOutput = @(& icacls.exe $Path /grant:r "*S-1-5-18:(OI)(CI)(F)" "*S-1-5-32-544:(OI)(CI)(F)" 2>&1)
         $aclExit = $LASTEXITCODE
-        foreach ($line in $aclOutput) { Write-BootstrapLog ("icacls: " + [string]$line) }
+        foreach ($line in $aclOutput) { Write-BootstrapLog ("icacls grant: " + [string]$line) }
         if ($aclExit -ne 0) {
-            throw ("icacls failed for {0} with exit code {1}." -f $Path,$aclExit)
+            throw ("icacls could not grant required administrators access to {0} (exit code {1})." -f $Path,$aclExit)
         }
         Write-BootstrapLog "ACL protection applied: $Path"
     } catch {
