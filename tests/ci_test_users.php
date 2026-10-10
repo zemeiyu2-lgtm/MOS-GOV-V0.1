@@ -181,6 +181,12 @@ try {
             }
 
             $personId = (int) $row['usr_per_ID'];
+            $identityCheck = $conn->prepare('SELECT COUNT(*) FROM gov_identity WHERE person_id = :pid');
+            $identityCheck->bindValue(':pid', $personId, \PDO::PARAM_INT);
+            $identityCheck->execute();
+            if ((int) $identityCheck->fetchColumn() > 0) {
+                throw new \RuntimeException('A governance identity remains for ' . $account['username'] . '; refusing to delete its ChurchCRM person.');
+            }
             $stmt = $conn->prepare("DELETE FROM user_usr WHERE usr_per_ID = :id AND usr_UserName = :username AND usr_apiKey LIKE 'mosgov-ci-user-%'");
             $stmt->bindValue(':id', $personId, \PDO::PARAM_INT);
             $stmt->bindValue(':username', $account['username'], \PDO::PARAM_STR);
