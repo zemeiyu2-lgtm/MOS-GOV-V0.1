@@ -333,6 +333,49 @@ jobs:
           Write-Host "Installer smoke test passed."
           Stop-Transcript | Out-Null
 
+      - name: Verify installed data and secret ACLs
+        shell: pwsh
+        run: |
+          $targets = @(
+            "C:\\ProgramData\\MOS-GOV",
+            "C:\\ProgramData\\MOS-GOV\\data",
+            "C:\\ProgramData\\MOS-GOV\\secrets",
+            "C:\\ProgramData\\MOS-GOV\\secrets\\mariadb-root.txt"
+          )
+          $forbiddenSids = @("S-1-1-0", "S-1-5-11", "S-1-5-32-545")
+          $requiredSids = @("S-1-5-18", "S-1-5-32-544")
+          foreach ($path in $targets) {
+            if (-not (Test-Path -LiteralPath $path)) {
+              throw "Required protected data/secret path is missing: $path"
+            }
+            $acl = Get-Acl -LiteralPath $path
+            $rules = @($acl.Access)
+            foreach ($rule in $rules) {
+              $sid = $null
+              try {
+                $sid = $rule.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value
+              } catch {
+                throw "Could not resolve ACL identity '$($rule.IdentityReference)' on $path."
+              }
+              if ($forbiddenSids -contains $sid) {
+                throw "Unsafe broad-principal ACL '$($rule.IdentityReference)' ($sid) found on $path."
+              }
+            }
+            foreach ($sid in $requiredSids) {
+              $matches = @($rules | Where-Object {
+                try {
+                  $_.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value -eq $sid -and
+                  $_.AccessControlType -eq [System.Security.AccessControl.AccessControlType]::Allow -and
+                  (($_.FileSystemRights -band [System.Security.AccessControl.FileSystemRights]::FullControl) -eq [System.Security.AccessControl.FileSystemRights]::FullControl)
+                } catch { $false }
+              })
+              if ($matches.Count -eq 0) {
+                throw "Required SYSTEM/Administrators FullControl ACE ($sid) missing on $path."
+              }
+            }
+            Write-Host "ACL check passed: $path"
+          }
+          Write-Host "Installed data and database-secret ACL checks passed."
       - name: Calculate installer hash
         shell: pwsh
         run: |
