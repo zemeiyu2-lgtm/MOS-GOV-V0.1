@@ -3,9 +3,9 @@
 /**
  * Disposable CI-only ChurchCRM accounts for the MOS-GOV regression runner.
  *
- * This script deliberately refuses to run unless MOSGOV_CI_TEST_MODE=1 and
- * the active database is named "churchcrm". It creates only two clearly
- * marked users, and cleanup removes only those exact test accounts.
+ * This script refuses to run unless MOSGOV_CI_TEST_MODE=1 and the active
+ * database is named churchcrm. It creates only two marked test users and
+ * cleanup removes only those exact accounts.
  *
  * Usage:
  *   MOSGOV_CI_TEST_MODE=1 php tests/ci_test_users.php prepare
@@ -31,7 +31,9 @@ if ($dbName !== 'churchcrm') {
 }
 
 $mode = $argv[1] ?? '';
-$statePath = getenv('MOSGOV_CI_STATE_FILE') ?: sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'mosgov-ci-test-users-state.json';
+$statePath = getenv('MOSGOV_CI_STATE_FILE')
+    ?: sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'mosgov-ci-test-users-state.json';
+
 $accounts = [
     [
         'username' => 'mosgov_ci_readonly',
@@ -57,49 +59,13 @@ $fail = static function (string $message): never {
 try {
     if ($mode === 'prepare') {
         if (is_file($statePath)) {
-            throw new \\RuntimeException('CI state file already exists; run cleanup before preparing another test run.');
+            throw new \RuntimeException('CI state file already exists; run cleanup before preparing another test run.');
         }
+
         $conn->beginTransaction();
 
         // Refuse collisions rather than ever repurposing a pre-existing account.
         $findUser = $conn->prepare('SELECT usr_per_ID FROM user_usr WHERE usr_UserName = :username LIMIT 1');
-        foreach ($accounts as $account) {
-            $findUser->bindValue(':username', $account['username'], \\PDO::PARAM_STR);
-            $findUser->execute();
-            if ($findUser->fetchColumn() !== false) {
-                throw new \\RuntimeException('Refusing to reuse existing user ' . $account['username'] . '.');
-            }
-        }
-
-        $admin = $conn->query(
-            'SELECT usr_per_ID, usr_apiKey FROM user_usr WHERE usr_Admin = 1 ORDER BY usr_per_ID ASC LIMIT 1'
-        )->fetch(\\PDO::FETCH_ASSOC);
-        if (!is_array($admin)) {
-            throw new \\RuntimeException('No ChurchCRM administrator exists for the HTTP regression tests.');
-        }
-
-        $originalAdminKey = !empty($admin['usr_apiKey']) ? (string) $admin['usr_apiKey'] : null;
-        $temporaryAdminKey = $originalAdminKey === null
-            ? 'mosgov-ci-admin-' . bin2hex(random_bytes(24))
-            : null;
-        $state = [
-            'admin_person_id' => (int) $admin['usr_per_ID'],
-            'admin_original_api_key' => $originalAdminKey,
-            'admin_temporary_api_key' => $temporaryAdminKey,
-        ];
-        if (file_put_contents($statePath, json_encode($state, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR), LOCK_EX) === false) {
-            throw new \\RuntimeException('Could not write CI state file.');
-        }
-        if ($temporaryAdminKey !== null) {
-            $stmt = $conn->prepare('UPDATE user_usr SET usr_apiKey = :key WHERE usr_per_ID = :id AND (usr_apiKey IS NULL OR usr_apiKey = "")');
-            $stmt->bindValue(':key', $temporaryAdminKey, \\PDO::PARAM_STR);
-            $stmt->bindValue(':id', (int) $admin['usr_per_ID'], \\PDO::PARAM_INT);
-            $stmt->execute();
-            if ($stmt->rowCount() !== 1) {
-                throw new \\RuntimeException('Could not provision a temporary administrator API key.');
-            }
-        }
-
         foreach ($accounts as $account) {
             $findUser->bindValue(':username', $account['username'], \PDO::PARAM_STR);
             $findUser->execute();
@@ -115,12 +81,25 @@ try {
             throw new \RuntimeException('No ChurchCRM administrator exists for the HTTP regression tests.');
         }
 
-        // Fresh ChurchCRM installs have no admin API key. Add one only when
-        // absent; cleanup recognizes our unique prefix and restores NULL.
-        if (empty($admin['usr_apiKey'])) {
-            $adminKey = 'mosgov-ci-admin-' . bin2hex(random_bytes(24));
+        // Store exact original/temporary values before modifying the database.
+        // If a later insert fails, the transaction rolls back and cleanup can
+        // safely recognize that the original key is already in place.
+        $originalAdminKey = !empty($admin['usr_apiKey']) ? (string) $admin['usr_apiKey'] : null;
+        $temporaryAdminKey = $originalAdminKey === null
+            ? 'mosgov-ci-admin-' . bin2hex(random_bytes(24))
+            : null;
+        $state = [
+            'admin_person_id' => (int) $admin['usr_per_ID'],
+            'admin_original_api_key' => $originalAdminKey,
+            'admin_temporary_api_key' => $temporaryAdminKey,
+        ];
+        if (file_put_contents($statePath, json_encode($state, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR), LOCK_EX) === false) {
+            throw new \RuntimeException('Could not write CI state file.');
+        }
+
+        if ($temporaryAdminKey !== null) {
             $stmt = $conn->prepare('UPDATE user_usr SET usr_apiKey = :key WHERE usr_per_ID = :id AND (usr_apiKey IS NULL OR usr_apiKey = "")');
-            $stmt->bindValue(':key', $adminKey, \PDO::PARAM_STR);
+            $stmt->bindValue(':key', $temporaryAdminKey, \PDO::PARAM_STR);
             $stmt->bindValue(':id', (int) $admin['usr_per_ID'], \PDO::PARAM_INT);
             $stmt->execute();
             if ($stmt->rowCount() !== 1) {
@@ -170,14 +149,15 @@ try {
 
     if ($mode === 'cleanup') {
         if (!is_file($statePath)) {
-            throw new \\RuntimeException('CI state file is missing; refusing to guess which administrator key to restore.');
+            throw new \RuntimeException('CI state file is missing; refusing to guess which administrator key to restore.');
         }
         $state = json_decode((string) file_get_contents($statePath), true, 512, JSON_THROW_ON_ERROR);
         if (!is_array($state) || empty($state['admin_person_id'])
             || !array_key_exists('admin_original_api_key', $state)
             || !array_key_exists('admin_temporary_api_key', $state)) {
-            throw new \\RuntimeException('CI state file is invalid.');
+            throw new \RuntimeException('CI state file is invalid.');
         }
+
         $conn->beginTransaction();
 
         foreach ($accounts as $account) {
@@ -205,6 +185,7 @@ try {
             $stmt->bindValue(':id', $personId, \PDO::PARAM_INT);
             $stmt->bindValue(':username', $account['username'], \PDO::PARAM_STR);
             $stmt->execute();
+
             $stmt = $conn->prepare(
                 'DELETE FROM person_per
                  WHERE per_ID = :id AND per_Email = :email
@@ -225,28 +206,28 @@ try {
         $temporaryAdminKey = $state['admin_temporary_api_key'];
         if ($temporaryAdminKey !== null) {
             $stmt = $conn->prepare('SELECT usr_apiKey FROM user_usr WHERE usr_per_ID = :id');
-            $stmt->bindValue(':id', (int) $state['admin_person_id'], \\PDO::PARAM_INT);
+            $stmt->bindValue(':id', (int) $state['admin_person_id'], \PDO::PARAM_INT);
             $stmt->execute();
             $currentAdminKey = $stmt->fetchColumn();
             if ($currentAdminKey === $temporaryAdminKey) {
                 $stmt = $conn->prepare('UPDATE user_usr SET usr_apiKey = :original WHERE usr_per_ID = :id AND usr_apiKey = :temporary');
-                $stmt->bindValue(':original', $state['admin_original_api_key'], $state['admin_original_api_key'] === null ? \\PDO::PARAM_NULL : \\PDO::PARAM_STR);
-                $stmt->bindValue(':id', (int) $state['admin_person_id'], \\PDO::PARAM_INT);
-                $stmt->bindValue(':temporary', $temporaryAdminKey, \\PDO::PARAM_STR);
+                $stmt->bindValue(':original', $state['admin_original_api_key'], $state['admin_original_api_key'] === null ? \PDO::PARAM_NULL : \PDO::PARAM_STR);
+                $stmt->bindValue(':id', (int) $state['admin_person_id'], \PDO::PARAM_INT);
+                $stmt->bindValue(':temporary', $temporaryAdminKey, \PDO::PARAM_STR);
                 $stmt->execute();
                 if ($stmt->rowCount() !== 1) {
-                    throw new \\RuntimeException('Could not restore the original administrator API key.');
+                    throw new \RuntimeException('Could not restore the original administrator API key.');
                 }
             } elseif ($currentAdminKey !== $state['admin_original_api_key']) {
-                throw new \\RuntimeException('Administrator API key changed unexpectedly; refusing to overwrite it.');
+                throw new \RuntimeException('Administrator API key changed unexpectedly; refusing to overwrite it.');
             }
         }
 
         $conn->commit();
         if (is_file($statePath) && !unlink($statePath)) {
-            echo "[WARN] Cleanup succeeded, but could not remove the CI state file.\\n";
+            echo "[WARN] Cleanup succeeded, but could not remove the CI state file.\n";
         }
-        echo "[PASS] Removed only marked MOS-GOV CI accounts and restored the exact original admin API key.\\n";
+        echo "[PASS] Removed only marked MOS-GOV CI accounts and restored the exact original admin API key.\n";
         exit(0);
     }
 
