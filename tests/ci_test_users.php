@@ -73,7 +73,7 @@ try {
 
             $collision = false;
             foreach ($accounts as $account) {
-                $findUser->bindValue(':username', $account['username'], \\PDO::PARAM_STR);
+                $findUser->bindValue(':username', $account['username'], \PDO::PARAM_STR);
                 $findUser->execute();
                 if ($findUser->fetchColumn() !== false) {
                     $collision = true;
@@ -85,7 +85,7 @@ try {
             }
         }
         if ($collision) {
-            throw new \\RuntimeException('Could not allocate unique disposable CI usernames after 10 attempts; no existing account was changed.');
+            throw new \RuntimeException('Could not allocate unique disposable CI usernames after 10 attempts; no existing account was changed.');
         }
 
         $conn->beginTransaction();
