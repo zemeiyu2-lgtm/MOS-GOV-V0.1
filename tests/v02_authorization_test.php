@@ -37,8 +37,8 @@ if ($member === null) {
 
 $personId = (int) $member->getPersonId();
 
-// clean test-run leftovers so the "no identity" step starts from zero
-$mosGovResetIdentity($personId);
+// The shared test-user selector guarantees this person has no governance
+// identity; do not delete rows here, because they may be real governance data.
 $conn = Propel\Runtime\Propel::getConnection();
 
 $decision = GovernancePolicy::decide($member, 'view', 'meeting');

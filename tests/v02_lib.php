@@ -97,26 +97,6 @@ $mosGovFinish = function (string $suiteName) use (&$mosGovV2): void {
     exit(0);
 };
 
-/**
- * Remove any governance identity left behind by an earlier crashed test run
- * for one person, so suites start from a clean identity state. Only test-run
- * leftovers are removed; the row is re-created by the suite itself.
- */
-$mosGovResetIdentity = static function (int $personId): void {
-    $conn = Propel\Runtime\Propel::getConnection();
-    $stmt = $conn->prepare('DELETE ir, ip, isc FROM gov_identity i
-        LEFT JOIN gov_identity_role ir ON ir.identity_id = i.id
-        LEFT JOIN gov_identity_permission ip ON ip.identity_id = i.id
-        LEFT JOIN gov_identity_scope isc ON isc.identity_id = i.id
-        WHERE i.person_id = :pid');
-    $stmt->bindValue(':pid', $personId, \PDO::PARAM_INT);
-    $stmt->execute();
-    $stmt = $conn->prepare('DELETE FROM gov_identity WHERE person_id = :pid');
-    $stmt->bindValue(':pid', $personId, \PDO::PARAM_INT);
-    $stmt->execute();
-    \ChurchCRM\Plugins\MosGov\Security\GovAuthorization::reset();
-};
-
 /** Resolve a testable admin and a non-admin user (API key required). */
 $mosGovUsers = static function (): array {
     $admin = null;
@@ -127,8 +107,22 @@ $mosGovUsers = static function (): array {
         }
     }
     $member = null;
+    // Regression suites must never reuse or delete a real member's existing
+    // governance identity. Select only a dedicated candidate with no identity;
+    // if none exists, suites report BLOCKED rather than mutating live authority.
+    $conn = \Propel\Runtime\Propel::getConnection();
+    $identityLookup = $conn->prepare('SELECT id FROM gov_identity WHERE person_id = :pid LIMIT 1');
     foreach (UserQuery::create()->filterByAdmin(false)->find() as $candidate) {
         if ($candidate->isEditSelfExclusive() || empty($candidate->getApiKey())) {
+            continue;
+        }
+        $personId = (int) $candidate->getPersonId();
+        if ($personId < 1) {
+            continue;
+        }
+        $identityLookup->bindValue(':pid', $personId, \PDO::PARAM_INT);
+        $identityLookup->execute();
+        if ($identityLookup->fetchColumn() !== false) {
             continue;
         }
         $member = $candidate;
