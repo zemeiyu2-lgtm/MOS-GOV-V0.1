@@ -1,6 +1,20 @@
-# MOS-GOV V0.2.4 一体化 Windows 安装器
+# MOS-GOV V0.2.5 一体化 Windows 安装器
 
 本安装器的目标是：**一台没有预装 ChurchCRM、PHP、Apache、MariaDB 的 Windows x64 电脑，也能从一个 Setup.exe 开始完成 MOS-GOV 本地部署。**
+
+## 当前候选版本：V0.2.5
+
+V0.2.5 的重点是提高真实 Windows 安装的可靠性与失败可诊断性：
+
+- 安装器强制管理员权限，避免以普通用户权限进入后续初始化必然失败。
+- 初始化脚本先检查提权状态；未提权时返回专用错误码，并记录诊断日志。
+- 安装器等待运行环境初始化脚本结束；只有初始化返回成功才继续创建桌面快捷方式。
+- 对上次安装中断留下的非空数据库目录，先移动到 `C:\\ProgramData\\MOS-GOV\\backups`，再继续初始化，不直接删除残留数据。
+- 构建脚本使用经 SHA-256 校验的本地下载缓存，减少重复下载；产物文件名由安装脚本中的 `AppVersion` 自动生成。
+
+**CI 已验证的范围：** Windows runner 成功构建安装包，并执行静默全新安装；等待运行环境完成标记；检查桌面/开始菜单快捷方式、Apache 与 MariaDB 服务状态、ChurchCRM 登录页和 MOS-GOV 插件入口。
+
+**尚未覆盖的验收范围：** 14 套应用回归测试在隔离 ChurchCRM + MariaDB 环境重新执行、升级保留数据、新建教会/旧数据备份、真实数据与密钥目录 ACL 检查，以及正式发布记录。安装器冒烟测试通过不等于以上项目全部通过。
 
 ## V0.2.4 相对 V0.2.2 的桌面入口兼容修复
 
@@ -29,7 +43,7 @@ V0.2.1 的修复：
 
 - ChurchCRM 7.7.0
 - PHP 8.4.25 Thread Safe x64
-- Apache HTTP Server 2.4.68 Win64
+- Apache HTTP Server 2.4.69 Win64
 - MariaDB 11.8.9 Win64
 - MOS-GOV V0.2
 - MOS-GOV 正式数据库迁移
@@ -76,11 +90,11 @@ powershell -ExecutionPolicy Bypass -File installer\build.ps1
 
 构建脚本会下载并校验固定版本的 ChurchCRM、PHP、Apache、MariaDB，并校验 Microsoft Visual C++ Redistributable 的 Authenticode 签名，然后生成：
 
-dist\MOS-GOV-V0.2.4-Setup.exe
+dist\MOS-GOV-V0.2.5-Setup.exe
 
 以及：
 
-dist\MOS-GOV-V0.2.4-Setup.sha256.json
+dist\MOS-GOV-V0.2.5-Setup.exe.sha256.json
 
 ## 正式安装包不包含
 
@@ -123,7 +137,7 @@ C:\ProgramData\MOS-GOV
 
 MOS-GOV 中文体验冻结点：7b0b8e8
 
-V0.2.4 安装初始化修复：直接执行 runtime CMD，增加 %TEMP%\MOS-GOV-runtime-bootstrap.log / ProgramData bootstrap.log，并将目录 ACL 设置改为 .NET API，避免真实 Windows 环境中初始化早期返回码 1 且无 installer.log。
+V0.2.4 安装初始化修复（历史）：直接执行 runtime CMD，增加 %TEMP%\MOS-GOV-runtime-bootstrap.log / ProgramData bootstrap.log，避免真实 Windows 环境中初始化早期返回码 1 且无 installer.log。当前 V0.2.5 脚本通过 icacls 设置 ProgramData 与 secrets 目录 ACL；失败时记录 WARN 并继续安装。由于密钥目录权限属于安全边界，正式发布前必须在真实 Windows 环境核验 ACL 最终结果；不能仅凭安装成功认定数据与密钥权限验收通过。
 
 权限语义修复：44941a7
 
@@ -134,5 +148,5 @@ ChurchCRM 组件版本固定于 7.7.0，PHP 固定于 8.4.25，Apache 固定于 
 安装器是独立部署工程，不修改 ChurchCRM Core。
 
 
-### V0.2.4 桌面入口修复
+### V0.2.4 桌面入口修复（历史说明）
 V0.2.4 不再使用 `{commondesktop}` 创建唯一桌面入口。安装完成后由 Inno Setup 的 `ExecAsOriginalUser` 调用用户态 PowerShell 创建真正登录用户的 `MOS 平台.lnk`，公共桌面拒绝访问不会再导致安装失败；开始菜单入口仍保留。
