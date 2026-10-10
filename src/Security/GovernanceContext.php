@@ -128,7 +128,7 @@ final class GovernanceContext
         // 3. effective scopes: explicit identity scopes + appointment-bound
         //    role scopes resolved to concrete scope rows.
         $stmt = $conn->prepare(
-            'SELECT s.identity_id AS sid, s.scope_type, s.scope_id, s.source_type, s.status, s.end_date
+            'SELECT s.identity_id AS sid, s.scope_type, s.scope_id, s.source_type, s.status, s.start_date, s.end_date
              FROM gov_identity_scope s WHERE s.identity_id = :iid'
         );
         $stmt->bindValue(':iid', $identityId, \PDO::PARAM_INT);
@@ -144,6 +144,9 @@ final class GovernanceContext
         foreach ($scopeRows as $s) {
             if (($s['status'] ?? 'active') !== 'active') {
                 continue;
+            }
+            if (!empty($s['start_date']) && $s['start_date'] > $today) {
+                continue; // future scope grants must not take effect early
             }
             if (!empty($s['end_date']) && $s['end_date'] < $today) {
                 continue;
