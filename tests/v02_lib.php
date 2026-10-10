@@ -109,13 +109,23 @@ $mosGovUsers = static function (): array {
         }
     }
     $member = null;
+    $ciMode = getenv('MOSGOV_CI_TEST_MODE') === '1';
+    $ciRunId = preg_replace('/[^A-Za-z0-9]/', '', (string) (getenv('GITHUB_RUN_ID') ?: 'local'));
+    $ciAttempt = preg_replace('/[^A-Za-z0-9]/', '', (string) (getenv('GITHUB_RUN_ATTEMPT') ?: '1'));
+    $ciReadOnlyPrefix = 'mosgov_ci_readonly_' . $ciRunId . '_' . $ciAttempt . '_';
+    $ciEditorPrefix = 'mosgov_ci_editor_' . $ciRunId . '_' . $ciAttempt . '_';
     // Regression suites must never reuse or delete a real member's existing
-    // governance identity. Select only a dedicated candidate with no identity;
-    // if none exists, suites report BLOCKED rather than mutating live authority.
+    // governance identity. In CI, consider only this run's explicitly created users.
     $conn = \Propel\Runtime\Propel::getConnection();
     $identityLookup = $conn->prepare('SELECT id FROM gov_identity WHERE person_id = :pid LIMIT 1');
     foreach (UserQuery::create()->filterByAdmin(false)->find() as $candidate) {
         if ($candidate->isEditSelfExclusive() || empty($candidate->getApiKey())) {
+            continue;
+        }
+        $username = (string) $candidate->getUserName();
+        $isCiFixture = str_starts_with($username, $ciReadOnlyPrefix)
+            || str_starts_with($username, $ciEditorPrefix);
+        if ($ciMode && !$isCiFixture) {
             continue;
         }
         $personId = (int) $candidate->getPersonId();

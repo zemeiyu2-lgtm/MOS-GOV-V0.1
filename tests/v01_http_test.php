@@ -129,10 +129,21 @@ foreach (UserQuery::create()->filterByAdmin(true)->find() as $candidate) {
 }
 $readOnlyUser = null;
 $editorUser = null;
+$ciMode = getenv('MOSGOV_CI_TEST_MODE') === '1';
+$ciRunId = preg_replace('/[^A-Za-z0-9]/', '', (string) (getenv('GITHUB_RUN_ID') ?: 'local'));
+$ciAttempt = preg_replace('/[^A-Za-z0-9]/', '', (string) (getenv('GITHUB_RUN_ATTEMPT') ?: '1'));
+$ciReadOnlyPrefix = 'mosgov_ci_readonly_' . $ciRunId . '_' . $ciAttempt . '_';
+$ciEditorPrefix = 'mosgov_ci_editor_' . $ciRunId . '_' . $ciAttempt . '_';
 foreach (UserQuery::create()->filterByAdmin(false)->find() as $candidate) {
     // ChurchCRM confines EditSelf-only accounts to the self-service flow before
     // any plugin middleware runs, so they cannot exercise plugin authorization.
     if ($candidate->isEditSelfExclusive() || empty($candidate->getApiKey())) {
+        continue;
+    }
+    $username = (string) $candidate->getUserName();
+    if ($ciMode
+        && !str_starts_with($username, $ciReadOnlyPrefix)
+        && !str_starts_with($username, $ciEditorPrefix)) {
         continue;
     }
     if ($candidate->isEditRecordsEnabled()) {

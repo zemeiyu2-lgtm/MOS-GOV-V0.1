@@ -50,7 +50,9 @@ try {
             throw new \RuntimeException('CI state file already exists; run cleanup before preparing another test run.');
         }
 
-        $runTag = bin2hex(random_bytes(8));
+        $ciRunId = preg_replace('/[^A-Za-z0-9]/', '', (string) (getenv('GITHUB_RUN_ID') ?: 'local'));
+        $ciAttempt = preg_replace('/[^A-Za-z0-9]/', '', (string) (getenv('GITHUB_RUN_ATTEMPT') ?: '1'));
+        $runTag = $ciRunId . '_' . $ciAttempt . '_' . bin2hex(random_bytes(4));
         $accounts = [];
         foreach ($accountTemplates as $template) {
             $accounts[] = [
