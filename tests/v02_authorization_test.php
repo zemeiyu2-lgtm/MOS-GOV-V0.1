@@ -99,7 +99,9 @@ $hasInheritedScope = count(array_filter($ctx->scopes(), static fn (array $s): bo
 )) > 0;
 $mosGovCheck('inactive role no longer grants authority', !in_array('A01', $activeCodes, true), json_encode($activeCodes));
 $mosGovCheck('inactive role no longer contributes inherited scope', !$hasInheritedScope);
-$stmt = $conn->prepare("UPDATE gov_role SET status = 'active' WHERE id = :rid");
+// Restore the exact pre-test status; never assume an existing role was active.
+$stmt = $conn->prepare('UPDATE gov_role SET status = :status WHERE id = :rid');
+$stmt->bindValue(':status', (string) ($a01['status'] ?? 'active'), PDO::PARAM_STR);
 $stmt->bindValue(':rid', (int) $a01['id'], PDO::PARAM_INT);
 $stmt->execute();
 GovAuthorization::reset();
