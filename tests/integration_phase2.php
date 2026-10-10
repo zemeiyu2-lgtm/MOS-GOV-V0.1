@@ -29,6 +29,7 @@ echo "MariaDB version: " . Propel::getConnection()->query('SELECT VERSION()')->f
 PluginManager::init(SystemURLs::getDocumentRoot() . '/plugins');
 
 $pluginId = 'mos-gov';
+$failures = 0;
 
 function section(string $name): void
 {
@@ -50,6 +51,7 @@ try {
     $result = PluginManager::enablePlugin($pluginId);
     echo 'enablePlugin returned: ' . var_export($result, true) . PHP_EOL;
 } catch (\Throwable $e) {
+    $failures++;
     echo 'ENABLE FAILED: ' . get_class($e) . PHP_EOL;
     echo 'message: ' . $e->getMessage() . PHP_EOL;
 }
@@ -77,6 +79,7 @@ try {
         echo '  ' . implode('|', $route->getMethods()) . ' ' . $route->getPattern() . PHP_EOL;
     }
 } catch (\Throwable $e) {
+    $failures++;
     echo 'ROUTE REGISTRATION ERROR: ' . get_class($e) . PHP_EOL;
     echo 'message: ' . $e->getMessage() . PHP_EOL;
 }
@@ -88,4 +91,5 @@ $stmt = $conn->query("SHOW TABLES LIKE 'gov_%'");
 $rows = $stmt->fetchAll(\PDO::FETCH_COLUMN);
 echo count($rows) === 0 ? "(none)" : implode(', ', $rows) . PHP_EOL;
 
-echo PHP_EOL . "PHASE2 DONE" . PHP_EOL;
+echo PHP_EOL . "PHASE2 DONE — {$failures} failure(s)" . PHP_EOL;
+exit($failures === 0 ? 0 : 1);

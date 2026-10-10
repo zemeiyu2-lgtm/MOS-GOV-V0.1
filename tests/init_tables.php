@@ -80,3 +80,4 @@ foreach ($tables as $t) {
 // Core tables untouched check (sample: list non-gov tables count before/after not tracked;
 // CREATE TABLE IF NOT EXISTS gov_* cannot affect other tables by construction).
 echo PHP_EOL . 'result: ' . ($fail === 0 ? 'ALL 10 GOVERNANCE TABLES OK' : "{$fail} FAILURES") . PHP_EOL;
+exit($fail === 0 ? 0 : 1);

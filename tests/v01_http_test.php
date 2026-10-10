@@ -453,7 +453,13 @@ try {
     );
 }
 
-echo PHP_EOL . ($failures === 0
-    ? 'V0.1 HTTP: ALL TESTS PASSED' . ($skips > 0 ? " ({$skips} skipped)" : '')
-    : "V0.1 HTTP: {$failures} FAILURES") . PHP_EOL;
-exit($failures === 0 ? 0 : 1);
+if ($failures > 0) {
+    echo PHP_EOL . "V0.1 HTTP: {$failures} FAILURES" . PHP_EOL;
+    exit(1);
+}
+if ($skips > 0) {
+    echo PHP_EOL . "V0.1 HTTP: BLOCKED ({$skips} skipped checks)" . PHP_EOL;
+    exit(2);
+}
+echo PHP_EOL . 'V0.1 HTTP: ALL TESTS PASSED' . PHP_EOL;
+exit(0);

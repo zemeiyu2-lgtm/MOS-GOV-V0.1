@@ -1,0 +1,36 @@
+name: MOS-GOV PHP Syntax Checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  php-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+
+      - name: Lint all MOS-GOV PHP files
+        shell: bash
+        run: |
+          set -euo pipefail
+          count=0
+          while IFS= read -r -d '' file; do
+            php -l "$file"
+            count=$((count + 1))
+          done < <(find src tests -type f -name '*.php' -print0)
+          php -l installer/runtime/enable-mosgov.php
+          count=$((count + 1))
+          echo "PHP syntax check passed for $count files."

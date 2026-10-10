@@ -75,7 +75,9 @@ $mosGovCleanup = function () use (&$mosGovV2): void {
                 $stmt->bindValue(':id', $id, \PDO::PARAM_INT);
                 $stmt->execute();
             } catch (\Throwable $e) {
-                echo '[WARN] cleanup ' . $entity . '#' . $id . ': ' . $e->getMessage() . PHP_EOL;
+                // Cleanup is part of the test contract: failures must not be reported as passing.
+                $mosGovV2['failures']++;
+                echo '[FAIL] cleanup ' . $entity . '#' . $id . ': ' . $e->getMessage() . PHP_EOL;
             }
         }
     }
