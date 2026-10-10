@@ -3,11 +3,11 @@
   "version": "0.2.5",
   "installer": "MOS-GOV-V0.2.5-Setup.exe",
   "bytes": 116263835,
-  "sha256": "be8527474edf4c1616e3218bef3f31e4e2be4db8ccb74fdc67f64d93c7935522",
-  "runId": "38050286981",
+  "sha256": "dc13928605192224aa792ea8608441bf938daf7382663651c1f99a56be5b4c67",
+  "runId": "38051801723",
   "runAttempt": "1",
-  "commit": "0aada24d9c7798bcf92f37758f3adb2ad16089e9",
+  "commit": "78d0c866c6a88809e085708efaf8ea01f9c60458",
   "branch": "feature/mos-gov-v0.2.5-boot-fix",
   "runnerOs": "win25-vs2026",
-  "builtAtUtc": "2026-10-10T12:02:54.9711327Z"
+  "builtAtUtc": "2026-10-10T12:27:54.7971480Z"
 }
