@@ -88,11 +88,11 @@ powershell -ExecutionPolicy Bypass -File installer\build.ps1
 
 构建脚本会下载并校验固定版本的 ChurchCRM、PHP、Apache、MariaDB，并校验 Microsoft Visual C++ Redistributable 的 Authenticode 签名，然后生成：
 
-dist\MOS-GOV-V0.2.4-Setup.exe
+dist\MOS-GOV-V0.2.5-Setup.exe
 
 以及：
 
-dist\MOS-GOV-V0.2.4-Setup.sha256.json
+dist\MOS-GOV-V0.2.5-Setup.exe.sha256.json
 
 ## 正式安装包不包含
 
@@ -135,7 +135,7 @@ C:\ProgramData\MOS-GOV
 
 MOS-GOV 中文体验冻结点：7b0b8e8
 
-V0.2.4 安装初始化修复（历史）：直接执行 runtime CMD，增加 %TEMP%\MOS-GOV-runtime-bootstrap.log / ProgramData bootstrap.log，并将目录 ACL 设置改为 .NET API，避免真实 Windows 环境中初始化早期返回码 1 且无 installer.log。
+V0.2.4 安装初始化修复（历史）：直接执行 runtime CMD，增加 %TEMP%\MOS-GOV-runtime-bootstrap.log / ProgramData bootstrap.log，避免真实 Windows 环境中初始化早期返回码 1 且无 installer.log。当前 V0.2.5 脚本通过 icacls 设置 ProgramData 与 secrets 目录 ACL；失败时记录 WARN 并继续安装。由于密钥目录权限属于安全边界，正式发布前必须在真实 Windows 环境核验 ACL 最终结果；不能仅凭安装成功认定数据与密钥权限验收通过。
 
 权限语义修复：44941a7
 
