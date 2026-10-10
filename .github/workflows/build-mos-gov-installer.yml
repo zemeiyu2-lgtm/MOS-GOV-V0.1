@@ -341,14 +341,30 @@ jobs:
           $php = Join-Path $appRoot "PHP\php.exe"
           $pluginRoot = Join-Path $appRoot "ChurchCRM\plugins\community\mos-gov"
           $httpdConf = Join-Path $appRoot "Apache24\conf\httpd.conf"
-          $runner = Join-Path $pluginRoot "tests\run_all.php"
-          $userHelper = Join-Path $pluginRoot "tests\ci_test_users.php"
-          foreach ($path in @($php, $httpdConf, $runner, $userHelper)) {
+          $sourceTests = Join-Path $env:GITHUB_WORKSPACE "tests"
+          $testsTarget = Join-Path $pluginRoot "tests"
+          foreach ($path in @($php, $httpdConf, $sourceTests)) {
             if (-not (Test-Path -LiteralPath $path)) { throw "Regression prerequisite is missing: $path" }
+          }
+          # Tests are intentionally excluded from the production installer.
+          # Copy this commit's test suite into the fresh CI install only.
+          if (Test-Path -LiteralPath $testsTarget) {
+            throw "Unexpected tests directory already exists in the installed plugin: $testsTarget"
+          }
+          Copy-Item -LiteralPath $sourceTests -Destination $testsTarget -Recurse -Force
+          $testsCopied = $true
+          $runner = Join-Path $testsTarget "run_all.php"
+          $userHelper = Join-Path $testsTarget "ci_test_users.php"
+          if (-not (Test-Path -LiteralPath $runner) -or -not (Test-Path -LiteralPath $userHelper)) {
+            Remove-Item -LiteralPath $testsTarget -Recurse -Force -ErrorAction SilentlyContinue
+            throw "Regression test runner/helper is missing from the temporary test copy."
           }
 
           $listenLine = (Select-String -Path $httpdConf -Pattern '^\s*Listen\s+' | Select-Object -First 1).Line
-          if (-not $listenLine) { throw "Could not determine the configured Apache HTTP port." }
+          if (-not $listenLine) {
+            Remove-Item -LiteralPath $testsTarget -Recurse -Force -ErrorAction SilentlyContinue
+            throw "Could not determine the configured Apache HTTP port."
+          }
           $port = [int]($listenLine -replace '^\s*Listen\s+(?:[^:\s]+:)?','')
           $env:MOSGOV_BASE_URL = "http://127.0.0.1:$port"
           $env:MOSGOV_CI_TEST_MODE = "1"
@@ -373,12 +389,15 @@ jobs:
               & $php $userHelper cleanup 2>&1 | Tee-Object -FilePath $testLog -Append
               $cleanupExit = $LASTEXITCODE
             }
+            if ($testsCopied -and (Test-Path -LiteralPath $testsTarget)) {
+              Remove-Item -LiteralPath $testsTarget -Recurse -Force
+            }
           }
 
           if ($prepareExit -ne 0) { throw "Could not prepare isolated ChurchCRM regression users (exit $prepareExit)." }
           if ($cleanupExit -ne 0) { throw "Could not safely clean up isolated ChurchCRM regression users (exit $cleanupExit)." }
           if ($testExit -ne 0) { throw "MOS-GOV 14-suite regression runner failed or was blocked (exit $testExit). See ci-regression.log." }
-          Write-Host "All 14 regression suites passed; temporary CI users were cleaned up."
+          Write-Host "All 14 regression suites passed; temporary CI users were cleaned up and test files removed."
 
       - name: Verify installed data and secret ACLs
         shell: pwsh

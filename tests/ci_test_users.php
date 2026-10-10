@@ -119,7 +119,7 @@ try {
             $stmt->bindValue(':entered_by', (int) $admin['usr_per_ID'], \PDO::PARAM_INT);
             $stmt->bindValue(':edited_by', (int) $admin['usr_per_ID'], \PDO::PARAM_INT);
             $stmt->execute();
-            $personId = (int) $conn->lastInsertId();
+            $personId = (int) $conn->query('SELECT LAST_INSERT_ID()')->fetchColumn();
             if ($personId < 1) {
                 throw new \RuntimeException('Could not create CI person for ' . $account['username'] . '.');
             }
