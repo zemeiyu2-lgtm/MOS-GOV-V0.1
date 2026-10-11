@@ -107,7 +107,7 @@ try {
         $temporaryAdminKey = $originalAdminKey === null
             ? 'mosgov-ci-admin-' . bin2hex(random_bytes(24))
             : null;
-        $originalChurchName = (string) \ChurchCRM\\dto\\SystemConfig::getValue('sChurchName');
+        $originalChurchName = (string) \ChurchCRM\dto\SystemConfig::getValue('sChurchName');
         $temporaryChurchNameSet = trim($originalChurchName) === '';
         $state = [
             'admin_person_id' => (int) $admin['usr_per_ID'],
@@ -122,7 +122,7 @@ try {
         }
 
         if ($temporaryChurchNameSet) {
-            \ChurchCRM\\dto\\SystemConfig::setValue('sChurchName', 'MOS-GOV CI Test Church');
+            \ChurchCRM\dto\SystemConfig::setValue('sChurchName', 'MOS-GOV CI Test Church');
         }
 
         if ($temporaryAdminKey !== null) {
@@ -269,10 +269,10 @@ try {
         }
 
         if ($state['church_name_temporary_set']) {
-            $currentChurchName = (string) \ChurchCRM\\dto\\SystemConfig::getValue('sChurchName');
+            $currentChurchName = (string) \ChurchCRM\dto\SystemConfig::getValue('sChurchName');
             $originalChurchName = (string) $state['church_name_original'];
             if ($currentChurchName === 'MOS-GOV CI Test Church') {
-                \ChurchCRM\\dto\\SystemConfig::setValue('sChurchName', $originalChurchName);
+                \ChurchCRM\dto\SystemConfig::setValue('sChurchName', $originalChurchName);
             } elseif ($currentChurchName !== $originalChurchName) {
                 throw new \RuntimeException('Church name changed unexpectedly during CI; refusing to overwrite it.');
             }
