@@ -143,7 +143,7 @@ $mosGovUsers = static function (): array {
             }
             continue;
         }
-        $identityLookup->bindValue(':pid', $personId, \\PDO::PARAM_INT);
+        $identityLookup->bindValue(':pid', $personId, \PDO::PARAM_INT);
         $identityLookup->execute();
         $existingIdentityId = $identityLookup->fetchColumn();
         if ($existingIdentityId !== false) {
