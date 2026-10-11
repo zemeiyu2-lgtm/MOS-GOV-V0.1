@@ -88,7 +88,7 @@ try {
             }
         }
         if ($collision) {
-            throw new \RuntimeException('Could not allocate unique disposable CI usernames after 10 attempts; no existing account was changed.');
+            throw new \RuntimeException('Could not allocate unique disposable CI usernames after 10 attempts; collisions: ' . implode(', ', array_unique($collisionDetails)) . '; no existing account was changed.');
         }
 
         $conn->beginTransaction();
