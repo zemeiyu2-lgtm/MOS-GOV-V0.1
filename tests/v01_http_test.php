@@ -132,8 +132,9 @@ $editorUser = null;
 $ciMode = getenv('MOSGOV_CI_TEST_MODE') === '1';
 $ciRunId = preg_replace('/[^A-Za-z0-9]/', '', (string) (getenv('GITHUB_RUN_ID') ?: 'local'));
 $ciAttempt = preg_replace('/[^A-Za-z0-9]/', '', (string) (getenv('GITHUB_RUN_ATTEMPT') ?: '1'));
-$ciReadOnlyPrefix = 'mosgov_ci_readonly_' . $ciRunId . '_' . $ciAttempt . '_';
-$ciEditorPrefix = 'mosgov_ci_editor_' . $ciRunId . '_' . $ciAttempt . '_';
+// Keep CI fixture selection aligned with tests/ci_test_users.php.
+$ciReadOnlyPrefix = 'mgcr_';
+$ciEditorPrefix = 'mgce_';
 foreach (UserQuery::create()->filterByAdmin(false)->find() as $candidate) {
     // ChurchCRM confines EditSelf-only accounts to the self-service flow before
     // any plugin middleware runs, so they cannot exercise plugin authorization.
