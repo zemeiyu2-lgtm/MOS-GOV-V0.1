@@ -121,6 +121,7 @@ $csrfFrom = static function (string $html): ?string {
 };
 
 // ------------------------------------------------------------------- users
+$ciMode = getenv('MOSGOV_CI_TEST_MODE') === '1';
 $adminUser = null;
 foreach (UserQuery::create()->filterByAdmin(true)->find() as $candidate) {
     if (!empty($candidate->getApiKey())) {
@@ -170,7 +171,6 @@ $baseline = $repo->getDashboardCounts();
 // setup page, which is correct for first launch but blocks governance E2E
 // assertions. Only CI may set a temporary fixture; local runs must never alter
 // church configuration. The exact original value is restored in finally.
-$ciMode = getenv('MOSGOV_CI_TEST_MODE') === '1';
 $originalChurchName = (string) SystemConfig::getValue('sChurchName');
 $temporaryChurchNameSet = false;
 if ($ciMode && trim($originalChurchName) === '') {
