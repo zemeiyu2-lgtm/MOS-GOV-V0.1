@@ -35,8 +35,8 @@ $statePath = getenv('MOSGOV_CI_STATE_FILE')
     ?: sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'mosgov-ci-test-users-state.json';
 
 $accountTemplates = [
-    ['username_prefix' => 'mosgov_ci_readonly_', 'last_prefix' => 'ReadOnly-', 'email_prefix' => 'mos-ro-', 'edit_records' => 0],
-    ['username_prefix' => 'mosgov_ci_editor_', 'last_prefix' => 'Editor-', 'email_prefix' => 'mos-ed-', 'edit_records' => 1],
+    ['username_prefix' => 'mgcr_', 'last_prefix' => 'ReadOnly-', 'email_prefix' => 'mos-ro-', 'edit_records' => 0],
+    ['username_prefix' => 'mgce_', 'last_prefix' => 'Editor-', 'email_prefix' => 'mos-ed-', 'edit_records' => 1],
 ];
 
 $fail = static function (string $message): never {
@@ -50,11 +50,8 @@ try {
             throw new \RuntimeException('CI state file already exists; run cleanup before preparing another test run.');
         }
 
-        // Keep usernames comfortably below common ChurchCRM schema limits.
-        // The run fingerprint aids diagnostics; random entropy guarantees isolation.
-        $ciRunId = preg_replace('/[^A-Za-z0-9]/', '', (string) (getenv('GITHUB_RUN_ID') ?: 'local'));
-        $ciAttempt = preg_replace('/[^A-Za-z0-9]/', '', (string) (getenv('GITHUB_RUN_ATTEMPT') ?: '1'));
-        $runFingerprint = substr(hash('sha256', $ciRunId . '_' . $ciAttempt), 0, 8);
+        // Keep usernames short for ChurchCRM schema limits. The random tag
+        // provides isolation; exact collision checks prevent account reuse.
 
         // Allocate a fresh, collision-checked tag. A stale account from an
         // interrupted runner must cause a retry, never account reuse/deletion.
@@ -63,7 +60,7 @@ try {
         $collision = true;
         $collisionDetails = [];
         for ($tagAttempt = 0; $tagAttempt < 10; $tagAttempt++) {
-            $runTag = $runFingerprint . '_' . bin2hex(random_bytes(8));
+            $runTag = bin2hex(random_bytes(8));
             $accounts = [];
             foreach ($accountTemplates as $template) {
                 $accounts[] = [
