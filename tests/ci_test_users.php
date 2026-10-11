@@ -107,14 +107,22 @@ try {
         $temporaryAdminKey = $originalAdminKey === null
             ? 'mosgov-ci-admin-' . bin2hex(random_bytes(24))
             : null;
+        $originalChurchName = (string) \\ChurchCRM\\dto\\SystemConfig::getValue('sChurchName');
+        $temporaryChurchNameSet = trim($originalChurchName) === '';
         $state = [
             'admin_person_id' => (int) $admin['usr_per_ID'],
             'admin_original_api_key' => $originalAdminKey,
             'admin_temporary_api_key' => $temporaryAdminKey,
+            'church_name_original' => $originalChurchName,
+            'church_name_temporary_set' => $temporaryChurchNameSet,
             'accounts' => $accounts,
         ];
         if (file_put_contents($statePath, json_encode($state, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR), LOCK_EX) === false) {
             throw new \RuntimeException('Could not write CI state file.');
+        }
+
+        if ($temporaryChurchNameSet) {
+            \\ChurchCRM\\dto\\SystemConfig::setValue('sChurchName', 'MOS-GOV CI Test Church');
         }
 
         if ($temporaryAdminKey !== null) {
@@ -175,6 +183,8 @@ try {
         if (!is_array($state) || empty($state['admin_person_id'])
             || !array_key_exists('admin_original_api_key', $state)
             || !array_key_exists('admin_temporary_api_key', $state)
+            || !array_key_exists('church_name_original', $state)
+            || !array_key_exists('church_name_temporary_set', $state)
             || !isset($state['accounts']) || !is_array($state['accounts']) || count($state['accounts']) !== 2) {
             throw new \RuntimeException('CI state file is invalid.');
         }
@@ -255,6 +265,16 @@ try {
                 }
             } elseif ($currentAdminKey !== $state['admin_original_api_key']) {
                 throw new \RuntimeException('Administrator API key changed unexpectedly; refusing to overwrite it.');
+            }
+        }
+
+        if ($state['church_name_temporary_set']) {
+            $currentChurchName = (string) \\ChurchCRM\\dto\\SystemConfig::getValue('sChurchName');
+            $originalChurchName = (string) $state['church_name_original'];
+            if ($currentChurchName === 'MOS-GOV CI Test Church') {
+                \\ChurchCRM\\dto\\SystemConfig::setValue('sChurchName', $originalChurchName);
+            } elseif ($currentChurchName !== $originalChurchName) {
+                throw new \\RuntimeException('Church name changed unexpectedly during CI; refusing to overwrite it.');
             }
         }
 
