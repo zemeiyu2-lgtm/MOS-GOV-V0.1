@@ -50,16 +50,20 @@ try {
             throw new \RuntimeException('CI state file already exists; run cleanup before preparing another test run.');
         }
 
+        // Keep usernames comfortably below common ChurchCRM schema limits.
+        // The run fingerprint aids diagnostics; random entropy guarantees isolation.
         $ciRunId = preg_replace('/[^A-Za-z0-9]/', '', (string) (getenv('GITHUB_RUN_ID') ?: 'local'));
         $ciAttempt = preg_replace('/[^A-Za-z0-9]/', '', (string) (getenv('GITHUB_RUN_ATTEMPT') ?: '1'));
+        $runFingerprint = substr(hash('sha256', $ciRunId . '_' . $ciAttempt), 0, 8);
 
         // Allocate a fresh, collision-checked tag. A stale account from an
         // interrupted runner must cause a retry, never account reuse/deletion.
-        $findUser = $conn->prepare('SELECT usr_per_ID FROM user_usr WHERE usr_UserName = :username LIMIT 1');
+        $findUser = $conn->prepare('SELECT usr_per_ID, usr_UserName FROM user_usr WHERE usr_UserName = :username LIMIT 1');
         $accounts = [];
         $collision = true;
+        $collisionDetails = [];
         for ($tagAttempt = 0; $tagAttempt < 10; $tagAttempt++) {
-            $runTag = $ciRunId . '_' . $ciAttempt . '_' . bin2hex(random_bytes(8));
+            $runTag = $runFingerprint . '_' . bin2hex(random_bytes(8));
             $accounts = [];
             foreach ($accountTemplates as $template) {
                 $accounts[] = [
@@ -75,8 +79,10 @@ try {
             foreach ($accounts as $account) {
                 $findUser->bindValue(':username', $account['username'], \PDO::PARAM_STR);
                 $findUser->execute();
-                if ($findUser->fetchColumn() !== false) {
+                $existingUsername = $findUser->fetchColumn();
+                if ($existingUsername !== false) {
                     $collision = true;
+                    $collisionDetails[] = (string) $existingUsername;
                     break;
                 }
             }
