@@ -1,12 +1,12 @@
 **********************
 PowerShell transcript start
-Start time: 20261011041040
+Start time: 20261011041953
 Username: runnervmfi6oq\runneradmin
 RunAs User: runnervmfi6oq\runneradmin
 Configuration Name: 
 Machine: runnervmfi6oq (Microsoft Windows NT 10.0.26100.0)
-Host Application: C:\Program Files\PowerShell\7\pwsh.dll -command . 'D:\a\_temp\2824b9f7-d6b5-479d-bcc3-de5525734260.ps1'
-Process ID: 9656
+Host Application: C:\Program Files\PowerShell\7\pwsh.dll -command . 'D:\a\_temp\14141d14-9ea4-4e7b-8670-5026bc388ce7.ps1'
+Process ID: 3824
 PSVersion: 7.6.6
 PSEdition: Core
 GitCommitId: 7.6.6
@@ -18,7 +18,7 @@ SerializationVersion: 1.1.0.1
 WSManStackVersion: 3.0
 **********************
 Starting installer: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\dist\MOS-GOV-V0.2.5-Setup.exe
-Installer launcher PID: 8148
+Installer launcher PID: 6828
 installer launcher exited: True
 installer launcher exit code: 0
 runtime install completed marker: True
@@ -39,5 +39,5 @@ MOS-GOV plugin endpoint: HTTP 200
 Installer smoke test passed.
 **********************
 PowerShell transcript end
-End time: 20261011041153
+End time: 20261011042117
 **********************
