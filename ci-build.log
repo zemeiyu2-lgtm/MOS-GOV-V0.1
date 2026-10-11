@@ -8426,7 +8426,7 @@ Creating setup files
 
 Warning: The [Setup] section directive "PrivilegesRequired" is set to "admin" but per-user areas (userdesktop) are used by the script. Regardless of the version of Windows, if the installation is running in administrative install mode then you should be careful about making any per-user area changes: such changes may not achieve what you are intending. See the "UsedUserAreasWarning" topic in help file for more information.
 
-Successful compile (136.250 sec). Resulting Setup program filename is:
+Successful compile (151.860 sec). Resulting Setup program filename is:
 D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\dist\MOS-GOV-V0.2.5-Setup.exe
 Created: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\dist\MOS-GOV-V0.2.5-Setup.exe
-SHA256: 9B858CF7FBE38951D245C417A5ECF8E685B2C9115DAFDC15A3E4452453A4A6B4
+SHA256: 7DF8624D7D3A0E93D5ACC2CF77049EE79559D502EE672393ACFF57B17132E05A

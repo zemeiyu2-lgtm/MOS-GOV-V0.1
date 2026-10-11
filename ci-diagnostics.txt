@@ -1,157 +1,157 @@
-MOS-GOV CI failure diagnostics @ 2026-10-11T12:44:00.5920878Z
+MOS-GOV CI failure diagnostics @ 2026-10-11T12:50:57.3685825Z
 runner image: win25-vs2026 / Windows
 
 === Inno Setup log (tail 150) ===
-2026-10-11 12:42:54.832   Successfully installed the file.
-2026-10-11 12:42:54.832   -- File entry --
-2026-10-11 12:42:54.832   Dest filename: C:\Program Files\MOS-GOV\PHP\ext\php_xsl.dll
-2026-10-11 12:42:54.832   Time stamp of our file: 2026-08-25 18:44:34.000
-2026-10-11 12:42:54.832   Installing the file.
-2026-10-11 12:42:54.844   Successfully installed the file.
-2026-10-11 12:42:54.844   -- File entry --
-2026-10-11 12:42:54.844   Dest filename: C:\Program Files\MOS-GOV\PHP\ext\php_zend_test.dll
-2026-10-11 12:42:54.844   Time stamp of our file: 2026-08-25 18:44:34.000
-2026-10-11 12:42:54.844   Installing the file.
-2026-10-11 12:42:54.848   Successfully installed the file.
-2026-10-11 12:42:54.848   -- File entry --
-2026-10-11 12:42:54.848   Dest filename: C:\Program Files\MOS-GOV\PHP\ext\php_zip.dll
-2026-10-11 12:42:54.850   Time stamp of our file: 2026-08-25 18:44:34.000
-2026-10-11 12:42:54.850   Installing the file.
-2026-10-11 12:42:54.862   Successfully installed the file.
-2026-10-11 12:42:54.862   -- File entry --
-2026-10-11 12:42:54.862   Dest filename: C:\Program Files\MOS-GOV\PHP\extras\sbom\php.cdx.json
-2026-10-11 12:42:54.862   Time stamp of our file: 2026-08-25 18:45:10.000
-2026-10-11 12:42:54.862   Installing the file.
-2026-10-11 12:42:54.862   Creating directory: C:\Program Files\MOS-GOV\PHP\extras
-2026-10-11 12:42:54.862   Creating directory: C:\Program Files\MOS-GOV\PHP\extras\sbom
-2026-10-11 12:42:54.868   Successfully installed the file.
-2026-10-11 12:42:54.868   -- File entry --
-2026-10-11 12:42:54.868   Dest filename: C:\Program Files\MOS-GOV\PHP\extras\sbom\php.openvex.json
-2026-10-11 12:42:54.868   Time stamp of our file: 2026-08-25 18:45:10.000
-2026-10-11 12:42:54.868   Installing the file.
-2026-10-11 12:42:54.870   Successfully installed the file.
-2026-10-11 12:42:54.870   -- File entry --
-2026-10-11 12:42:54.870   Dest filename: C:\Program Files\MOS-GOV\PHP\extras\sbom\php.spdx.json
-2026-10-11 12:42:54.870   Time stamp of our file: 2026-08-25 18:45:10.000
-2026-10-11 12:42:54.870   Installing the file.
-2026-10-11 12:42:54.875   Successfully installed the file.
-2026-10-11 12:42:54.875   -- File entry --
-2026-10-11 12:42:54.875   Dest filename: C:\Program Files\MOS-GOV\PHP\extras\ssl\legacy.dll
-2026-10-11 12:42:54.875   Time stamp of our file: 2026-08-25 18:44:34.000
-2026-10-11 12:42:54.875   Installing the file.
-2026-10-11 12:42:54.875   Creating directory: C:\Program Files\MOS-GOV\PHP\extras\ssl
-2026-10-11 12:42:54.880   Successfully installed the file.
-2026-10-11 12:42:54.880   -- File entry --
-2026-10-11 12:42:54.880   Dest filename: C:\Program Files\MOS-GOV\PHP\extras\ssl\openssl.cnf
-2026-10-11 12:42:54.880   Time stamp of our file: 2026-08-25 18:45:00.000
-2026-10-11 12:42:54.880   Installing the file.
-2026-10-11 12:42:54.881   Successfully installed the file.
-2026-10-11 12:42:54.881   -- File entry --
-2026-10-11 12:42:54.881   Dest filename: C:\Program Files\MOS-GOV\PHP\lib\enchant\libenchant2_hunspell.dll
-2026-10-11 12:42:54.882   Time stamp of our file: 2026-08-25 18:44:34.000
-2026-10-11 12:42:54.882   Installing the file.
-2026-10-11 12:42:54.882   Creating directory: C:\Program Files\MOS-GOV\PHP\lib
-2026-10-11 12:42:54.882   Creating directory: C:\Program Files\MOS-GOV\PHP\lib\enchant
-2026-10-11 12:42:54.905   Successfully installed the file.
-2026-10-11 12:42:54.905   -- File entry --
-2026-10-11 12:42:54.905   Dest filename: C:\Program Files\MOS-GOV\prereqs\vc_redist.x64.exe
-2026-10-11 12:42:54.905   Time stamp of our file: 2026-10-11 12:39:50.000
-2026-10-11 12:42:54.905   Installing the file.
-2026-10-11 12:42:54.905   Creating directory: C:\Program Files\MOS-GOV\prereqs
-2026-10-11 12:42:55.339   Successfully installed the file.
-2026-10-11 12:42:55.339   -- File entry --
-2026-10-11 12:42:55.339   Dest filename: C:\Program Files\MOS-GOV\runtime\enable-mosgov.php
-2026-10-11 12:42:55.339   Time stamp of our file: 2026-10-11 12:39:32.000
-2026-10-11 12:42:55.339   Installing the file.
-2026-10-11 12:42:55.339   Creating directory: C:\Program Files\MOS-GOV\runtime
-2026-10-11 12:42:55.341   Successfully installed the file.
-2026-10-11 12:42:55.341   -- File entry --
-2026-10-11 12:42:55.341   Dest filename: C:\Program Files\MOS-GOV\runtime\install-runtime.cmd
-2026-10-11 12:42:55.341   Time stamp of our file: 2026-10-11 12:39:32.000
-2026-10-11 12:42:55.341   Installing the file.
-2026-10-11 12:42:55.341   Successfully installed the file.
-2026-10-11 12:42:55.341   -- File entry --
-2026-10-11 12:42:55.341   Dest filename: C:\Program Files\MOS-GOV\runtime\install-runtime.ps1
-2026-10-11 12:42:55.341   Time stamp of our file: 2026-10-11 12:39:32.000
-2026-10-11 12:42:55.341   Installing the file.
-2026-10-11 12:42:55.345   Successfully installed the file.
-2026-10-11 12:42:55.345   -- File entry --
-2026-10-11 12:42:55.345   Dest filename: C:\Program Files\MOS-GOV\runtime\MOS-Diagnose.cmd
-2026-10-11 12:42:55.345   Time stamp of our file: 2026-10-11 12:39:32.000
-2026-10-11 12:42:55.345   Installing the file.
-2026-10-11 12:42:55.345   Successfully installed the file.
-2026-10-11 12:42:55.347   -- File entry --
-2026-10-11 12:42:55.347   Dest filename: C:\Program Files\MOS-GOV\runtime\MOS-Diagnose.ps1
-2026-10-11 12:42:55.347   Time stamp of our file: 2026-10-11 12:39:32.000
-2026-10-11 12:42:55.347   Installing the file.
-2026-10-11 12:42:55.347   Successfully installed the file.
-2026-10-11 12:42:55.347   -- File entry --
-2026-10-11 12:42:55.347   Dest filename: C:\Program Files\MOS-GOV\runtime\MOS.ico
-2026-10-11 12:42:55.347   Time stamp of our file: 2026-10-11 12:39:32.000
-2026-10-11 12:42:55.347   Installing the file.
-2026-10-11 12:42:55.353   Successfully installed the file.
-2026-10-11 12:42:55.353   -- File entry --
-2026-10-11 12:42:55.355   Dest filename: C:\Program Files\MOS-GOV\runtime\MOSLauncher.exe
-2026-10-11 12:42:55.355   Time stamp of our file: 2026-10-11 12:39:32.000
-2026-10-11 12:42:55.355   Installing the file.
-2026-10-11 12:42:55.561   Successfully installed the file.
-2026-10-11 12:42:55.561   -- File entry --
-2026-10-11 12:42:55.561   Dest filename: C:\Program Files\MOS-GOV\runtime\MOSLauncher.ps1
-2026-10-11 12:42:55.561   Time stamp of our file: 2026-10-11 12:39:32.000
-2026-10-11 12:42:55.561   Installing the file.
-2026-10-11 12:42:55.561   Successfully installed the file.
-2026-10-11 12:42:55.561   -- File entry --
-2026-10-11 12:42:55.563   Dest filename: C:\Program Files\MOS-GOV\runtime\MOSLauncher.vbs
-2026-10-11 12:42:55.563   Time stamp of our file: 2026-10-11 12:39:32.000
-2026-10-11 12:42:55.563   Installing the file.
-2026-10-11 12:42:55.563   Successfully installed the file.
-2026-10-11 12:42:55.563   -- File entry --
-2026-10-11 12:42:55.563   Dest filename: C:\Program Files\MOS-GOV\runtime\reset-church.cmd
-2026-10-11 12:42:55.563   Time stamp of our file: 2026-10-11 12:39:32.000
-2026-10-11 12:42:55.563   Installing the file.
-2026-10-11 12:42:55.565   Successfully installed the file.
-2026-10-11 12:42:55.565   -- File entry --
-2026-10-11 12:42:55.565   Dest filename: C:\Program Files\MOS-GOV\runtime\reset-church.ps1
-2026-10-11 12:42:55.565   Time stamp of our file: 2026-10-11 12:39:32.000
-2026-10-11 12:42:55.565   Installing the file.
-2026-10-11 12:42:55.565   Successfully installed the file.
-2026-10-11 12:42:55.565   -- File entry --
-2026-10-11 12:42:55.565   Dest filename: C:\Program Files\MOS-GOV\runtime\uninstall-runtime.cmd
-2026-10-11 12:42:55.565   Time stamp of our file: 2026-10-11 12:39:32.000
-2026-10-11 12:42:55.565   Installing the file.
-2026-10-11 12:42:55.567   Successfully installed the file.
-2026-10-11 12:42:55.567   -- File entry --
-2026-10-11 12:42:55.567   Dest filename: C:\Program Files\MOS-GOV\runtime\uninstall-runtime.ps1
-2026-10-11 12:42:55.567   Time stamp of our file: 2026-10-11 12:39:32.000
-2026-10-11 12:42:55.567   Installing the file.
-2026-10-11 12:42:55.567   Successfully installed the file.
-2026-10-11 12:42:55.569   -- Icon entry --
-2026-10-11 12:42:55.569   Dest filename: C:\ProgramData\Microsoft\Windows\Start Menu\Programs\MOS 平台\MOS 平台.lnk
-2026-10-11 12:42:55.569   Creating directory: C:\ProgramData\Microsoft\Windows\Start Menu\Programs\MOS 平台
-2026-10-11 12:42:55.592   Creating the icon.
-2026-10-11 12:42:55.986   Successfully created the icon.
-2026-10-11 12:42:55.990   -- Icon entry --
-2026-10-11 12:42:55.990   Dest filename: C:\ProgramData\Microsoft\Windows\Start Menu\Programs\MOS 平台\MOS 诊断.lnk
-2026-10-11 12:42:55.996   Creating the icon.
-2026-10-11 12:42:56.000   Successfully created the icon.
-2026-10-11 12:42:56.004   -- Icon entry --
-2026-10-11 12:42:56.004   Dest filename: C:\ProgramData\Microsoft\Windows\Start Menu\Programs\MOS 平台\新建教会（清除旧数据）.lnk
-2026-10-11 12:42:56.014   Creating the icon.
-2026-10-11 12:42:56.020   Successfully created the icon.
-2026-10-11 12:42:56.027   Saving uninstall information.
-2026-10-11 12:42:56.027   Creating new uninstall key: HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Uninstall\{5F78C9D9-08D7-43A6-9C69-2D1D0BAF2F65}_is1
-2026-10-11 12:42:56.027   Writing uninstall key values.
-2026-10-11 12:42:56.027   Detected previous non administrative install? No
-2026-10-11 12:42:56.027   Detected previous administrative 32-bit install? No
-2026-10-11 12:42:56.065   Installation process succeeded.
-2026-10-11 12:42:56.065   MOS-GOV runtime bootstrap starting: C:\Program Files\MOS-GOV\runtime\install-runtime.cmd
-2026-10-11 12:42:56.065   ResetExistingData=0
-2026-10-11 12:43:40.732   Runtime bootstrap exit code=0
-2026-10-11 12:43:40.732   Creating per-user desktop shortcut: C:\Users\runneradmin\Desktop\MOS 平台.lnk
-2026-10-11 12:43:40.738   Desktop shortcut created: C:\Users\runneradmin\Desktop\MOS 平台.lnk
-2026-10-11 12:43:40.738   Need to restart Windows? No
-2026-10-11 12:43:40.741   Deinitializing Setup.
-2026-10-11 12:43:40.750   Log closed.
+2026-10-11 12:49:29.872   Successfully installed the file.
+2026-10-11 12:49:29.872   -- File entry --
+2026-10-11 12:49:29.872   Dest filename: C:\Program Files\MOS-GOV\PHP\ext\php_xsl.dll
+2026-10-11 12:49:29.872   Time stamp of our file: 2026-08-25 18:44:34.000
+2026-10-11 12:49:29.872   Installing the file.
+2026-10-11 12:49:29.883   Successfully installed the file.
+2026-10-11 12:49:29.883   -- File entry --
+2026-10-11 12:49:29.883   Dest filename: C:\Program Files\MOS-GOV\PHP\ext\php_zend_test.dll
+2026-10-11 12:49:29.883   Time stamp of our file: 2026-08-25 18:44:34.000
+2026-10-11 12:49:29.883   Installing the file.
+2026-10-11 12:49:29.903   Successfully installed the file.
+2026-10-11 12:49:29.903   -- File entry --
+2026-10-11 12:49:29.903   Dest filename: C:\Program Files\MOS-GOV\PHP\ext\php_zip.dll
+2026-10-11 12:49:29.903   Time stamp of our file: 2026-08-25 18:44:34.000
+2026-10-11 12:49:29.903   Installing the file.
+2026-10-11 12:49:29.921   Successfully installed the file.
+2026-10-11 12:49:29.921   -- File entry --
+2026-10-11 12:49:29.921   Dest filename: C:\Program Files\MOS-GOV\PHP\extras\sbom\php.cdx.json
+2026-10-11 12:49:29.921   Time stamp of our file: 2026-08-25 18:45:10.000
+2026-10-11 12:49:29.921   Installing the file.
+2026-10-11 12:49:29.921   Creating directory: C:\Program Files\MOS-GOV\PHP\extras
+2026-10-11 12:49:29.921   Creating directory: C:\Program Files\MOS-GOV\PHP\extras\sbom
+2026-10-11 12:49:29.927   Successfully installed the file.
+2026-10-11 12:49:29.927   -- File entry --
+2026-10-11 12:49:29.927   Dest filename: C:\Program Files\MOS-GOV\PHP\extras\sbom\php.openvex.json
+2026-10-11 12:49:29.927   Time stamp of our file: 2026-08-25 18:45:10.000
+2026-10-11 12:49:29.927   Installing the file.
+2026-10-11 12:49:29.927   Successfully installed the file.
+2026-10-11 12:49:29.927   -- File entry --
+2026-10-11 12:49:29.927   Dest filename: C:\Program Files\MOS-GOV\PHP\extras\sbom\php.spdx.json
+2026-10-11 12:49:29.929   Time stamp of our file: 2026-08-25 18:45:10.000
+2026-10-11 12:49:29.929   Installing the file.
+2026-10-11 12:49:29.933   Successfully installed the file.
+2026-10-11 12:49:29.933   -- File entry --
+2026-10-11 12:49:29.933   Dest filename: C:\Program Files\MOS-GOV\PHP\extras\ssl\legacy.dll
+2026-10-11 12:49:29.935   Time stamp of our file: 2026-08-25 18:44:34.000
+2026-10-11 12:49:29.935   Installing the file.
+2026-10-11 12:49:29.935   Creating directory: C:\Program Files\MOS-GOV\PHP\extras\ssl
+2026-10-11 12:49:29.939   Successfully installed the file.
+2026-10-11 12:49:29.939   -- File entry --
+2026-10-11 12:49:29.939   Dest filename: C:\Program Files\MOS-GOV\PHP\extras\ssl\openssl.cnf
+2026-10-11 12:49:29.939   Time stamp of our file: 2026-08-25 18:45:00.000
+2026-10-11 12:49:29.939   Installing the file.
+2026-10-11 12:49:29.939   Successfully installed the file.
+2026-10-11 12:49:29.941   -- File entry --
+2026-10-11 12:49:29.941   Dest filename: C:\Program Files\MOS-GOV\PHP\lib\enchant\libenchant2_hunspell.dll
+2026-10-11 12:49:29.941   Time stamp of our file: 2026-08-25 18:44:34.000
+2026-10-11 12:49:29.941   Installing the file.
+2026-10-11 12:49:29.941   Creating directory: C:\Program Files\MOS-GOV\PHP\lib
+2026-10-11 12:49:29.941   Creating directory: C:\Program Files\MOS-GOV\PHP\lib\enchant
+2026-10-11 12:49:29.965   Successfully installed the file.
+2026-10-11 12:49:29.965   -- File entry --
+2026-10-11 12:49:29.965   Dest filename: C:\Program Files\MOS-GOV\prereqs\vc_redist.x64.exe
+2026-10-11 12:49:29.965   Time stamp of our file: 2026-10-11 12:45:46.000
+2026-10-11 12:49:29.965   Installing the file.
+2026-10-11 12:49:29.965   Creating directory: C:\Program Files\MOS-GOV\prereqs
+2026-10-11 12:49:30.295   Successfully installed the file.
+2026-10-11 12:49:30.295   -- File entry --
+2026-10-11 12:49:30.295   Dest filename: C:\Program Files\MOS-GOV\runtime\enable-mosgov.php
+2026-10-11 12:49:30.295   Time stamp of our file: 2026-10-11 12:45:30.000
+2026-10-11 12:49:30.295   Installing the file.
+2026-10-11 12:49:30.295   Creating directory: C:\Program Files\MOS-GOV\runtime
+2026-10-11 12:49:30.297   Successfully installed the file.
+2026-10-11 12:49:30.297   -- File entry --
+2026-10-11 12:49:30.297   Dest filename: C:\Program Files\MOS-GOV\runtime\install-runtime.cmd
+2026-10-11 12:49:30.297   Time stamp of our file: 2026-10-11 12:45:30.000
+2026-10-11 12:49:30.297   Installing the file.
+2026-10-11 12:49:30.297   Successfully installed the file.
+2026-10-11 12:49:30.297   -- File entry --
+2026-10-11 12:49:30.297   Dest filename: C:\Program Files\MOS-GOV\runtime\install-runtime.ps1
+2026-10-11 12:49:30.297   Time stamp of our file: 2026-10-11 12:45:30.000
+2026-10-11 12:49:30.297   Installing the file.
+2026-10-11 12:49:30.301   Successfully installed the file.
+2026-10-11 12:49:30.301   -- File entry --
+2026-10-11 12:49:30.301   Dest filename: C:\Program Files\MOS-GOV\runtime\MOS-Diagnose.cmd
+2026-10-11 12:49:30.301   Time stamp of our file: 2026-10-11 12:45:30.000
+2026-10-11 12:49:30.301   Installing the file.
+2026-10-11 12:49:30.303   Successfully installed the file.
+2026-10-11 12:49:30.303   -- File entry --
+2026-10-11 12:49:30.303   Dest filename: C:\Program Files\MOS-GOV\runtime\MOS-Diagnose.ps1
+2026-10-11 12:49:30.303   Time stamp of our file: 2026-10-11 12:45:30.000
+2026-10-11 12:49:30.303   Installing the file.
+2026-10-11 12:49:30.303   Successfully installed the file.
+2026-10-11 12:49:30.303   -- File entry --
+2026-10-11 12:49:30.303   Dest filename: C:\Program Files\MOS-GOV\runtime\MOS.ico
+2026-10-11 12:49:30.303   Time stamp of our file: 2026-10-11 12:45:30.000
+2026-10-11 12:49:30.303   Installing the file.
+2026-10-11 12:49:30.311   Successfully installed the file.
+2026-10-11 12:49:30.311   -- File entry --
+2026-10-11 12:49:30.311   Dest filename: C:\Program Files\MOS-GOV\runtime\MOSLauncher.exe
+2026-10-11 12:49:30.312   Time stamp of our file: 2026-10-11 12:45:30.000
+2026-10-11 12:49:30.312   Installing the file.
+2026-10-11 12:49:30.557   Successfully installed the file.
+2026-10-11 12:49:30.557   -- File entry --
+2026-10-11 12:49:30.557   Dest filename: C:\Program Files\MOS-GOV\runtime\MOSLauncher.ps1
+2026-10-11 12:49:30.557   Time stamp of our file: 2026-10-11 12:45:30.000
+2026-10-11 12:49:30.557   Installing the file.
+2026-10-11 12:49:30.559   Successfully installed the file.
+2026-10-11 12:49:30.559   -- File entry --
+2026-10-11 12:49:30.559   Dest filename: C:\Program Files\MOS-GOV\runtime\MOSLauncher.vbs
+2026-10-11 12:49:30.559   Time stamp of our file: 2026-10-11 12:45:30.000
+2026-10-11 12:49:30.559   Installing the file.
+2026-10-11 12:49:30.559   Successfully installed the file.
+2026-10-11 12:49:30.559   -- File entry --
+2026-10-11 12:49:30.559   Dest filename: C:\Program Files\MOS-GOV\runtime\reset-church.cmd
+2026-10-11 12:49:30.559   Time stamp of our file: 2026-10-11 12:45:30.000
+2026-10-11 12:49:30.559   Installing the file.
+2026-10-11 12:49:30.561   Successfully installed the file.
+2026-10-11 12:49:30.561   -- File entry --
+2026-10-11 12:49:30.561   Dest filename: C:\Program Files\MOS-GOV\runtime\reset-church.ps1
+2026-10-11 12:49:30.561   Time stamp of our file: 2026-10-11 12:45:30.000
+2026-10-11 12:49:30.561   Installing the file.
+2026-10-11 12:49:30.561   Successfully installed the file.
+2026-10-11 12:49:30.561   -- File entry --
+2026-10-11 12:49:30.561   Dest filename: C:\Program Files\MOS-GOV\runtime\uninstall-runtime.cmd
+2026-10-11 12:49:30.563   Time stamp of our file: 2026-10-11 12:45:30.000
+2026-10-11 12:49:30.563   Installing the file.
+2026-10-11 12:49:30.563   Successfully installed the file.
+2026-10-11 12:49:30.563   -- File entry --
+2026-10-11 12:49:30.563   Dest filename: C:\Program Files\MOS-GOV\runtime\uninstall-runtime.ps1
+2026-10-11 12:49:30.563   Time stamp of our file: 2026-10-11 12:45:30.000
+2026-10-11 12:49:30.563   Installing the file.
+2026-10-11 12:49:30.563   Successfully installed the file.
+2026-10-11 12:49:30.565   -- Icon entry --
+2026-10-11 12:49:30.565   Dest filename: C:\ProgramData\Microsoft\Windows\Start Menu\Programs\MOS 平台\MOS 平台.lnk
+2026-10-11 12:49:30.565   Creating directory: C:\ProgramData\Microsoft\Windows\Start Menu\Programs\MOS 平台
+2026-10-11 12:49:30.590   Creating the icon.
+2026-10-11 12:49:32.058   Successfully created the icon.
+2026-10-11 12:49:32.062   -- Icon entry --
+2026-10-11 12:49:32.062   Dest filename: C:\ProgramData\Microsoft\Windows\Start Menu\Programs\MOS 平台\MOS 诊断.lnk
+2026-10-11 12:49:32.068   Creating the icon.
+2026-10-11 12:49:32.072   Successfully created the icon.
+2026-10-11 12:49:32.078   -- Icon entry --
+2026-10-11 12:49:32.078   Dest filename: C:\ProgramData\Microsoft\Windows\Start Menu\Programs\MOS 平台\新建教会（清除旧数据）.lnk
+2026-10-11 12:49:32.086   Creating the icon.
+2026-10-11 12:49:32.090   Successfully created the icon.
+2026-10-11 12:49:32.096   Saving uninstall information.
+2026-10-11 12:49:32.096   Creating new uninstall key: HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Uninstall\{5F78C9D9-08D7-43A6-9C69-2D1D0BAF2F65}_is1
+2026-10-11 12:49:32.096   Writing uninstall key values.
+2026-10-11 12:49:32.096   Detected previous non administrative install? No
+2026-10-11 12:49:32.096   Detected previous administrative 32-bit install? No
+2026-10-11 12:49:32.159   Installation process succeeded.
+2026-10-11 12:49:32.159   MOS-GOV runtime bootstrap starting: C:\Program Files\MOS-GOV\runtime\install-runtime.cmd
+2026-10-11 12:49:32.161   ResetExistingData=0
+2026-10-11 12:50:27.849   Runtime bootstrap exit code=0
+2026-10-11 12:50:27.849   Creating per-user desktop shortcut: C:\Users\runneradmin\Desktop\MOS 平台.lnk
+2026-10-11 12:50:27.855   Desktop shortcut created: C:\Users\runneradmin\Desktop\MOS 平台.lnk
+2026-10-11 12:50:27.855   Need to restart Windows? No
+2026-10-11 12:50:27.859   Deinitializing Setup.
+2026-10-11 12:50:27.868   Log closed.
 
 === build.ps1 output (tail 80) ===
    Compressing: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\installer-build\payload\PHP\php-win.exe
@@ -230,106 +230,40 @@ runner image: win25-vs2026 / Windows
 
 Warning: The [Setup] section directive "PrivilegesRequired" is set to "admin" but per-user areas (userdesktop) are used by the script. Regardless of the version of Windows, if the installation is running in administrative install mode then you should be careful about making any per-user area changes: such changes may not achieve what you are intending. See the "UsedUserAreasWarning" topic in help file for more information.
 
-Successful compile (136.250 sec). Resulting Setup program filename is:
+Successful compile (151.860 sec). Resulting Setup program filename is:
 D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\dist\MOS-GOV-V0.2.5-Setup.exe
 Created: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\dist\MOS-GOV-V0.2.5-Setup.exe
-SHA256: 9B858CF7FBE38951D245C417A5ECF8E685B2C9115DAFDC15A3E4452453A4A6B4
+SHA256: 7DF8624D7D3A0E93D5ACC2CF77049EE79559D502EE672393ACFF57B17132E05A
 
 === runtime installer.log (tail 120) ===
-2026-10-11T12:42:56 MOS-GOV one-click installation starting.
-2026-10-11T12:42:58 Using HTTP port 8080 and MariaDB port 3307. ResetData=False UpgradeMode=False
-2026-10-11T12:42:58 Starting Microsoft VC++ Redistributable installation.
-2026-10-11T12:43:00 Microsoft VC++ Redistributable exit code: 0.
-2026-10-11T12:43:00 Configuring PHP.
-2026-10-11T12:43:00 PHP configuration completed.
-2026-10-11T12:43:00 PHP BCMath support verified.
-2026-10-11T12:43:00 Installing MariaDB.
-2026-10-11T12:43:35 MariaDB service installation completed.
-2026-10-11T12:43:35 Waiting for MariaDB.
-2026-10-11T12:43:36 MariaDB is ready.
-2026-10-11T12:43:36 churchcrm database is missing; a fresh schema import will be performed.
-2026-10-11T12:43:36 Configuring ChurchCRM.
-2026-10-11T12:43:36 ChurchCRM configuration completed.
-2026-10-11T12:43:36 Configuring Apache.
-2026-10-11T12:43:36 Validating Apache configuration.
-2026-10-11T12:43:36 Apache httpd -t: Syntax OK
-2026-10-11T12:43:36 Apache configuration is valid.
-2026-10-11T12:43:38 Apache service installation completed.
-2026-10-11T12:43:38 Importing official ChurchCRM schema and seed data.
-2026-10-11T12:43:39 Official ChurchCRM schema import completed.
-2026-10-11T12:43:39 Waiting for ChurchCRM HTTP endpoint.
-2026-10-11T12:43:39 ChurchCRM HTTP endpoint is reachable.
-2026-10-11T12:43:39 Importing MOS-GOV plugin database schema.
-2026-10-11T12:43:40 MOS-GOV plugin database schema import completed.
-2026-10-11T12:43:40 MOS-GOV installation completed.
+2026-10-11T12:49:33 MOS-GOV one-click installation starting.
+2026-10-11T12:49:39 Using HTTP port 8080 and MariaDB port 3307. ResetData=False UpgradeMode=False
+2026-10-11T12:49:39 Starting Microsoft VC++ Redistributable installation.
+2026-10-11T12:49:47 Microsoft VC++ Redistributable exit code: 0.
+2026-10-11T12:49:47 Configuring PHP.
+2026-10-11T12:49:47 PHP configuration completed.
+2026-10-11T12:49:47 PHP BCMath support verified.
+2026-10-11T12:49:47 Installing MariaDB.
+2026-10-11T12:50:21 MariaDB service installation completed.
+2026-10-11T12:50:21 Waiting for MariaDB.
+2026-10-11T12:50:21 MariaDB is ready.
+2026-10-11T12:50:21 churchcrm database is missing; a fresh schema import will be performed.
+2026-10-11T12:50:21 Configuring ChurchCRM.
+2026-10-11T12:50:21 ChurchCRM configuration completed.
+2026-10-11T12:50:21 Configuring Apache.
+2026-10-11T12:50:21 Validating Apache configuration.
+2026-10-11T12:50:22 Apache httpd -t: Syntax OK
+2026-10-11T12:50:22 Apache configuration is valid.
+2026-10-11T12:50:23 Apache service installation completed.
+2026-10-11T12:50:23 Importing official ChurchCRM schema and seed data.
+2026-10-11T12:50:26 Official ChurchCRM schema import completed.
+2026-10-11T12:50:26 Waiting for ChurchCRM HTTP endpoint.
+2026-10-11T12:50:26 ChurchCRM HTTP endpoint is reachable.
+2026-10-11T12:50:26 Importing MOS-GOV plugin database schema.
+2026-10-11T12:50:27 MOS-GOV plugin database schema import completed.
+2026-10-11T12:50:27 MOS-GOV installation completed.
 
 === PHP regression suite (tail 250) ===
-[PASS] edit form renders with the stored values -- 200
-[PASS] edit over HTTP redirects to the record -- 302 -> http://127.0.0.1:8080/plugins/mos-gov/structures/6
-[PASS] edited values are visible on the detail page
-[PASS] detail page omits write actions for a read-only user
-
-=== Cleanup ===
-[PASS] removed structure #6
-[PASS] removed body #4
-[PASS] restored original ChurchCRM sChurchName setup state
-[PASS] governance tables are back to their baseline after cleanup -- leftover rows created by this run: 2; now={"structures":1,"bodies":1,"roles":10,"appointments":0,"responsibilities":0,"relationships":0,"meetings":0,"issues":0,"open_issues":0,"decisions":0,"tasks":0,"open_tasks":0}
-
-V0.1 HTTP: ALL TESTS PASSED
-
-========================================================================
-RUN  V0.2 migration (authorization model)  (v02_migrate.php)
-========================================================================
-=== MOS-GOV V0.2 migration ===
-[PASS] migration contains no destructive statements
-[PASS] 002_v02_authorization.sql imported without exception
-[PASS] table gov_identity exists and is readable -- rows=0
-[PASS] table gov_identity_role exists and is readable -- rows=0
-[PASS] table gov_scope exists and is readable -- rows=2
-[PASS] table gov_role_scope exists and is readable -- rows=8
-[PASS] table gov_identity_scope exists and is readable -- rows=0
-[PASS] table gov_permission exists and is readable -- rows=35
-[PASS] table gov_role_permission exists and is readable -- rows=140
-[PASS] table gov_identity_permission exists and is readable -- rows=0
-[PASS] table gov_visibility_rule exists and is readable -- rows=6
-[PASS] V0.1 tables preserved (no rows lost)
-[PASS] permission whitelist seeded (>= 35 keys) -- count=35
-[PASS] no permission keys outside the whitelist -- unknown=0
-[PASS] system roles A01..E01 seeded (10) -- count=10
-[PASS] default role permissions seeded -- count=140
-[PASS] P5 default DENY rules present -- deny=2
-[PASS] no seeded P5 allow rule (explicit grants only) -- allow=0
-[PASS] scope types all inside the whitelist -- church,global
-[PASS] re-run does not duplicate permission seeds -- 35 -> 35
-[PASS] re-run does not duplicate role seeds -- 10 -> 10
-
-result: 21 PASS, 0 FAIL
-
-========================================================================
-RUN  V0.2 governance identity  (v02_identity_test.php)
-========================================================================
-[CI USER DIAG] mgcr_61f43109a48d52bf apiKey=yes editSelfExclusive=no personId=2
-[CI USER DIAG] skipped: existing gov_identity id= for mgcr_61f43109a48d52bf
-[CI USER DIAG] mgce_61f43109a48d52bf apiKey=yes editSelfExclusive=no personId=3
-[CI USER DIAG] skipped: existing gov_identity id= for mgce_61f43109a48d52bf
-
-=== 1. Identity provisioning ===
-[SKIP] identity tests -- no non-administrator user with an API key exists
-
-V0.2 IDENTITY: 0 checks, 0 FAIL, 1 skip
-[BLOCKED] Suite contains skipped checks; this is not a passing result.
-
-========================================================================
-RUN  V0.2 scope containment  (v02_scope_test.php)
-========================================================================
-[CI USER DIAG] mgcr_61f43109a48d52bf apiKey=yes editSelfExclusive=no personId=2
-[CI USER DIAG] skipped: existing gov_identity id= for mgcr_61f43109a48d52bf
-[CI USER DIAG] mgce_61f43109a48d52bf apiKey=yes editSelfExclusive=no personId=3
-[CI USER DIAG] skipped: existing gov_identity id= for mgce_61f43109a48d52bf
-
-=== 1. Scope whitelist enforcement ===
-[PASS] unknown scope_type rejected by validation
-[PASS] group scope without numeric ID rejected
 [PASS] global scope with numeric ID rejected
 [PASS] service rejects unknown scope type
 
@@ -342,19 +276,21 @@ RUN  V0.2 scope containment  (v02_scope_test.php)
 [PASS] person 3 does not cover person 4
 
 === 3. Identity scope rows (least privilege) ===
-[SKIP] identity scope tests -- no non-administrator user with an API key exists
-[CLEANUP] governance rows removed: 0
+[PASS] identity scope assigned (group 12)
+[PASS] context carries group 12 scope -- [{"scope_type":"group","scope_id":12,"source_type":"manual_assignment"},{"scope_type":"person","scope_id":2,"source_type":"self"}]
+[PASS] future-dated identity scope has no authority yet -- [{"scope_type":"person","scope_id":2,"source_type":"self"}]
+[PASS] group scope does NOT cover another body meeting
+[PASS] own task is within scope
+[PASS] another person's task is OUT of scope
+[CLEANUP] governance rows removed: 3
 
-V0.2 SCOPE: 10 checks, 0 FAIL, 1 skip
-[BLOCKED] Suite contains skipped checks; this is not a passing result.
+V0.2 SCOPE: 16 checks, 0 FAIL, 0 skip
+[PASS] Suite completed with no failed or skipped checks.
 
 ========================================================================
 RUN  V0.2 permission registry  (v02_permission_test.php)
 ========================================================================
-[CI USER DIAG] mgcr_61f43109a48d52bf apiKey=yes editSelfExclusive=no personId=2
-[CI USER DIAG] skipped: existing gov_identity id= for mgcr_61f43109a48d52bf
-[CI USER DIAG] mgce_61f43109a48d52bf apiKey=yes editSelfExclusive=no personId=3
-[CI USER DIAG] skipped: existing gov_identity id= for mgce_61f43109a48d52bf
+[CI USER DIAG] mgcr_c72fecd22e5d4c48 apiKey=yes editSelfExclusive=no personId=2
 
 === 1. Registry whitelist integrity ===
 [PASS] every DB permission key is in the whitelist
@@ -375,19 +311,20 @@ RUN  V0.2 permission registry  (v02_permission_test.php)
 [PASS] E01 does NOT hold decision.approve (no church authority)
 
 === 3. Explicit overrides (grant / deny) ===
-[SKIP] override tests -- no non-administrator user with an API key exists
-[CLEANUP] governance rows removed: 0
+[PASS] before override: meeting.create absent
+[PASS] explicit grant adds meeting.create
+[PASS] grant source is explicit
+[PASS] explicit DENY wins over role GRANT
+[PASS] critical permission not grantable as override
+[CLEANUP] governance rows removed: 4
 
-V0.2 PERMISSION: 14 checks, 0 FAIL, 1 skip
-[BLOCKED] Suite contains skipped checks; this is not a passing result.
+V0.2 PERMISSION: 19 checks, 0 FAIL, 0 skip
+[PASS] Suite completed with no failed or skipped checks.
 
 ========================================================================
 RUN  V0.2 information visibility  (v02_visibility_test.php)
 ========================================================================
-[CI USER DIAG] mgcr_61f43109a48d52bf apiKey=yes editSelfExclusive=no personId=2
-[CI USER DIAG] skipped: existing gov_identity id= for mgcr_61f43109a48d52bf
-[CI USER DIAG] mgce_61f43109a48d52bf apiKey=yes editSelfExclusive=no personId=3
-[CI USER DIAG] skipped: existing gov_identity id= for mgce_61f43109a48d52bf
+[CI USER DIAG] mgcr_c72fecd22e5d4c48 apiKey=yes editSelfExclusive=no personId=2
 
 === 1. Level defaults per resource ===
 [PASS] structure is P2
@@ -402,29 +339,56 @@ RUN  V0.2 information visibility  (v02_visibility_test.php)
 [PASS] meeting.title is NOT a P5 field
 
 === 3. Level visibility per role context ===
-[SKIP] identity visibility tests -- no non-administrator user with an API key exists
-[CLEANUP] governance rows removed: 0
+[PASS] P1 viewable
+[PASS] P2 viewable
+[PASS] P3 viewable inside scope
+[PASS] P4 viewable (governance level)
+[PASS] P5 DENIED by default (no role grants P5)
+[PASS] P5 DENIED even for export action
 
-V0.2 VISIBILITY: 8 checks, 0 FAIL, 1 skip
-[BLOCKED] Suite contains skipped checks; this is not a passing result.
+=== 4. P5 explicit unlock + field masking ===
+[PASS] explicit P5 allow row unlocks P5 for the role
+[PASS] P5 content visible with explicit grant
+[PASS] P5 content replaced by protection marker without grant
+[CLEANUP] governance rows removed: 3
+
+V0.2 VISIBILITY: 17 checks, 0 FAIL, 0 skip
+[PASS] Suite completed with no failed or skipped checks.
 
 ========================================================================
 RUN  V0.2 authorization engine  (v02_authorization_test.php)
 ========================================================================
-[CI USER DIAG] mgcr_61f43109a48d52bf apiKey=yes editSelfExclusive=no personId=2
-[CI USER DIAG] skipped: existing gov_identity id= for mgcr_61f43109a48d52bf
-[CI USER DIAG] mgce_61f43109a48d52bf apiKey=yes editSelfExclusive=no personId=3
-[CI USER DIAG] skipped: existing gov_identity id= for mgce_61f43109a48d52bf
+[CI USER DIAG] mgcr_c72fecd22e5d4c48 apiKey=yes editSelfExclusive=no personId=2
 
 === 1. Step 1 — unauthenticated ===
 [PASS] anonymous user denied -- You must be signed in.
 
 === 2. Steps 2–4 — identity and role ===
-[SKIP] identity steps -- no non-administrator user with an API key exists
-[CLEANUP] governance rows removed: 0
+[PASS] no governance identity → denied -- No active governance identity is linked to your account.
+[PASS] identity without active role → denied -- Your governance roles do not include this permission.
+[PASS] A01 with active role → module view allowed -- Allowed by governance.view via role
+[PASS] future-dated identity role has no authority yet -- ["A01"]
+[PASS] temporary role active before deactivation -- ["A01","MOS_TEST_DEACTIVATION_ROLE"]
+[PASS] role scope template alone does not grant concrete person scope
+[PASS] inactive temporary role no longer grants authority -- ["A01"]
+[PASS] inactive temporary role no longer contributes inherited scope
 
-V0.2 AUTHORIZATION: 1 checks, 0 FAIL, 1 skip
-[BLOCKED] Suite contains skipped checks; this is not a passing result.
+=== 3. Step 6 — appointment lifecycle (§15) ===
+[PASS] ended appointment produces no active authority -- []
+
+=== 4. Step 7 — scope containment (§21 ID guessing) ===
+[PASS] A01 identity active again
+[PASS] task outside scope DENIED (ID guessing) -- This record is outside your governance scope.
+[PASS] meeting outside scope DENIED (ID guessing) -- This record is outside your governance scope.
+[PASS] own task ALLOWED -- Allowed by task.view via role
+
+=== 5. Steps 8–10 — P5 and explicit DENY ===
+[PASS] export denied without export permission (view≠export) -- Your governance roles do not include this permission.
+[PASS] explicit DENY outranks role GRANT -- An explicit authorization denial applies to this permission.
+[CLEANUP] governance rows removed: 10
+
+V0.2 AUTHORIZATION: 16 checks, 0 FAIL, 0 skip
+[PASS] Suite completed with no failed or skipped checks.
 
 ========================================================================
 RUN  V0.2 security mode + scans  (v02_security_test.php)
@@ -481,17 +445,53 @@ V0.2 SECURITY: 32 checks, 0 FAIL, 0 skip
 ========================================================================
 RUN  V0.2 my governance + HTTP  (v02_my_governance_test.php)
 ========================================================================
-[CI USER DIAG] mgcr_61f43109a48d52bf apiKey=yes editSelfExclusive=no personId=2
-[CI USER DIAG] skipped: existing gov_identity id= for mgcr_61f43109a48d52bf
-[CI USER DIAG] mgce_61f43109a48d52bf apiKey=yes editSelfExclusive=no personId=3
-[CI USER DIAG] skipped: existing gov_identity id= for mgce_61f43109a48d52bf
+[CI USER DIAG] mgcr_c72fecd22e5d4c48 apiKey=yes editSelfExclusive=no personId=2
 
 === 1. My Governance data build (answer chain) ===
-[SKIP] my governance tests -- no non-administrator user with an API key exists
-[CLEANUP] governance rows removed: 0
+[PASS] 1. identity present
+[PASS] 2. roles listed
+[PASS] 3. responsibilities key present
+[PASS] 4. scopes listed
+[PASS] 5. permissions grouped
+[PASS] 7. open tasks include my task -- task #2
+[PASS] 8. bodies (accountability) key present
 
-V0.2 MY GOVERNANCE: 0 checks, 0 FAIL, 1 skip
-[BLOCKED] Suite contains skipped checks; this is not a passing result.
+=== 2. HTTP surfaces (§46 real browser behaviour) ===
+[PASS] anonymous my-governance redirected to login -- 302
+[FAIL] admin my-governance renders 200 -- 302
+[FAIL] my-governance shows the no-identity notice for identity-less admin
+[FAIL] governance search renders 200 -- 302
+[FAIL] search marks itself as scoped
+[FAIL] permission registry renders 200 -- 302
+[FAIL] permission registry shows the whitelist
+[FAIL] identity administration renders 200 -- 302
+[FAIL] export refused without explicit permission (view≠export) -- 302
+[FAIL] export denial explains the boundary
+[PASS] member my-governance renders 200 with identity -- 200
+[PASS] member sees their own identity chain
+[PASS] member export DENIED by default (§24) -- 403
+[PASS] member search finds only in-scope records
+
+=== 3. Legacy surface scope enforcement (§21 — FINAL REVIEW regression) ===
+[PASS] identity-less admin is NOT under the governance read policy
+[PASS] identity holder IS under the governance read policy
+[PASS] out-of-scope detail is DENIED with 403 (not 500) -- 403
+[PASS] denial renders the protected-information page
+[PASS] denial states the scope boundary
+[PASS] denial leaks no protected content
+[PASS] legacy list still renders for an identity holder -- 200
+[PASS] legacy list hides out-of-scope rows at data level
+[PASS] permission registry DENIED without permission.manage -- 403
+[PASS] permission registry leaks no permission matrix
+[PASS] inactive identity still counts as an identity row for the read gate
+[PASS] deactivating an identity does NOT open out-of-scope detail (§1) -- 403
+[PASS] deactivating an identity does NOT leak the unscoped list (§1) -- 200
+[FAIL] identity-less admin keeps the V0.1 bootstrap list read -- 302
+[FAIL] administrator can still read the permission registry -- 302
+[CLEANUP] governance rows removed: 4
+
+V0.2 MY GOVERNANCE: 36 checks, 11 FAIL, 0 skip
+[FAIL] Suite has failed assertions.
 
 ========================================================================
 MOS-GOV TEST SUITE SUMMARY (V0.1 + V0.2)
@@ -503,15 +503,15 @@ Phase 3 data layer regression            PASS
 V0.1 data layer (ten entities)           PASS
 V0.1 HTTP end-to-end                     PASS
 V0.2 migration (authorization model)     PASS
-V0.2 governance identity                 BLOCKED (one or more checks skipped)
-V0.2 scope containment                   BLOCKED (one or more checks skipped)
-V0.2 permission registry                 BLOCKED (one or more checks skipped)
-V0.2 information visibility              BLOCKED (one or more checks skipped)
-V0.2 authorization engine                BLOCKED (one or more checks skipped)
+V0.2 governance identity                 PASS
+V0.2 scope containment                   PASS
+V0.2 permission registry                 PASS
+V0.2 information visibility              PASS
+V0.2 authorization engine                PASS
 V0.2 security mode + scans               PASS
-V0.2 my governance + HTTP                BLOCKED (one or more checks skipped)
+V0.2 my governance + HTTP                FAIL (exit 1)
 ------------------------------------------------------------------------
-0 FAILED; 6 BLOCKED; 14 TOTAL SUITES
+1 FAILED; 0 BLOCKED; 14 TOTAL SUITES
 BLOCKED suites are not counted as passing; resolve skipped prerequisites before release.
 [PASS] Removed only marked MOS-GOV CI accounts and restored the exact original admin API key.
 
@@ -526,32 +526,32 @@ apache service: Running
 maria service: Running
 
 === collected runtime installer.log (tail 150) ===
-2026-10-11T12:42:56 MOS-GOV one-click installation starting.
-2026-10-11T12:42:58 Using HTTP port 8080 and MariaDB port 3307. ResetData=False UpgradeMode=False
-2026-10-11T12:42:58 Starting Microsoft VC++ Redistributable installation.
-2026-10-11T12:43:00 Microsoft VC++ Redistributable exit code: 0.
-2026-10-11T12:43:00 Configuring PHP.
-2026-10-11T12:43:00 PHP configuration completed.
-2026-10-11T12:43:00 PHP BCMath support verified.
-2026-10-11T12:43:00 Installing MariaDB.
-2026-10-11T12:43:35 MariaDB service installation completed.
-2026-10-11T12:43:35 Waiting for MariaDB.
-2026-10-11T12:43:36 MariaDB is ready.
-2026-10-11T12:43:36 churchcrm database is missing; a fresh schema import will be performed.
-2026-10-11T12:43:36 Configuring ChurchCRM.
-2026-10-11T12:43:36 ChurchCRM configuration completed.
-2026-10-11T12:43:36 Configuring Apache.
-2026-10-11T12:43:36 Validating Apache configuration.
-2026-10-11T12:43:36 Apache httpd -t: Syntax OK
-2026-10-11T12:43:36 Apache configuration is valid.
-2026-10-11T12:43:38 Apache service installation completed.
-2026-10-11T12:43:38 Importing official ChurchCRM schema and seed data.
-2026-10-11T12:43:39 Official ChurchCRM schema import completed.
-2026-10-11T12:43:39 Waiting for ChurchCRM HTTP endpoint.
-2026-10-11T12:43:39 ChurchCRM HTTP endpoint is reachable.
-2026-10-11T12:43:39 Importing MOS-GOV plugin database schema.
-2026-10-11T12:43:40 MOS-GOV plugin database schema import completed.
-2026-10-11T12:43:40 MOS-GOV installation completed.
+2026-10-11T12:49:33 MOS-GOV one-click installation starting.
+2026-10-11T12:49:39 Using HTTP port 8080 and MariaDB port 3307. ResetData=False UpgradeMode=False
+2026-10-11T12:49:39 Starting Microsoft VC++ Redistributable installation.
+2026-10-11T12:49:47 Microsoft VC++ Redistributable exit code: 0.
+2026-10-11T12:49:47 Configuring PHP.
+2026-10-11T12:49:47 PHP configuration completed.
+2026-10-11T12:49:47 PHP BCMath support verified.
+2026-10-11T12:49:47 Installing MariaDB.
+2026-10-11T12:50:21 MariaDB service installation completed.
+2026-10-11T12:50:21 Waiting for MariaDB.
+2026-10-11T12:50:21 MariaDB is ready.
+2026-10-11T12:50:21 churchcrm database is missing; a fresh schema import will be performed.
+2026-10-11T12:50:21 Configuring ChurchCRM.
+2026-10-11T12:50:21 ChurchCRM configuration completed.
+2026-10-11T12:50:21 Configuring Apache.
+2026-10-11T12:50:21 Validating Apache configuration.
+2026-10-11T12:50:22 Apache httpd -t: Syntax OK
+2026-10-11T12:50:22 Apache configuration is valid.
+2026-10-11T12:50:23 Apache service installation completed.
+2026-10-11T12:50:23 Importing official ChurchCRM schema and seed data.
+2026-10-11T12:50:26 Official ChurchCRM schema import completed.
+2026-10-11T12:50:26 Waiting for ChurchCRM HTTP endpoint.
+2026-10-11T12:50:26 ChurchCRM HTTP endpoint is reachable.
+2026-10-11T12:50:26 Importing MOS-GOV plugin database schema.
+2026-10-11T12:50:27 MOS-GOV plugin database schema import completed.
+2026-10-11T12:50:27 MOS-GOV installation completed.
 
 === services ===
 
@@ -566,8 +566,8 @@ Running MOS-GOV-MariaDB MOS-GOV-MariaDB
 LocalAddress LocalPort RemoteAddress RemotePort State  AppliedSetting OwningProcess
 ------------ --------- ------------- ---------- -----  -------------- -------------
 ::           80        ::            0          Listen                4
-127.0.0.1    8080      0.0.0.0       0          Listen                9592
-127.0.0.1    3307      0.0.0.0       0          Listen                5220
+127.0.0.1    8080      0.0.0.0       0          Listen                1812
+127.0.0.1    3307      0.0.0.0       0          Listen                6388
 
 
 === dist ===
@@ -581,21 +581,21 @@ MOS-GOV-V0.2.5-Setup.exe.sha256.json       262
 === httpd.conf Listen ===
 Listen 127.0.0.1:8080
 === apache error log (tail 60) ===
-[Sun Oct 11 12:43:37.508773 2026] [mpm_winnt:notice] [pid 9592:tid 456] AH00455: Apache/2.4.69 (Win64) PHP/8.4.25 configured -- resuming normal operations
-[Sun Oct 11 12:43:37.508773 2026] [mpm_winnt:notice] [pid 9592:tid 456] AH00456: Apache Lounge VS18 Server built: Oct  1 2026 09:34:06
-[Sun Oct 11 12:43:37.508773 2026] [core:notice] [pid 9592:tid 456] AH00094: Command line: 'C:\\Program Files\\MOS-GOV\\Apache24\\bin\\httpd.exe -d C:/Program Files/MOS-GOV/Apache24 -f C:\\Program Files\\MOS-GOV\\Apache24\\conf\\httpd.conf'
-[Sun Oct 11 12:43:37.510789 2026] [mpm_winnt:notice] [pid 9592:tid 456] AH00418: Parent: Created child process 5356
-[Sun Oct 11 12:43:37.822543 2026] [mpm_winnt:notice] [pid 5356:tid 456] AH00354: Child: Starting 64 worker threads.
+[Sun Oct 11 12:50:23.069264 2026] [mpm_winnt:notice] [pid 1812:tid 440] AH00455: Apache/2.4.69 (Win64) PHP/8.4.25 configured -- resuming normal operations
+[Sun Oct 11 12:50:23.069264 2026] [mpm_winnt:notice] [pid 1812:tid 440] AH00456: Apache Lounge VS18 Server built: Oct  1 2026 09:34:06
+[Sun Oct 11 12:50:23.069264 2026] [core:notice] [pid 1812:tid 440] AH00094: Command line: 'C:\\Program Files\\MOS-GOV\\Apache24\\bin\\httpd.exe -d C:/Program Files/MOS-GOV/Apache24 -f C:\\Program Files\\MOS-GOV\\Apache24\\conf\\httpd.conf'
+[Sun Oct 11 12:50:23.072047 2026] [mpm_winnt:notice] [pid 1812:tid 440] AH00418: Parent: Created child process 7368
+[Sun Oct 11 12:50:23.378044 2026] [mpm_winnt:notice] [pid 7368:tid 436] AH00354: Child: Starting 64 worker threads.
 === smoke test transcript (tail 120) ===
 **********************
 PowerShell transcript start
-Start time: 20261011124220
+Start time: 20261011124834
 Username: runnervmfi6oq\runneradmin
 RunAs User: runnervmfi6oq\runneradmin
 Configuration Name: 
 Machine: runnervmfi6oq (Microsoft Windows NT 10.0.26100.0)
-Host Application: C:\Program Files\PowerShell\7\pwsh.dll -command . 'D:\a\_temp\1184b334-c0a6-4729-9c63-70b6e594e2da.ps1'
-Process ID: 1996
+Host Application: C:\Program Files\PowerShell\7\pwsh.dll -command . 'D:\a\_temp\1b9dfb64-6be8-4021-9642-7d2405224700.ps1'
+Process ID: 8564
 PSVersion: 7.6.6
 PSEdition: Core
 GitCommitId: 7.6.6
@@ -607,7 +607,7 @@ SerializationVersion: 1.1.0.1
 WSManStackVersion: 3.0
 **********************
 Starting installer: D:\a\MOS-GOV-V0.1\MOS-GOV-V0.1\dist\MOS-GOV-V0.2.5-Setup.exe
-Installer launcher PID: 9228
+Installer launcher PID: 7016
 installer launcher exited: True
 installer launcher exit code: 0
 runtime install completed marker: True
@@ -628,7 +628,7 @@ MOS-GOV plugin endpoint: HTTP 200
 Installer smoke test passed.
 **********************
 PowerShell transcript end
-End time: 20261011124344
+End time: 20261011125034
 **********************
 
 === desktop shortcuts actually present ===
