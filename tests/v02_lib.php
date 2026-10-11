@@ -119,22 +119,37 @@ $mosGovUsers = static function (): array {
     $conn = \Propel\Runtime\Propel::getConnection();
     $identityLookup = $conn->prepare('SELECT id FROM gov_identity WHERE person_id = :pid LIMIT 1');
     foreach (UserQuery::create()->filterByAdmin(false)->find() as $candidate) {
-        if ($candidate->isEditSelfExclusive() || empty($candidate->getApiKey())) {
-            continue;
-        }
         $username = (string) $candidate->getUserName();
         $isCiFixture = str_starts_with($username, $ciReadOnlyPrefix)
             || str_starts_with($username, $ciEditorPrefix);
         if ($ciMode && !$isCiFixture) {
             continue;
         }
+        $hasApiKey = !empty($candidate->getApiKey());
+        $editSelfExclusive = $candidate->isEditSelfExclusive();
         $personId = (int) $candidate->getPersonId();
-        if ($personId < 1) {
+        if ($ciMode && $isCiFixture) {
+            echo '[CI USER DIAG] ' . $username
+                . ' apiKey=' . ($hasApiKey ? 'yes' : 'no')
+                . ' editSelfExclusive=' . ($editSelfExclusive ? 'yes' : 'no')
+                . ' personId=' . $personId . PHP_EOL;
+        }
+        if ($editSelfExclusive || !$hasApiKey) {
             continue;
         }
-        $identityLookup->bindValue(':pid', $personId, \PDO::PARAM_INT);
+        if ($personId < 1) {
+            if ($ciMode && $isCiFixture) {
+                echo '[CI USER DIAG] skipped: invalid personId for ' . $username . PHP_EOL;
+            }
+            continue;
+        }
+        $identityLookup->bindValue(':pid', $personId, \\PDO::PARAM_INT);
         $identityLookup->execute();
-        if ($identityLookup->fetchColumn() !== false) {
+        $existingIdentityId = $identityLookup->fetchColumn();
+        if ($existingIdentityId !== false) {
+            if ($ciMode && $isCiFixture) {
+                echo '[CI USER DIAG] skipped: existing gov_identity id=' . $existingIdentityId . ' for ' . $username . PHP_EOL;
+            }
             continue;
         }
         $member = $candidate;
