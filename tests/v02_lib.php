@@ -146,10 +146,7 @@ $mosGovUsers = static function (): array {
         $identityLookup->bindValue(':pid', $personId, \PDO::PARAM_INT);
         $identityLookup->execute();
         $existingIdentityId = $identityLookup->fetchColumn();
-        if ($existingIdentityId !== false) {
-            if ($ciMode && $isCiFixture) {
-                echo '[CI USER DIAG] skipped: existing gov_identity id=' . $existingIdentityId . ' for ' . $username . PHP_EOL;
-            }
+        if ($existingIdentityId !== false && !($ciMode && $isCiFixture)) {
             continue;
         }
         $member = $candidate;
