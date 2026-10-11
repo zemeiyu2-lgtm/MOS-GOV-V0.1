@@ -55,7 +55,7 @@ try {
 
         // Allocate a fresh, collision-checked tag. A stale account from an
         // interrupted runner must cause a retry, never account reuse/deletion.
-        $findUser = $conn->prepare('SELECT usr_per_ID, usr_UserName FROM user_usr WHERE usr_UserName = :username LIMIT 1');
+        $findUser = $conn->prepare('SELECT usr_UserName FROM user_usr WHERE usr_UserName = :username LIMIT 1');
         $accounts = [];
         $collision = true;
         $collisionDetails = [];
