@@ -130,7 +130,6 @@ foreach (UserQuery::create()->filterByAdmin(true)->find() as $candidate) {
 }
 $readOnlyUser = null;
 $editorUser = null;
-$ciMode = getenv('MOSGOV_CI_TEST_MODE') === '1';
 $ciRunId = preg_replace('/[^A-Za-z0-9]/', '', (string) (getenv('GITHUB_RUN_ID') ?: 'local'));
 $ciAttempt = preg_replace('/[^A-Za-z0-9]/', '', (string) (getenv('GITHUB_RUN_ATTEMPT') ?: '1'));
 // Keep CI fixture selection aligned with tests/ci_test_users.php.
@@ -169,11 +168,12 @@ $baseline = $repo->getDashboardCounts();
 // A fresh ChurchCRM database intentionally starts with an empty sChurchName.
 // ChurchInfoRequiredMiddleware then redirects admin browser requests to the
 // setup page, which is correct for first launch but blocks governance E2E
-// assertions. Set a temporary CI-only fixture and restore the exact original
-// value in finally; never silently initialize real church information.
+// assertions. Only CI may set a temporary fixture; local runs must never alter
+// church configuration. The exact original value is restored in finally.
+$ciMode = getenv('MOSGOV_CI_TEST_MODE') === '1';
 $originalChurchName = (string) SystemConfig::getValue('sChurchName');
 $temporaryChurchNameSet = false;
-if (trim($originalChurchName) === '') {
+if ($ciMode && trim($originalChurchName) === '') {
     SystemConfig::setValue('sChurchName', 'MOS-GOV CI Test Church');
     $temporaryChurchNameSet = true;
     echo '[INFO] Temporarily configured sChurchName for HTTP regression; will restore after tests.' . PHP_EOL;
