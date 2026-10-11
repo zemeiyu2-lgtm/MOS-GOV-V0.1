@@ -32,6 +32,7 @@ if (PHP_SAPI !== 'cli') {
 require __DIR__ . '/../../../../Include/LoadConfigs.php';
 
 use ChurchCRM\dto\SystemURLs;
+use ChurchCRM\dto\SystemConfig;
 use ChurchCRM\model\ChurchCRM\UserQuery;
 use ChurchCRM\Plugins\MosGov\Data\GovRepository;
 use ChurchCRM\Plugin\PluginManager;
@@ -164,6 +165,19 @@ echo 'Record-editor user: ' . ($editorUser !== null ? $editorUser->getUserName()
 $repo = new GovRepository();
 $created = ['structure' => [], 'body' => []];
 $baseline = $repo->getDashboardCounts();
+
+// A fresh ChurchCRM database intentionally starts with an empty sChurchName.
+// ChurchInfoRequiredMiddleware then redirects admin browser requests to the
+// setup page, which is correct for first launch but blocks governance E2E
+// assertions. Set a temporary CI-only fixture and restore the exact original
+// value in finally; never silently initialize real church information.
+$originalChurchName = (string) SystemConfig::getValue('sChurchName');
+$temporaryChurchNameSet = false;
+if (trim($originalChurchName) === '') {
+    SystemConfig::setValue('sChurchName', 'MOS-GOV CI Test Church');
+    $temporaryChurchNameSet = true;
+    echo '[INFO] Temporarily configured sChurchName for HTTP regression; will restore after tests.' . PHP_EOL;
+}
 
 try {
     // ------------------------------------------------- 1. authentication
@@ -449,6 +463,16 @@ try {
                     $failures++;
                 }
             }
+        }
+    }
+
+    if ($temporaryChurchNameSet) {
+        try {
+            SystemConfig::setValue('sChurchName', $originalChurchName);
+            echo '[PASS] restored original ChurchCRM sChurchName setup state' . PHP_EOL;
+        } catch (\\Throwable $e) {
+            echo '[FAIL] restore original ChurchCRM sChurchName: ' . $e->getMessage() . PHP_EOL;
+            $failures++;
         }
     }
 
