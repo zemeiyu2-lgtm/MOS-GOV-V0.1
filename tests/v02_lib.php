@@ -110,10 +110,10 @@ $mosGovUsers = static function (): array {
     }
     $member = null;
     $ciMode = getenv('MOSGOV_CI_TEST_MODE') === '1';
-    $ciRunId = preg_replace('/[^A-Za-z0-9]/', '', (string) (getenv('GITHUB_RUN_ID') ?: 'local'));
-    $ciAttempt = preg_replace('/[^A-Za-z0-9]/', '', (string) (getenv('GITHUB_RUN_ATTEMPT') ?: '1'));
-    $ciReadOnlyPrefix = 'mosgov_ci_readonly_' . $ciRunId . '_' . $ciAttempt . '_';
-    $ciEditorPrefix = 'mosgov_ci_editor_' . $ciRunId . '_' . $ciAttempt . '_';
+    // Keep fixture lookup aligned with the short, schema-safe names generated
+    // by ci_test_users.php. Only these marked disposable accounts are eligible.
+    $ciReadOnlyPrefix = 'mgcr_';
+    $ciEditorPrefix = 'mgce_';
     // Regression suites must never reuse or delete a real member's existing
     // governance identity. In CI, consider only this run's explicitly created users.
     $conn = \Propel\Runtime\Propel::getConnection();
