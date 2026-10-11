@@ -470,7 +470,7 @@ try {
         try {
             SystemConfig::setValue('sChurchName', $originalChurchName);
             echo '[PASS] restored original ChurchCRM sChurchName setup state' . PHP_EOL;
-        } catch (\\Throwable $e) {
+        } catch (\Throwable $e) {
             echo '[FAIL] restore original ChurchCRM sChurchName: ' . $e->getMessage() . PHP_EOL;
             $failures++;
         }
