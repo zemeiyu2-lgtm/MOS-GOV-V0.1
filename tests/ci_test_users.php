@@ -55,7 +55,7 @@ try {
 
         // Allocate a fresh, collision-checked tag. A stale account from an
         // interrupted runner must cause a retry, never account reuse/deletion.
-        $findUser = $conn->prepare('SELECT usr_UserName FROM user_usr WHERE usr_UserName = :username LIMIT 1');
+        $findUser = $conn->prepare('SELECT COUNT(*) FROM user_usr WHERE usr_UserName = :username');
         $accounts = [];
         $collision = true;
         $collisionDetails = [];
@@ -76,10 +76,10 @@ try {
             foreach ($accounts as $account) {
                 $findUser->bindValue(':username', $account['username'], \PDO::PARAM_STR);
                 $findUser->execute();
-                $existingUsername = $findUser->fetchColumn();
-                if ($existingUsername !== false) {
+                $existingCount = (int) $findUser->fetchColumn();
+                if ($existingCount > 0) {
                     $collision = true;
-                    $collisionDetails[] = (string) $existingUsername;
+                    $collisionDetails[] = (string) $account['username'];
                     break;
                 }
             }
