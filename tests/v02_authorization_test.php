@@ -73,9 +73,20 @@ $ctx = GovernanceContext::forUser($member);
 $activeCodes = array_column($ctx->activeRoles(), 'role_code');
 $mosGovCheck('future-dated identity role has no authority yet', !in_array('B03', $activeCodes, true), json_encode($activeCodes));
 
-// Role deactivation must remove both its authority and inherited scopes.
+// Role deactivation is tested with a dedicated disposable role. Never
+// mutate the live A01 role, even temporarily, because an interrupted test
+// could otherwise leave real governance authority disabled.
+$testRoleId = $repo->insert('role', [
+    'body_id' => (int) $a01['body_id'],
+    'name' => 'MOS-GOV test role lifecycle',
+    'role_code' => 'MOS_TEST_DEACTIVATION_ROLE',
+    'status' => 'active',
+]);
+$mosGovTrack('role', $testRoleId);
+$testRoleAttachId = $service->attachRole($identityId, $testRoleId);
+$mosGovTrack('identity_role', $testRoleAttachId);
 $roleScopeId = $repo->insert('role_scope', [
-    'role_id' => (int) $a01['id'],
+    'role_id' => $testRoleId,
     'scope_type' => 'group',
     'scope_id' => 887766,
     'scope_mode' => 'direct',
@@ -83,13 +94,15 @@ $roleScopeId = $repo->insert('role_scope', [
 $mosGovTrack('role_scope', $roleScopeId);
 GovAuthorization::reset();
 $ctx = GovernanceContext::forUser($member);
+$activeCodes = array_column($ctx->activeRoles(), 'role_code');
 $hasInheritedScope = count(array_filter($ctx->scopes(), static fn (array $s): bool =>
     $s['scope_type'] === 'group' && (int) ($s['scope_id'] ?? 0) === 887766
 )) > 0;
+$mosGovCheck('temporary role active before deactivation', in_array('MOS_TEST_DEACTIVATION_ROLE', $activeCodes, true), json_encode($activeCodes));
 $mosGovCheck('role scope template alone does not grant concrete person scope', !$hasInheritedScope);
 
 $stmt = $conn->prepare("UPDATE gov_role SET status = 'inactive' WHERE id = :rid");
-$stmt->bindValue(':rid', (int) $a01['id'], PDO::PARAM_INT);
+$stmt->bindValue(':rid', $testRoleId, PDO::PARAM_INT);
 $stmt->execute();
 GovAuthorization::reset();
 $ctx = GovernanceContext::forUser($member);
@@ -97,13 +110,8 @@ $activeCodes = array_column($ctx->activeRoles(), 'role_code');
 $hasInheritedScope = count(array_filter($ctx->scopes(), static fn (array $s): bool =>
     $s['scope_type'] === 'group' && (int) ($s['scope_id'] ?? 0) === 887766
 )) > 0;
-$mosGovCheck('inactive role no longer grants authority', !in_array('A01', $activeCodes, true), json_encode($activeCodes));
-$mosGovCheck('inactive role no longer contributes inherited scope', !$hasInheritedScope);
-// Restore the exact pre-test status; never assume an existing role was active.
-$stmt = $conn->prepare('UPDATE gov_role SET status = :status WHERE id = :rid');
-$stmt->bindValue(':status', (string) ($a01['status'] ?? 'active'), PDO::PARAM_STR);
-$stmt->bindValue(':rid', (int) $a01['id'], PDO::PARAM_INT);
-$stmt->execute();
+$mosGovCheck('inactive temporary role no longer grants authority', !in_array('MOS_TEST_DEACTIVATION_ROLE', $activeCodes, true), json_encode($activeCodes));
+$mosGovCheck('inactive temporary role no longer contributes inherited scope', !$hasInheritedScope);
 GovAuthorization::reset();
 
 $mosGovSection('3. Step 6 — appointment lifecycle (§15)');
