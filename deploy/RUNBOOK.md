@@ -123,8 +123,54 @@ sudo bash deploy/scripts/quick-tunnel.sh start     # 打印 https://<random>.try
    - 结束时做 fail-closed 自检：核心表（`person_per`/`user_usr`/`config_cfg`/`version_ver`）与治理表必须齐备。
    - 写入 `plugin.mos-gov.enabled=1`，新教会开局即可看到治理模块（否则 `/plugins/mos-gov/*` 被重定向回仪表盘）。
 3. 首次 `mosgov-healthcheck.sh --all` 必须通过。
-4. 在教会实例上创建首个管理员账号（首次登录前完成，随后删除安装痕迹）。
+4. 用 `mosgov-create-admin.sh --tenant church-a --pass-file <0600路径>` 创建首个管理员
+   （详见 §7.4.1；首次登录前完成，凭据转交后立即 shred）。
 5. 第二个教会 `church-b` 重复上述，验证 silo 隔离。
+
+---
+
+## 7.4.1 创建首个管理员（mosgov-create-admin.sh）
+
+`provision-tenant.sh` 刻意不创建 ChurchCRM 用户：官方 `Install.sql` 只预置一个
+`per_ID=1 / usr_UserName='Admin'` 的**安装 seed 账号**（口令 hash 公开、`usr_Admin=1`），
+它属于安装产物，不应作为教会的正式管理员，本命令也**绝不覆盖或重置**它。
+首个可用管理员由本命令另行创建（把原先 P9 的手工 SQL 脚本化）。
+
+```bash
+# --pass-file 必须给、且必须是尚不存在的新文件路径（命令用 O_EXCL 创建，已存在会被拒绝）；
+# 明文口令只写入它（0600），不要预先创建该文件。
+sudo mosgov-create-admin.sh --tenant church-a \
+    --pass-file /root/.church-a-admin.pass \
+    --username admin2 --first-name Church --last-name Admin \
+    --email admin@<教会域名>
+# 成功：exit 0，JSON 输出 person_id / username / need_password_change=true，
+#       输出中绝不含口令或哈希；审计行写 stderr（同样不含口令）。
+```
+
+**用户名约束**：`3–50` 位 `[A-Za-z0-9._-]`。注意 `usr_UserName` 唯一键是大小写不敏感
+（`utf8_unicode_ci`），因此 `admin` 会与 seed 的 `Admin` 冲突而被拒绝（`exit 4 /
+username_exists`）；请选一个不同的名字（如 `admin2`、`office`），随后在 ChurchCRM 内
+自行改名即可。
+
+**行为保证（已用隔离合成库 26/26 用例验证，见 evidence/phase7/12-create-admin-suite.log）**：
+
+| 场景 | 结果 | 退出码 |
+|---|---|---|
+| 首次创建 | person + admin user 同事务写入，`usr_NeedPasswordChange=1` | 0 |
+| 同名用户已存在 | 拒绝，不写凭据文件、不改任何行 | 4 |
+| 已有非 seed 管理员 | 拒绝（默认只允许首个），不改任何行 | 4 |
+| 非法 tenant / username / email / 相对 pass-file | 拒绝 | 2 |
+| env 的 TENANT_ID 与 `--tenant` 不符 / `gov_tenant` 锚点不符 | fail-closed 拒绝 | 3 |
+| 写入中途异常（DB 触发器注入失败） | 事务回滚，无半账户、凭据文件销毁 | 5 |
+| pass-file 无法写入 | 拒绝 | 6 |
+
+**首次登录必改密**：口令经 `password_hash(PASSWORD_DEFAULT)` 生成，与 ChurchCRM
+`User::isPasswordValid()` 的 `password_verify` 完全一致；`usr_NeedPasswordChange=1`
+会让 `LocalAuthentication` 在首次登录时把用户强制导向
+`/v2/user/current/changepassword`，改密后才能进入控制台。
+
+**凭据交接**：明文只在 `--pass-file`（0600）。用一次性安全渠道交给教会负责人后，
+立即 `shred -u <pass-file>`。命令不打印口令、不写任何日志、不写 Git。
 
 ---
 

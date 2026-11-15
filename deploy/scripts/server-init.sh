@@ -185,6 +185,7 @@ install -m 0644 "$SELF_DIR/mosgov-lib.sh" /usr/local/lib/mosgov/lib.sh
 install -m 0644 "$SELF_DIR/mosgov-cli.php" /usr/local/lib/mosgov/cli.php
 install -m 0644 "$SELF_DIR/healthcheck.php" /usr/local/lib/mosgov/healthcheck.php
 install -m 0644 "$SELF_DIR/audit-anchor.php" /usr/local/lib/mosgov/audit-anchor.php
+install -m 0644 "$SELF_DIR/create-admin.php" /usr/local/lib/mosgov/create-admin.php
 
 for pair in \
     "verify-secrets.sh:mosgov-verify-secrets.sh" \
@@ -195,7 +196,8 @@ for pair in \
     "deploy.sh:mosgov-deploy.sh" \
     "provision-tenant.sh:mosgov-provision-tenant.sh" \
     "mosgov-backup-all.sh:mosgov-backup-all.sh" \
-    "mosgov-audit-anchor.sh:mosgov-audit-anchor.sh"; do
+    "mosgov-audit-anchor.sh:mosgov-audit-anchor.sh" \
+    "mosgov-create-admin.sh:mosgov-create-admin.sh"; do
     src="${pair%%:*}"; dst="${pair#*:}"
     [[ -f "$SELF_DIR/$src" ]] || { echo "!! 缺少脚本 $src"; exit 5; }
     install -m 0755 "$SELF_DIR/$src" "/usr/local/bin/$dst"
