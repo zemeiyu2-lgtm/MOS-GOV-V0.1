@@ -35,6 +35,13 @@ p8_ge()   { local d="$1" n="$2" g="$3"; [[ "${g:-0}" =~ ^[0-9]+$ ]] && (( g >= n
 p8_file() { local d="$1" f="$2"; [[ -f "$f" ]] && p8_ok "$d" || p8_bad "$d：缺少 $f"; }
 p8_dir()  { local d="$1" f="$2"; [[ -d "$f" ]] && p8_ok "$d" || p8_bad "$d：缺少 $f"; }
 p8_exit() { local d="$1" want="$2" got="$3"; [[ "$got" == "$want" ]] && p8_ok "$d (exit=$got)" || p8_bad "$d：期望 exit=$want 实际 exit=$got"; }
+# 前置阶段（环境初始化）失败时直接终止：后续所有阶段都依赖该环境，
+# 继续跑只会产生级联 FAIL，掩盖根因并浪费 CI 时间。
+p8_abort() {
+    printf '\n===== PHASE8 ABORT：前置环境阶段失败，后续阶段全部依赖该环境 =====\n'
+    printf '===== PHASE8 SUMMARY PASS=%d FAIL=%d SKIP=%d =====\n' "$P8_PASS" "$P8_FAIL" "$P8_SKIP"
+    exit 1
+}
 
 # ---- root SQL（unix_socket 免密） -------------------------------------------
 sqlr() { mariadb --protocol=SOCKET -u root -N -B -e "$1" 2>/dev/null; }

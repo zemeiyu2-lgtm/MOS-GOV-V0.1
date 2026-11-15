@@ -45,7 +45,17 @@ fetch_verify_key() { # fetch_verify_key <url> <expected_fpr> <dest>
     curl -fsSL --max-time 60 "$url" -o "$tmp" || die "下载公钥失败：$url"
     fpr="$(gpg --show-keys --with-colons "$tmp" 2>/dev/null | awk -F: '/^fpr:/{print $10; exit}')"
     [ "$fpr" = "$want" ] || die "公钥指纹不符！期望 $want，实际 ${fpr:-空}（来源 $url）"
-    install -m 0644 "$tmp" "$dest"
+    # apt 的 gpgv 只认二进制 keyring；armored 公钥（如 mariadb.org 的 .pgp）
+    # 直接落盘会导致 apt update 报 NO_PUBKEY。armored 输入先 dearmor。
+    if head -c 60 "$tmp" | grep -q "BEGIN PGP"; then
+        gpg --batch --yes --dearmor -o "$dest" "$tmp" || die "公钥 dearmor 失败：$url"
+    else
+        install -m 0644 "$tmp" "$dest"
+    fi
+    chmod 0644 "$dest"
+    # 落盘后再验证一次：keyring 必须是 apt 可读的二进制格式且指纹一致
+    fpr="$(gpg --show-keys --with-colons "$dest" 2>/dev/null | awk -F: '/^fpr:/{print $10; exit}')"
+    [ "$fpr" = "$want" ] || die "落盘后公钥指纹不符：$dest（实际 ${fpr:-空}）"
     echo "    指纹一致：$fpr  → $dest"
     rm -f "$tmp"
 }

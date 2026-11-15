@@ -92,6 +92,7 @@ if bash "$REPO/deploy/scripts/add-d1-repos.sh" > "$ART/21-add-d1-repos.log" 2>&1
 else
     p8_bad "add-d1-repos.sh 失败，详见 21-add-d1-repos.log"
     tail -20 "$ART/21-add-d1-repos.log"
+    p8_abort
 fi
 grep -E '^(平台|    指纹一致)' "$ART/21-add-d1-repos.log" | head -4
 stage_end
@@ -107,6 +108,7 @@ grep -E '^(    PHP=|    MariaDB=|\[4/10\]|\[10/10\])' "$ART/22-server-init.log" 
 if [[ "$INIT_RC" -ne 0 ]]; then
     p8_warn "server-init 失败，输出末尾："
     tail -30 "$ART/22-server-init.log"
+    p8_abort
 fi
 stage_end
 
