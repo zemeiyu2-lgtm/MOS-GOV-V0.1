@@ -1,8 +1,11 @@
 # MOS-GOV · 服务器初始化 Runbook（Oracle Always Free / Ubuntu 24.04）
 
-> 适用范围：Phase 4 定义的免费部署目标（Oracle Ampere A1 Always Free，2 OCPU / 12GB / 200GB，
-> Ubuntu 24.04 LTS）。所有步骤对应现有脚本或明确标注“待实现”。
-> 执行前置：用户已完成 Oracle / Cloudflare / eu.org 注册，Home Region 选 `ap-singapore-1`。
+> 适用范围：Oracle Ampere A1 Always Free（4 OCPU / 24 GB / 200 GB 块存储），Ubuntu 24.04 LTS。
+> 所有步骤对应现有脚本或明确标注“待实现”。
+> **公网接入有两种模式**（详见 `deploy/scripts/quick-tunnel.sh` 与 `deploy/scripts/add-d1-repos.sh` 头部注释）：
+> - `MOSGOV_INGRESS_MODE=tunnel`（当前默认方案）：Cloudflare Quick Tunnel，**不需要域名、不需要 80/443 入站、不需要证书**；
+> - `MOSGOV_INGRESS_MODE=tls`：自有域名 + Let's Encrypt，需要 80/443 入站。
+> 两种模式都**不涉及** `mosrove.com` 的 DNS / NS / 备案。
 
 ---
 
@@ -10,8 +13,9 @@
 
 - [ ] Oracle Free Tier 账户 + 信用卡预授权（冻结，非扣费）
 - [ ] Home Region = `ap-singapore-1`（注册时锁定，不可改）
-- [ ] eu.org 子域名（如 `mosgov.eu.org`）已申请，NS 委派到 Cloudflare
-- [ ] Cloudflare 账户，已添加站点并接管 DNS
+- [ ] 已创建 1 台 A1 实例并拿到公网 IPv4
+- [ ] **不需要域名**：隧道模式由 Cloudflare 分配随机 `*.trycloudflare.com`，无需账号、无需改 NS
+- [ ] （仅 `tls` 模式）域名 + Cloudflare 站点已 Active
 - [ ] SSH 公钥已加入 Oracle 实例
 
 ---
@@ -25,7 +29,7 @@
 | 内存/CPU | `nproc; free -h` | ≥2 vCPU / ≥12GB | `server-init.sh` §1 |
 | 磁盘 | `lsblk; df -h /` | 系统盘 + 200GB 块存储挂载 | `server-init.sh` §1 |
 
-> Oracle Always Free 标准：`VM.Standard.A1.Flex` 2 OCPU / 12GB / 200GB 块存储。
+> Oracle Always Free 标准：`VM.Standard.A1.Flex` 4 OCPU / 24GB / 200GB 块存储。
 > 新加坡 A1 容量紧张时可能 `out of host capacity`，需重试或换时段；**绝不自动改用付费 shape**。
 
 ---
@@ -48,24 +52,38 @@
 
 | 步骤 | 命令 | 说明 |
 |------|------|------|
-| Oracle 控制台安全列表 | Web 控制台 | 仅放 22/80/443 入站；默认拒绝其余 |
-| ufw | `ufw default deny incoming; ufw allow 22,80,443/tcp; ufw enable` | `server-init.sh` §7 |
-| SSH | `PermitRootLogin no; PasswordAuthentication no; AllowUsers mosgov` | 编辑 `/etc/ssh/sshd_config`，重启 sshd |
-| 失败锁定 | `fail2ban` 或 `pam_faillock` | 待实现：补充 `server-init.sh` §7 的 fail2ban 段 |
+| Oracle 控制台安全列表 | Web 控制台 | `tunnel` 模式：**只放 22**（源限你的 IP）；`tls` 模式：22/80/443 |
+| ufw | `MOSGOV_INGRESS_MODE=tunnel bash deploy/scripts/server-init.sh` | 由 `server-init.sh` §8 按模式写入；隧道模式会主动删除 80/443 规则 |
+| 应用端口 | `/etc/apache2/conf-available/mosgov-listen.conf` | `Listen 127.0.0.1:8080`；缺失会让 vhost 被 Apache 忽略 |
+| SSH | `PermitRootLogin prohibit-password; PasswordAuthentication no` | 已由 `02-cloud-init.yaml` 的 sshd drop-in 落地 |
+| 失败锁定 | `fail2ban` 或 `pam_faillock` | 待实现：补充 `server-init.sh` §8 的 fail2ban 段 |
 
-> 当前 `server-init.sh` 已含 ufw 基础规则；fail2ban 为“待实现”项，上线前必须补齐。
+> 当前 `server-init.sh` 已含 ufw 基础规则与端口自检（`0.0.0.0:8080` 出现即 `exit 6`）；fail2ban 为“待实现”项，上线前必须补齐。
 
 ---
 
-## 4. HTTPS 证书配置（免费）
+## 4. 公网入口与 TLS
+
+### 4.1 隧道模式（当前默认，$0、无域名）
+
+```bash
+sudo bash deploy/scripts/quick-tunnel.sh install   # 装 cloudflared（校验 Cloudflare 公钥指纹）
+sudo bash deploy/scripts/quick-tunnel.sh start     # 打印 https://<random>.trycloudflare.com
+```
+
+- TLS 在 Cloudflare 边缘终止，源站只监听 `127.0.0.1:8080`；
+- 主机名每次重启都变 → 租户的 `MOSGOV_TENANT_HOST` 必须同步更新并重渲染 `Config.php`；
+- 官方限制：无 SLA、200 in-flight 并发（超出 429）、不支持 SSE、随机主机名。**仅用于测试与联调。**
+
+### 4.2 域名模式（`tls`）
 
 | 方式 | 命令 | 说明 |
 |------|------|------|
-| Cloudflare 起源证书 | 控制台生成，存入 `/etc/ssl/mosgov/` | 源站用 CF 签发证书，CF 边缘 termination |
-| 或 Let's Encrypt | `certbot --apache -d mosgov.eu.org` | 脚本待实现：`server-init.sh` §8 留空，需补 `certbot` 段 |
+| Let's Encrypt（推荐） | `certbot certonly --webroot -w <docroot> -d <host>` | 必须 `certonly`；**不要**用 `--apache`，它会按 ServerName 改错 vhost |
 | 强制 HSTS | vhost 已写 `Strict-Transport-Security` | `deploy/apache/mosgov-vhost.conf` |
 
-> 当前 vhost 模板已含 HSTS/CSP/nosniff/frame-deny/no-store；实际证书签发由运维在 §8 完成。
+> **不要用 Cloudflare Origin CA**：`healthcheck.sh` L1 用 `curl --resolve host:443:127.0.0.1` 且不带 `-k`，
+> 只信任公共 CA；Origin CA 会导致健康检查必然失败。
 
 ---
 
@@ -74,7 +92,7 @@
 - PHP-FPM：`systemctl enable --now php8.4-fpm`
 - Apache：`systemctl enable --now apache2`
 - MariaDB：`systemctl enable --now mariadb`
-- 存活探针：`curl -fsS https://mosgov.eu.org/.well-known/mosgov-liveness` → `ok`
+- 存活探针：`curl -fsS https://<当前对外主机名>/.well-known/mosgov-liveness` → `ok`
   （由 `deploy/scripts/healthcheck.sh` + `healthcheck.php` 提供；探针不含租户/DB 信息）
 - 业务健康检查：`/usr/local/bin/mosgov-healthcheck.sh --all`（含 DB 连通、证据链、租户边界）
 
@@ -96,7 +114,9 @@
 
 1. `mosgov-deploy.sh --release <40-hex-commit>`（当前 `809adac` 或后续锁定 commit）
    - 锁定校验 → 源码组装 → 上游补丁 → 全量 `php -l` → 配置体检 → vhost 渲染 → symlink 切换 → 健康检查。
-2. `provision-tenant.sh --tenant church-a`
+2. `provision-tenant.sh --tenant church-a --host <当前对外主机名> --db church_a --storage /var/lib/mosgov/church-a`
+   - `<当前对外主机名>`：隧道模式填 `quick-tunnel.sh start` 打印出的随机 `*.trycloudflare.com`；
+     该主机名会随隧道重启变化，变化后需更新 `/etc/mosgov/church-a/env` 的 `MOSGOV_TENANT_HOST` 并重渲染 `Config.php`。
    - 创建独立 DB + 最小权限账号 + vhost + FPM pool + 私有存储 + `gov_tenant` 单行 + 备份前缀。
    - **导入 ChurchCRM 核心 schema（`mysql/install/Install.sql` + `version_ver` 登记），然后才跑 6 个治理迁移。**
      顺序不可调换：ChurchCRM 只在「零张表」时自动建核心表，先建 `gov_*` 会让核心表永远缺失。

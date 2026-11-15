@@ -13,12 +13,29 @@ TPL_DIR="$SELF_DIR/.."
 
 echo "[1/10] 基础包（固定主版本，不使用 latest / 无版本号元包）"
 export DEBIAN_FRONTEND=noninteractive
+INGRESS_MODE="${MOSGOV_INGRESS_MODE:-tls}"
+
+# D1 闸门：必须先由 add-d1-repos.sh 装好已校验签名的两个源。
+# 否则这一步的 apt-get install mariadb-server 会装上 Ubuntu 的 10.11，
+# 版本闸门 exit 4 之后机器上会残留一个错误主版本的数据库实例。
+if [ ! -f /etc/apt/sources.list.d/mariadb-11.8.list ] || [ ! -f /etc/apt/sources.list.d/sury-php.list ]; then
+    echo "!! 未检测到已授权的 PHP 8.4 / MariaDB 11.8 源。"
+    echo "!! 请先执行：sudo bash deploy/scripts/add-d1-repos.sh"
+    echo "!! （该脚本会校验公钥指纹：sury=B188E2B695BD4743，mariadb=F1656F24C74CD1D8）"
+    exit 7
+fi
+
 apt-get update -y
 apt-get install -y --no-install-recommends \
     apache2 \
     mariadb-server mariadb-client \
     ca-certificates curl gnupg git unzip jq openssl gzip tar \
-    logrotate ufw certbot python3-certbot-apache
+    logrotate ufw
+
+# certbot 只在 Let's Encrypt 直连模式下需要；隧道模式 TLS 在 Cloudflare 边缘终止。
+if [ "$INGRESS_MODE" != "tunnel" ]; then
+    apt-get install -y --no-install-recommends certbot python3-certbot-apache
+fi
 
 echo "[2/10] 运行时版本闸门（Ubuntu 24.04 默认是 PHP 8.3 / MariaDB 10.11）"
 # Ubuntu 24.04 官方仓库不含 PHP 8.4，也不含 MariaDB 11.8；两者都需要经授权的
@@ -92,12 +109,34 @@ install -m 0640 -o root -g mosgov "$TPL_DIR/apache/mosgov-vhost.conf" /etc/mosgo
 install -m 0640 -o root -g mosgov "$TPL_DIR/php/99-mosgov.ini"      /etc/mosgov/deploy/php/99-mosgov.ini
 
 echo "[6/10] Apache 模块 / PHP 配置"
-a2enmod proxy_fcgi setenvif headers rewrite ssl >/dev/null
+a2enmod proxy_fcgi proxy_http setenvif headers rewrite ssl >/dev/null
+
+# 教会 vhost 是 <VirtualHost *:8080>，必须存在匹配的 Listen，否则 Apache 会
+# 以 "no matching Listen directive" 静默忽略该 vhost —— 站点整块不生效。
+# 这里把 8080 绑到回环，外部只能经 TLS 终结层（本机反代 / Cloudflare Tunnel）。
+cat > /etc/apache2/conf-available/mosgov-listen.conf <<'EOF'
+# MOS-GOV：应用端口只监听 127.0.0.1，禁止 0.0.0.0
+Listen 127.0.0.1:8080
+EOF
+a2enconf mosgov-listen >/dev/null
+# 默认站点会占用 :80 并暴露 /var/www/html，与多教会 vhost 无关，直接停用。
+a2dissite 000-default >/dev/null 2>&1 || true
+
 cp "$TPL_DIR/php/99-mosgov.ini" /etc/php/8.4/fpm/conf.d/99-mosgov.ini
 cp "$TPL_DIR/php/99-mosgov.ini" /etc/php/8.4/cli/conf.d/99-mosgov.ini
 systemctl enable --now php8.4-fpm
 systemctl enable --now apache2
 systemctl enable --now mariadb
+
+# 配置自检：Apache 配置语法 + 8080 确实绑在回环上（不允许 0.0.0.0:8080）
+apache2ctl configtest >/dev/null 2>&1 || { echo "!! Apache 配置语法错误，见 /var/log/apache2/error.log"; exit 6; }
+if command -v ss >/dev/null 2>&1; then
+    ss -ltn 2>/dev/null | grep -q '127\.0\.0\.1:8080' \
+        || { echo "!! 8080 未监听在 127.0.0.1（vhost 会被忽略）"; exit 6; }
+    if ss -ltn 2>/dev/null | grep -qE '(^|[^0-9.])0\.0\.0\.0:8080'; then
+        echo "!! 8080 监听了 0.0.0.0，应用端口不得对外暴露"; exit 6
+    fi
+fi
 
 echo "[7/10] MariaDB 基础加固（不导入任何数据、不创建任何教会库）"
 mysql -e "DELETE FROM mysql.user WHERE User='';" || true
@@ -107,12 +146,20 @@ mysql -e "FLUSH PRIVILEGES;"
 grep -q '^bind-address' /etc/mysql/mariadb.conf.d/50-server.cnf \
     || printf '\nbind-address = 127.0.0.1\n' >> /etc/mysql/mariadb.conf.d/50-server.cnf
 
-echo "[8/10] 防火墙（仅 80/443/SSH；8080 只监听回环）"
+echo "[8/10] 防火墙（模式：${MOSGOV_INGRESS_MODE:-tls}）"
 ufw default deny incoming >/dev/null
 ufw default allow outgoing >/dev/null
 ufw allow OpenSSH >/dev/null
-ufw allow 80/tcp >/dev/null
-ufw allow 443/tcp >/dev/null
+if [ "${MOSGOV_INGRESS_MODE:-tls}" = "tunnel" ]; then
+    # Cloudflare Tunnel：只有出站长连接，服务器不需要任何入站 Web 端口。
+    ufw delete allow 80/tcp  >/dev/null 2>&1 || true
+    ufw delete allow 443/tcp >/dev/null 2>&1 || true
+    echo "    入站仅 SSH；80/443 保持关闭（隧道由 cloudflared 主动外连）"
+else
+    ufw allow 80/tcp >/dev/null
+    ufw allow 443/tcp >/dev/null
+    echo "    入站 SSH + 80/443（Let's Encrypt TLS 终结模式）"
+fi
 ufw --force enable >/dev/null
 
 echo "[9/10] 日志轮转与备份 / 锚点定时任务"
