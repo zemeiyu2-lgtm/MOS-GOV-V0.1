@@ -112,7 +112,7 @@ sudo bash deploy/scripts/quick-tunnel.sh start     # 打印 https://<random>.try
 > `REVISION` 与 ChurchCRM 核心 `mysql/install/Install.sql`，因此发布必须在开通之前。
 > 早期文档写成「先开通后发布」，会因缺少已部署源码而直接 die。
 
-1. `mosgov-deploy.sh --release <40-hex-commit>`（当前 `809adac` 或后续锁定 commit）
+1. `mosgov-deploy.sh --release <40-hex-commit>`（当前 `a275f43` 或后续锁定 commit）
    - 锁定校验 → 源码组装 → 上游补丁 → 全量 `php -l` → 配置体检 → vhost 渲染 → symlink 切换 → 健康检查。
 2. `provision-tenant.sh --tenant church-a --host <当前对外主机名> --db church_a --storage /var/lib/mosgov/church-a`
    - `<当前对外主机名>`：隧道模式填 `quick-tunnel.sh start` 打印出的随机 `*.trycloudflare.com`；
