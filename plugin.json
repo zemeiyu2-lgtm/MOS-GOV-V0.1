@@ -2,7 +2,7 @@
   "id": "mos-gov",
   "name": "MOS-GOV",
   "description": "MOS 教会治理层（ChurchCRM 插件）。治理数据与 ChurchCRM 核心数据分开存储。",
-  "version": "0.2.0",
+  "version": "2.0.0",
   "author": "MOS",
   "authorUrl": "https://github.com/zemeiyu2-lgtm/MOS-GOV-V0.1",
   "type": "community",

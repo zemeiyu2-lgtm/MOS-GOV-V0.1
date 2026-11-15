@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 /**
  * MOS-GOV plugin routes.
@@ -33,13 +33,20 @@
  */
 
 use ChurchCRM\Plugins\MosGov\Data\GovDataException;
+use ChurchCRM\Plugins\MosGov\Data\GovDataMaintenance;
 use ChurchCRM\Plugins\MosGov\Data\GovRepository;
+use ChurchCRM\Plugins\MosGov\Data\HealthboardService;
 use ChurchCRM\Plugins\MosGov\Governance\GovSearchService;
+use ChurchCRM\Plugins\MosGov\Governance\RemediationService;
 use ChurchCRM\Plugins\MosGov\Governance\IdentityService;
 use ChurchCRM\Plugins\MosGov\Governance\MyGovernanceService;
+use ChurchCRM\Plugins\MosGov\Integration\MosGovFinanceReport;
 use ChurchCRM\Plugins\MosGov\Integration\PersonLookup;
 use ChurchCRM\Plugins\MosGov\Security\AuditService;
+use ChurchCRM\Plugins\MosGov\Security\DelegationService;
+use ChurchCRM\Plugins\MosGov\Security\GovernanceContext;
 use ChurchCRM\Plugins\MosGov\Security\GovAuthorization;
+use ChurchCRM\Plugins\MosGov\Security\GovMembershipMiddleware;
 use ChurchCRM\Plugins\MosGov\Security\GovSecureModeMiddleware;
 use ChurchCRM\Plugins\MosGov\Security\GovWriteRoleAuthMiddleware;
 use ChurchCRM\Plugins\MosGov\Security\GovernancePolicy;
@@ -52,6 +59,11 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
 $mosGovBase = SystemURLs::getRootPath() . '/plugins/mos-gov';
+
+// GOV-DEV-09-E 产品决定：治理系统不向普通成员开放。
+// 应用级中间件，先于所有路由执行 —— 非管理员且无治理身份记录的登录用户
+// 在进入任何 /mos-gov/* 页面前即收到 403（未登录仍走全局 AuthMiddleware）。
+$app->add(new GovMembershipMiddleware());
 
 // Presentation-layer Chinese mapping (views/_i18n.php). Used only to display
 // frozen-layer English messages (e.g. authorization deny reasons) in Chinese;
@@ -303,7 +315,8 @@ $mosGovFormContext = static function (GovRepository $repo, array $cfg, array $da
 };
 
 // --------------------------------------------------------------- dashboard
-$app->get('/mos-gov', function (Request $request, Response $response) use ($mosGovRender, $mosGovRepo, $mosGovEsc, $mosGovDecorateRows): Response {
+// 处理器提取为变量：治理首页需要两个可达地址（见本段末尾说明）。
+$mosGovDashboardHandler = function (Request $request, Response $response) use ($mosGovRender, $mosGovRepo, $mosGovEsc, $mosGovDecorateRows): Response {
     $repo = $mosGovRepo();
     $stats = null;
     $statsError = null;
@@ -358,7 +371,125 @@ $app->get('/mos-gov', function (Request $request, Response $response) use ($mosG
     ]));
 
     return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
+};
+
+// 治理首页的两个可达地址：
+//   /mos-gov            插件内页面互相引用的规范地址（保持既有行为，勿改）；
+//   /mos-gov/dashboard  侧栏「治理首页」使用 —— 裸插件根路径 /plugins/mos-gov
+//                       在内置服务器下会被当作目录请求，实测 302 落到根应用。
+$app->get('/mos-gov', $mosGovDashboardHandler)->add(GovSecureModeMiddleware::class);
+$app->get('/mos-gov/dashboard', $mosGovDashboardHandler)->add(GovSecureModeMiddleware::class);
+
+// --------------------------------------------------------------- healthboard
+$app->get('/mos-gov/healthboard', function (Request $request, Response $response) use ($mosGovRender, $mosGovEsc): Response {
+    $snapshot = [];
+    $hbError = null;
+    $hbTruncated = false;
+    $hbService = null;
+    try {
+        $hbService = new HealthboardService();
+        $snapshot = $hbService->snapshot();
+        $hbTruncated = $hbService->truncated();
+    } catch (\Throwable $e) {
+        $hbError = 'Governance healthboard data is currently unavailable.';
+    }
+
+    // 行级可见性过滤：与 dashboard recent 相同的机制 —— 范围用户（scope）
+    // 逐行经授权引擎 view 判定后计数；非范围用户直接可见全部。
+    $user = GovAuthorization::currentUser();
+    $scoped = GovAuthorization::subjectToGovernancePolicy();
+    $filterRows = static function (array $rows, string $entity) use ($scoped, $user): array {
+        if (!$scoped) {
+            return $rows;
+        }
+
+        return array_values(array_filter(
+            $rows,
+            static fn (array $row): bool => GovAuthorization::can($user, 'view', $entity, $row)->allowed
+        ));
+    };
+
+    if ($hbError === null) {
+        $snapshot['overdue']['rows'] = $filterRows($snapshot['overdue']['rows'] ?? [], 'task');
+        foreach (['expiringSoon', 'staleActive', 'expired', 'revoked'] as $k) {
+            $snapshot['delegation'][$k] = $filterRows($snapshot['delegation'][$k] ?? [], 'delegation');
+        }
+        foreach (['proposed', 'approved', 'reviewOverdue'] as $k) {
+            $snapshot['decision'][$k] = $filterRows($snapshot['decision'][$k] ?? [], 'decision');
+        }
+        foreach (['open', 'inProgress', 'missingEvidence', 'awaitingClosure', 'completed'] as $k) {
+            $snapshot['oversight'][$k] = $filterRows($snapshot['oversight'][$k] ?? [], 'oversight');
+        }
+    }
+
+    $response->getBody()->write($mosGovRender('healthboard.php', [
+        'snapshot' => $snapshot,
+        'hbError' => $hbError,
+        'canSeeAudit' => GovAuthorization::allows($user, 'manage', 'permission') || $user?->isAdmin(),
+        'hbTruncated' => $hbTruncated,
+        'esc' => $mosGovEsc,
+    ]));
+
+    return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
 })->add(GovSecureModeMiddleware::class);
+
+// --------------------------------------------- remediation (V1.0, GOV-DEV-07)
+// 受控闭环写入口：提交证据 / 复核。规则（责任人、复核人、禁自批、
+// 证据前置、终态拒绝）全部在 RemediationService；这里只做
+// CSRF + 写角色中间件 + 审计结果透出（audit-failed => 500）。
+$mosGovRemediationActor = static function (): array {
+    $user = GovAuthorization::currentUser();
+
+    return [
+        'name' => $user?->getUserName() ?? 'anonymous',
+        'personId' => $user?->getPersonId(),
+        'hasManage' => GovAuthorization::allows($user, 'manage', 'permission') || $user?->isAdmin(),
+    ];
+};
+
+$mosGovRemediationHandler = static function (string $op) use ($mosGovRepo, $mosGovErrorPage, $mosGovBase, $mosGovRemediationActor): \Closure {
+    return static function (Request $request, Response $response, array $args) use ($mosGovRepo, $mosGovErrorPage, $mosGovBase, $mosGovRemediationActor, $op): Response {
+        $data = (array) $request->getParsedBody();
+        if (!CSRFUtils::verifyRequest($data, 'mos-gov')) {
+            return $mosGovErrorPage($response, 'CSRF 令牌无效或缺失：请返回、刷新表单后重试。');
+        }
+
+        $actor = $mosGovRemediationActor();
+        $svc = new RemediationService($mosGovRepo());
+        $result = $op === 'evidence'
+            ? $svc->submitEvidence(
+                (int) $args['id'],
+                $actor['name'],
+                $actor['personId'],
+                $actor['hasManage'],
+                trim((string) ($data['evidence_ref'] ?? '')),
+                trim((string) ($data['evidence_notes'] ?? ''))
+            )
+            : $svc->review(
+                (int) $args['id'],
+                $actor['name'],
+                $actor['personId'],
+                $actor['hasManage'],
+                (string) ($data['outcome'] ?? ''),
+                trim((string) ($data['outcome_notes'] ?? ''))
+            );
+
+        if (!$result['ok']) {
+            $status = match ($result['code']) {
+                'forbidden', 'terminal', 'self-approval' => 403,
+                'audit-failed' => 500,
+                default => 400,
+            };
+
+            return $mosGovErrorPage($response, $result['message'], $status);
+        }
+
+        return SlimUtils::renderRedirect($response, $mosGovBase . '/oversight/' . (int) $args['id']);
+    };
+};
+
+$app->post('/mos-gov/oversight/{id:[0-9]+}/evidence', $mosGovRemediationHandler('evidence'))->add(GovWriteRoleAuthMiddleware::class);
+$app->post('/mos-gov/oversight/{id:[0-9]+}/review', $mosGovRemediationHandler('review'))->add(GovWriteRoleAuthMiddleware::class);
 
 // --------------------------------------------------------------- settings
 $app->get('/mos-gov/settings', function (Request $request, Response $response) use ($mosGovRender, $mosGovRepo, $mosGovEsc): Response {
@@ -462,6 +593,14 @@ $app->post('/mos-gov/{entity:' . $mosGovSlugPattern . '}', function (Request $re
     }
     unset($data['csrf_token']);
 
+    // V1.0 整改闭环（DEV-07）：复核结论只能经 review() 写入，
+    // 通用表单（创建）不得携带非 pending 的 outcome —— 防止未经复核标记通过。
+    if ($entity === 'oversight' && isset($data['outcome']) && $data['outcome'] !== 'pending') {
+        AuditService::auditCurrent('outcome-write-denied', 'oversight', null, 'denied', 'create form may not set a review outcome');
+
+        return $mosGovErrorPage($response, '复核结论只能通过「复核」操作写入，不能随创建表单提交。', 403);
+    }
+
     try {
         $context = $mosGovFormContext($repo, $cfg, $data);
     } catch (GovDataException $e) {
@@ -469,7 +608,36 @@ $app->post('/mos-gov/{entity:' . $mosGovSlugPattern . '}', function (Request $re
     }
 
     try {
+        // V1.0 guards (delegation / oversight):
+        //   1. delegation authority precheck (PoC-02: delegator must hold the
+        //      permission; no loops; no unauthorised re-delegation)
+        //   2. duplicate-open-record guard (double submit)
+        //   3. critical-write audit with surfaced loss (audit() false => 500)
+        if ($entity === 'delegation') {
+            $precheckError = DelegationService::precheckCreate(
+                null,
+                GovernanceContext::current(),
+                $repo->normalize($entity, $data)
+            );
+            if ($precheckError !== null) {
+                AuditService::auditCurrent('delegation-create-denied', 'delegation', null, 'denied', $precheckError);
+
+                return $mosGovErrorPage($response, '授权未创建：' . $precheckError, 403);
+            }
+        }
+        if (in_array($entity, ['delegation', 'oversight'], true)
+            && $repo->hasOpenDuplicate($entity, $repo->normalize($entity, $data))) {
+            AuditService::auditCurrent('duplicate-denied', $entity, null, 'denied', 'identical open record already exists');
+
+            return $mosGovErrorPage($response, '已存在同类的进行中记录，请勿重复提交。', 409);
+        }
+
         $id = $repo->insert($entity, $data);
+
+        if (in_array($entity, ['delegation', 'oversight'], true)
+            && !AuditService::auditCurrent('create', $entity, $id, 'success', '')) {
+            return $mosGovErrorPage($response, '记录已保存，但审计记录写入失败：请立即联系管理员核查 gov_audit_log。', 500);
+        }
 
         return SlimUtils::renderRedirect($response, $mosGovBase . '/' . $mosGovSlugByEntity[$entity] . '/' . $id);
     } catch (GovDataException $e) {
@@ -547,6 +715,16 @@ $app->get('/mos-gov/{entity:' . $mosGovSlugPattern . '}/{id:[0-9]+}', function (
         'related' => $related,
         'error' => $error,
         'canWrite' => GovAuthorization::canWrite(),
+        // V1.0 整改闭环（DEV-07）：oversight 详情页挂「提交证据 / 复核」面板。
+        'remediationActor' => static function () {
+            $user = GovAuthorization::currentUser();
+
+            return [
+                'personId' => $user?->getPersonId(),
+                'hasManage' => GovAuthorization::allows($user, 'manage', 'permission') || $user?->isAdmin(),
+            ];
+        },
+        'csrfField' => CSRFUtils::getTokenInputField('mos-gov'),
         'esc' => $mosGovEsc,
     ]);
 })->add(GovSecureModeMiddleware::class);
@@ -597,6 +775,13 @@ $app->post('/mos-gov/{entity:' . $mosGovSlugPattern . '}/{id:[0-9]+}/edit', func
     }
     unset($data['csrf_token']);
 
+    // V1.0 整改闭环（DEV-07）：编辑表单同样不得改写复核结论（见创建守卫）。
+    if ($entity === 'oversight' && isset($data['outcome']) && $data['outcome'] !== 'pending') {
+        AuditService::auditCurrent('outcome-write-denied', 'oversight', $id, 'denied', 'edit form may not set a review outcome');
+
+        return $mosGovErrorPage($response, '复核结论只能通过「复核」操作写入，不能随编辑表单提交。', 403);
+    }
+
     try {
         $context = $mosGovFormContext($repo, $cfg, $data);
     } catch (GovDataException $e) {
@@ -604,7 +789,23 @@ $app->post('/mos-gov/{entity:' . $mosGovSlugPattern . '}/{id:[0-9]+}/edit', func
     }
 
     try {
+        $oldRow = in_array($entity, ['delegation', 'oversight'], true) ? $repo->find($entity, $id) : null;
         $repo->update($entity, $id, $data);
+
+        // V1.0: audit lifecycle-critical writes; surface audit loss.
+        if ($oldRow !== null) {
+            $action = 'update';
+            $oldStatus = (string) ($oldRow['status'] ?? $oldRow['oversight_status'] ?? '');
+            $newStatus = (string) ($data['status'] ?? $data['oversight_status'] ?? $oldStatus);
+            if ($entity === 'delegation' && $oldStatus !== 'revoked' && $newStatus === 'revoked') {
+                $action = 'revoke';
+            } elseif ($oldStatus !== $newStatus) {
+                $action = 'status-change';
+            }
+            if (!AuditService::auditCurrent($action, $entity, $id, 'success', $action === 'update' ? '' : ('status ' . $oldStatus . ' -> ' . $newStatus))) {
+                return $mosGovErrorPage($response, '记录已保存，但审计记录写入失败：请立即联系管理员核查 gov_audit_log。', 500);
+            }
+        }
 
         return SlimUtils::renderRedirect($response, $mosGovBase . '/' . $mosGovSlugByEntity[$entity] . '/' . $id);
     } catch (GovDataException $e) {
@@ -992,5 +1193,154 @@ $app->get('/mos-gov/permissions', function (Request $request, Response $response
         'rolePermissions' => $rolePermissions,
         'canManage' => $canManage,
         'esc' => $mosGovEsc,
+    ]);
+})->add(GovSecureModeMiddleware::class);
+
+// ===========================================================================
+// MOS-GOV V2.0 — 新增的两个模块入口
+//
+// V2.0 把一级导航收口为 仪表板/人/组/活动/账务/管理（§2、§35）。其中两项
+// 能力核心不提供，必须由插件补齐，否则导航会出现死链（§27）：
+//
+//   管理 → 数据维护  §23  要求保留并强化数据格式化/清零，且必须防误触
+//   账务 → 报表    §16/§19 要求地区中立报表；核心 /finance/reports 的唯一下级页
+//                          是美国捐赠税务声明，属必须删除的地区特定逻辑，故不可用
+//
+// 两条路由都挂 GovSecureModeMiddleware，与插件其余页面保持一致。
+// ===========================================================================
+
+// ===========================================================================
+// MOS CHURCH 结构精简阶段 —— 数据格式化 / 清零 与 账务报表
+//
+// 一级导航收口为 仪表板/日历/人/组/活动/财务/管理员。两项能力核心不提供，
+// 由插件补齐，否则导航出现死链（§13）：
+//
+//   管理员 → 数据格式化  §4/§12 要求可清空业务数据服务新教会，且必须有
+//                         权限保护、二次确认、清零前备份、不删管理员
+//   财务   → 报表        §7 要求地区无关的教会账务报表；核心 /finance/reports
+//                         的唯一下级页是美国捐赠税务声明，不能用
+//
+// 安全要点：本文件不提供任何无保护的清零入口。
+//   核心 DELETE /api/database/reset 缺少管理员校验（详见 GovDataMaintenance
+//   类注释），因此本插件自行实现「只清业务数据、保留系统骨架与管理员」的清零，
+//   并且必须同时满足：管理员权限 + CSRF + 输入确认词，三者缺一不可。
+// ===========================================================================
+
+// ------------------------------------------------------- 管理员权限守卫
+// 数据格式化是本产品最危险的操作：单独抽一个守卫，确保 GET 只读、POST 才动手，
+// 且两者都要求管理员（§12.7）。
+//
+// 实现要点：守卫必须复用路由处理器传入的 $response，不能自己 new 一个。
+// Slim\Psr7\Response 在本版本是 PSR-7 消息对象而非工厂（没有 ::create()），
+// 早前误用 `Response::create()` 会导致非管理员访问时抛 500 而非 403 ——
+// 「拒绝」必须干净，否则既泄露内部错误、又让真正的权限问题被误判成故障。
+$mosGovAdminOnly = static function (Response $response): ?Response {
+    $user = GovAuthorization::currentUser();
+    if ($user !== null && $user->isAdmin()) {
+        return null;
+    }
+
+    return \ChurchCRM\Slim\SlimUtils::renderErrorJSON(
+        $response,
+        '仅管理员可执行数据维护操作',
+        [],
+        403
+    );
+};
+
+// ------------------------------------------------------------ 数据格式化
+$app->get('/mos-gov/admin/data-maintenance', function (Request $request, Response $response) use ($mosGovPage, $mosGovEsc, $mosGovAdminOnly): Response {
+    // 危险操作：连「查看清零范围」都要求管理员，避免普通用户探知数据结构。
+    if ($resp = $mosGovAdminOnly($response)) {
+        return $resp;
+    }
+
+    $maintenance = new GovDataMaintenance();
+    $scope = $maintenance->scopePreview();
+
+    $root = SystemURLs::getRootPath();
+
+    // 备份与恢复走核心既有入口（只读/恢复，不做清零）：
+    // §12.3 要求清零前可备份，故这里提供备份入口；但「清零」本身由本插件执行，
+    // 不跳转到核心那个会 DROP 全部表的 /admin/system/reset。
+    $operations = [
+        [
+            'key'     => 'backup',
+            'title'   => '备份数据库',
+            'desc'    => '生成当前数据库快照。清零业务数据前建议先做备份。',
+            'risk'    => 'safe',
+            'confirm' => '不修改任何数据',
+            'href'    => $root . '/admin/system/backup',
+        ],
+        [
+            'key'     => 'restore',
+            'title'   => '从备份恢复',
+            'desc'    => '用先前备份覆盖当前数据。恢复后当前数据会被替换。',
+            'risk'    => 'warn',
+            'confirm' => '将以备份内容替换当前全部数据',
+            'href'    => $root . '/admin/system/restore',
+        ],
+    ];
+
+    return $mosGovPage($response, 'admin_data_maintenance.php', [
+        'scope'      => $scope,
+        'operations' => $operations,
+        'csrfField'  => CSRFUtils::getTokenInputField('mos-gov'),
+        'confirmWord' => GovDataMaintenance::CONFIRM_WORD,
+        'esc'        => $mosGovEsc,
+    ]);
+})->add(GovSecureModeMiddleware::class);
+
+// POST：执行清零。三重校验 —— 管理员 + CSRF + 确认词（§12.2/§12.6/§12.7）。
+$app->post('/mos-gov/admin/data-maintenance', function (Request $request, Response $response) use ($mosGovPage, $mosGovEsc, $mosGovAdminOnly, $mosGovErrorPage): Response {
+    if ($resp = $mosGovAdminOnly($response)) {
+        return $resp;
+    }
+
+    $data = (array) $request->getParsedBody();
+
+    // CSRF：防止第三方页面诱导管理员误触。
+    if (!CSRFUtils::verifyRequest($data, 'mos-gov')) {
+        return $mosGovErrorPage($response, 'CSRF 令牌无效或缺失，请返回刷新后重试。', 400);
+    }
+
+    $confirm = trim((string) ($data['confirm_word'] ?? ''));
+    if ($confirm !== GovDataMaintenance::CONFIRM_WORD) {
+        // 明确告知需要输入什么，避免管理员反复试错（§12.2 要求二次确认）。
+        return $mosGovPage($response, 'admin_data_maintenance.php', [
+            'scope'       => (new GovDataMaintenance())->scopePreview(),
+            'operations'  => [],
+            'csrfField'   => CSRFUtils::getTokenInputField('mos-gov'),
+            'confirmWord' => GovDataMaintenance::CONFIRM_WORD,
+            'error'       => '确认词不正确，未执行任何清零。请完整输入：' . GovDataMaintenance::CONFIRM_WORD,
+            'esc'         => $mosGovEsc,
+        ], 400);
+    }
+
+    $maintenance = new GovDataMaintenance();
+    $result = $maintenance->clearBusinessData();
+
+    return $mosGovPage($response, 'admin_data_maintenance.php', [
+        // 清零后范围已变化，直接展示执行结果。
+        'scope'      => $maintenance->scopePreview(),
+        'operations' => [],
+        'result'     => $result,
+        'csrfField'  => CSRFUtils::getTokenInputField('mos-gov'),
+        'confirmWord' => GovDataMaintenance::CONFIRM_WORD,
+        'esc'        => $mosGovEsc,
+    ]);
+})->add(GovWriteRoleAuthMiddleware::class)->add(GovSecureModeMiddleware::class);
+
+// ---------------------------------------------------------- 账务报表
+$app->get('/mos-gov/finance/report', function (Request $request, Response $response) use ($mosGovPage, $mosGovEsc): Response {
+    $report = new MosGovFinanceReport();
+
+    return $mosGovPage($response, 'finance_report.php', [
+        'monthly' => $report->monthly(),
+        'yearly'  => $report->yearly(),
+        'byFund'  => $report->byFund(),
+        'totals'  => $report->totals(),
+        'error'   => $report->error(),
+        'esc'     => $mosGovEsc,
     ]);
 })->add(GovSecureModeMiddleware::class);

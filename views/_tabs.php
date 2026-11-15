@@ -28,7 +28,9 @@ $mosGovNavSections = [
         'header' => null,
         'primary' => true,
         'items' => [
-            'dashboard' => ['label' => '治理首页', 'url' => $mosGovRootPath],
+            // 指向 /dashboard 而不是裸根路径：/plugins/mos-gov 在内置服务器下
+            // 会被当作目录请求并 302 落到根应用（DEV-09-B §2 实测）。
+            'dashboard' => ['label' => '治理首页', 'url' => $mosGovRootPath . '/dashboard'],
             'my-governance' => ['label' => '我的治理中心', 'url' => $mosGovRootPath . '/my-governance'],
         ],
     ],
@@ -45,6 +47,7 @@ $mosGovNavSections = [
     [
         'header' => '治理运行',
         'items' => [
+            'healthboard' => ['label' => '健康盘', 'url' => $mosGovRootPath . '/healthboard'],
             'meetings' => ['label' => '会议', 'url' => $mosGovRootPath . '/meetings'],
             'issues' => ['label' => '议题', 'url' => $mosGovRootPath . '/issues'],
             'decisions' => ['label' => '决策', 'url' => $mosGovRootPath . '/decisions'],

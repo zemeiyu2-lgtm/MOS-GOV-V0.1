@@ -47,6 +47,137 @@ final class GovRepository
     /** Governance node types addressable by gov_relationship.from_type / to_type. */
     public const RELATIONSHIP_ENTITY_TYPES = ['structure', 'body', 'role', 'appointment', 'meeting', 'person'];
 
+    // ------------------------------------------------------- V1.0 healthboard
+
+    /**
+     * Delegation lifecycle (V1.0, PoC-02). 'expiring' is a computed state
+     * (end_date within the warning window) and is deliberately NOT stored.
+     */
+    public const DELEGATION_STATUSES = ['draft', 'active', 'expired', 'revoked'];
+
+    /** Oversight lifecycle (V1.0, PoC chain terminus). */
+    public const OVERSIGHT_STATUSES = ['open', 'in_progress', 'completed', 'cancelled'];
+
+    /** Oversight outcome whitelist. */
+    public const OVERSIGHT_OUTCOMES = ['pending', 'pass', 'fail', 'partial'];
+
+    /**
+     * Allowed lifecycle transitions per entity. Anything not listed is
+     * rejected by update() when the entity's status column changes. Terminal
+     * states have no outgoing edges. 'active' -> 'expired' is normally driven
+     * by the expiry sweep, but the manual path stays available to admins.
+     *
+     * @var array<string, array<string, list<string>>>
+     */
+    public const LIFECYCLE_TRANSITIONS = [
+        'delegation' => [
+            'status' => [
+                'draft' => ['active', 'revoked'],
+                'active' => ['expired', 'revoked'],
+                'expired' => [],
+                'revoked' => [],
+            ],
+        ],
+        'oversight' => [
+            'oversight_status' => [
+                'open' => ['in_progress', 'cancelled'],
+                'in_progress' => ['completed', 'cancelled'],
+                'completed' => [],
+                'cancelled' => [],
+            ],
+        ],
+        // V1.0 整改闭环（DEV-07）：问题状态机。closed 为终态；
+        // resolved 可显式重开（复核退回后重新整改）——重开走状态机并留审计。
+        'issue' => [
+            'status' => [
+                'open' => ['in_progress', 'resolved', 'closed'],
+                'in_progress' => ['open', 'resolved', 'closed'],
+                'resolved' => ['open', 'closed'],
+                'closed' => [],
+            ],
+        ],
+    ];
+
+    /** Pure transition check used by update() and the V1.0 test suite. */
+    public static function isTransitionAllowed(string $entity, string $from, string $to): bool
+    {
+        $map = self::LIFECYCLE_TRANSITIONS[$entity] ?? [];
+
+        foreach ($map as $fieldRules) {
+            if (isset($fieldRules[$from]) && in_array($to, $fieldRules[$from], true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** The status column of a lifecycle entity, or null. */
+    public static function lifecycleStatusField(string $entity): ?string
+    {
+        $map = self::LIFECYCLE_TRANSITIONS[$entity] ?? [];
+
+        return $map === [] ? null : (string) array_key_first($map);
+    }
+
+    /**
+     * Pure delegation semantics (V1.0, PoC-02). Used by validate() and the
+     * test suite. Returns field => message; empty when valid.
+     *
+     * @param array<string, mixed> $data normalised delegation payload
+     * @return array<string, string>
+     */
+    public static function delegationSemanticErrors(array $data): array
+    {
+        $errors = [];
+        $isEmpty = static fn (mixed $v): bool => $v === null || $v === '' || (is_array($v) && $v === []);
+
+        // at least one authority object
+        if ($isEmpty($data['permission_id'] ?? null) && $isEmpty($data['responsibility_id'] ?? null)) {
+            $errors['permission_id'] = 'A delegation must carry a permission or a responsibility.';
+        }
+
+        // no self-delegation
+        $delegator = $data['delegator_person_id'] ?? null;
+        $delegate = $data['delegate_person_id'] ?? null;
+        if (!$isEmpty($delegator) && !$isEmpty($delegate) && (int) $delegator === (int) $delegate) {
+            $errors['delegate_person_id'] = 'A person cannot delegate to themselves.';
+        }
+
+        // date order
+        $start = $data['start_date'] ?? null;
+        $end = $data['end_date'] ?? null;
+        if (is_string($start) && is_string($end) && $start !== '' && $end !== ''
+            && preg_match('/^\d{4}-\d{2}-\d{2}$/', $start) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $end)
+            && $end < $start) {
+            $errors['end_date'] = 'End date cannot be before the start date.';
+        }
+
+        return $errors;
+    }
+
+    /**
+     * Pure oversight semantics (V1.0): an oversight record must reference at
+     * least one of decision / task / responsibility. Existence of each
+     * referenced row is already enforced by the generic 'ref' validation.
+     *
+     * @param array<string, mixed> $data normalised oversight payload
+     * @return array<string, string>
+     */
+    public static function oversightLinkErrors(array $data): array
+    {
+        $isEmpty = static fn (mixed $v): bool => $v === null || $v === '' || (is_array($v) && $v === []);
+
+        if ($isEmpty($data['decision_id'] ?? null)
+            && $isEmpty($data['task_id'] ?? null)
+            && $isEmpty($data['responsibility_id'] ?? null)
+            && $isEmpty($data['issue_id'] ?? null)) {
+            return ['decision_id' => 'An oversight record must reference a decision, a task, a responsibility or an issue.'];
+        }
+
+        return [];
+    }
+
     // ------------------------------------------------- V0.2 security model
     // All security vocabularies below are CLOSED whitelists. User input can
     // never introduce a new scope type, grant mode, information level,
@@ -301,6 +432,8 @@ final class GovRepository
         'issues' => 'issue',
         'decisions' => 'decision',
         'tasks' => 'task',
+        'delegations' => 'delegation',
+        'oversight' => 'oversight',
     ];
 
     /**
@@ -478,6 +611,8 @@ final class GovRepository
                 'meeting_id' => ['type' => 'ref', 'ref' => 'meeting', 'required' => false, 'label' => 'Meeting'],
                 'title' => ['type' => 'text', 'required' => true, 'max' => 190, 'label' => 'Title'],
                 'description' => ['type' => 'textlong', 'required' => false, 'label' => 'Description'],
+                // 外部规范依据引用（白皮书：规范层只读外置，平台不建规范实体）。
+                'regulation_ref' => ['type' => 'text', 'required' => false, 'max' => 190, 'label' => 'Regulation reference'],
                 'priority' => ['type' => 'select', 'required' => true, 'options' => self::PRIORITIES, 'default' => 'normal', 'label' => 'Priority'],
                 'status' => ['type' => 'status', 'required' => true, 'options' => self::ISSUE_STATUSES, 'default' => 'open', 'label' => 'Status'],
                 'owner_person_id' => ['type' => 'person', 'required' => false, 'label' => 'Owner'],
@@ -486,6 +621,8 @@ final class GovRepository
             ],
             'related' => [
                 ['entity' => 'decision', 'field' => 'issue_id'],
+                ['entity' => 'task', 'field' => 'issue_id'],
+                ['entity' => 'oversight', 'field' => 'issue_id'],
             ],
         ],
 
@@ -522,6 +659,8 @@ final class GovRepository
             'recentOrder' => ['id' => 'DESC'],
             'fields' => [
                 'decision_id' => ['type' => 'ref', 'ref' => 'decision', 'required' => false, 'label' => 'Decision'],
+                // V1.0 整改闭环（004）：整改行动直接挂问题。
+                'issue_id' => ['type' => 'ref', 'ref' => 'issue', 'required' => false, 'label' => 'Issue'],
                 'responsibility_id' => ['type' => 'ref', 'ref' => 'responsibility', 'required' => false, 'label' => 'Responsibility'],
                 'title' => ['type' => 'text', 'required' => true, 'max' => 190, 'label' => 'Title'],
                 'description' => ['type' => 'textlong', 'required' => false, 'label' => 'Description'],
@@ -531,6 +670,62 @@ final class GovRepository
                 'status' => ['type' => 'status', 'required' => true, 'options' => self::TASK_STATUSES, 'default' => 'open', 'label' => 'Status'],
                 'completed_at' => ['type' => 'datetime', 'required' => false, 'label' => 'Completed at'],
             ],
+        ],
+
+        // ---------------------------------------------- delegation (V1.0)
+        'delegation' => [
+            'table' => 'gov_delegation',
+            'label' => 'Delegation',
+            'labelPlural' => 'Delegations',
+            'listFields' => ['title', 'delegator_person_id', 'delegate_person_id', 'end_date', 'status'],
+            'defaultOrder' => ['id' => 'DESC'],
+            'recentOrder' => ['id' => 'DESC'],
+            'fields' => [
+                'title' => ['type' => 'text', 'required' => true, 'max' => 190, 'label' => 'Title'],
+                'delegator_person_id' => ['type' => 'person', 'required' => true, 'label' => 'Delegated by'],
+                'delegate_person_id' => ['type' => 'person', 'required' => true, 'label' => 'Delegated to'],
+                'supervisor_person_id' => ['type' => 'person', 'required' => false, 'label' => 'Supervisor'],
+                'responsibility_id' => ['type' => 'ref', 'ref' => 'responsibility', 'required' => false, 'label' => 'Responsibility'],
+                'permission_id' => ['type' => 'ref', 'ref' => 'permission', 'required' => false, 'label' => 'Permission'],
+                'scope_description' => ['type' => 'text', 'required' => false, 'max' => 255, 'label' => 'Scope description'],
+                'start_date' => ['type' => 'date', 'required' => false, 'label' => 'Start date'],
+                'end_date' => ['type' => 'date', 'required' => false, 'label' => 'End date'],
+                'status' => ['type' => 'status', 'required' => true, 'options' => self::DELEGATION_STATUSES, 'default' => 'draft', 'label' => 'Status'],
+                'can_redelegate' => ['type' => 'int', 'required' => false, 'min' => 0, 'default' => 0, 'label' => 'Can redelegate'],
+                'approved_at' => ['type' => 'datetime', 'required' => false, 'omitIfEmpty' => true, 'label' => 'Approved at'],
+                'revoked_at' => ['type' => 'datetime', 'required' => false, 'omitIfEmpty' => true, 'label' => 'Revoked at'],
+                'revoked_by_person_id' => ['type' => 'person', 'required' => false, 'label' => 'Revoked by'],
+                'revocation_reason' => ['type' => 'textlong', 'required' => false, 'label' => 'Revocation reason'],
+            ],
+        ],
+
+        // ----------------------------------------------- oversight (V1.0)
+        'oversight' => [
+            'table' => 'gov_oversight',
+            'label' => 'Oversight',
+            'labelPlural' => 'Oversight',
+            'listFields' => ['title', 'supervisor_person_id', 'due_date', 'oversight_status'],
+            'defaultOrder' => ['id' => 'DESC'],
+            'recentOrder' => ['id' => 'DESC'],
+            'fields' => [
+                'title' => ['type' => 'text', 'required' => true, 'max' => 190, 'label' => 'Title'],
+                'decision_id' => ['type' => 'ref', 'ref' => 'decision', 'required' => false, 'label' => 'Decision'],
+                // V1.0 整改闭环（004）：复核记录直接挂问题。
+                'issue_id' => ['type' => 'ref', 'ref' => 'issue', 'required' => false, 'label' => 'Issue'],
+                'task_id' => ['type' => 'ref', 'ref' => 'task', 'required' => false, 'label' => 'Task'],
+                'responsibility_id' => ['type' => 'ref', 'ref' => 'responsibility', 'required' => false, 'label' => 'Responsibility'],
+                'supervisor_person_id' => ['type' => 'person', 'required' => true, 'label' => 'Supervisor'],
+                'responsible_person_id' => ['type' => 'person', 'required' => false, 'label' => 'Responsible person'],
+                'oversight_status' => ['type' => 'status', 'required' => true, 'options' => self::OVERSIGHT_STATUSES, 'default' => 'open', 'label' => 'Status'],
+                'findings' => ['type' => 'textlong', 'required' => false, 'label' => 'Findings'],
+                'evidence_notes' => ['type' => 'textlong', 'required' => false, 'label' => 'Evidence notes'],
+                'evidence_ref' => ['type' => 'text', 'required' => false, 'max' => 190, 'label' => 'Evidence reference'],
+                'outcome' => ['type' => 'select', 'required' => false, 'options' => self::OVERSIGHT_OUTCOMES, 'default' => 'pending', 'label' => 'Outcome'],
+                'outcome_notes' => ['type' => 'textlong', 'required' => false, 'label' => 'Outcome notes'],
+                'due_date' => ['type' => 'date', 'required' => false, 'label' => 'Due date'],
+                'completed_at' => ['type' => 'datetime', 'required' => false, 'omitIfEmpty' => true, 'label' => 'Completed at'],
+            ],
+            'related' => [],
         ],
     ];
 
@@ -809,6 +1004,24 @@ final class GovRepository
     public function update(string $entity, int $id, array $data): void
     {
         $cfg = $this->getEntity($entity);
+
+        // Lifecycle guard (V1.0): reject status transitions outside the
+        // transition matrix before anything else touches the row.
+        $statusField = self::lifecycleStatusField($entity);
+        if ($statusField !== null && array_key_exists($statusField, $data)) {
+            $old = $this->find($entity, $id);
+            if ($old === null) {
+                throw new GovDataException('The ' . $cfg['label'] . ' record no longer exists.');
+            }
+            $from = (string) ($old[$statusField] ?? '');
+            $to = (string) $data[$statusField];
+            if ($to !== $from && !self::isTransitionAllowed($entity, $from, $to)) {
+                throw new GovDataException(
+                    'Invalid status change for the ' . $cfg['label'] . ': from "' . $from . '" to "' . $to . '" is not allowed.'
+                );
+            }
+        }
+
         $data = $this->normalize($entity, $data);
         $errors = $this->validate($entity, $data);
         if ($errors !== []) {
@@ -851,6 +1064,63 @@ final class GovRepository
         } catch (\PDOException $e) {
             throw new GovDataException('Unable to delete the ' . $cfg['label'] . ' record.', [], $e);
         }
+    }
+
+    /**
+     * Duplicate-open-record guard (V1.0): true when an equivalent record is
+     * already open. Used against double submits on delegation and oversight
+     * creation. Comparison is null-safe (<=>) on the optional foreign keys.
+     *
+     * @param array<string, mixed> $data normalised payload
+     */
+    public function hasOpenDuplicate(string $entity, array $data, int $excludeId = 0): bool
+    {
+        try {
+            if ($entity === 'delegation') {
+                $stmt = $this->conn->prepare(
+                    "SELECT COUNT(*) FROM gov_delegation
+                     WHERE status IN ('draft', 'active')
+                       AND delegator_person_id = :d1 AND delegate_person_id = :d2
+                       AND (permission_id <=> :p) AND (responsibility_id <=> :r)
+                       AND id <> :x"
+                );
+                $stmt->bindValue(':d1', (int) ($data['delegator_person_id'] ?? 0), \PDO::PARAM_INT);
+                $stmt->bindValue(':d2', (int) ($data['delegate_person_id'] ?? 0), \PDO::PARAM_INT);
+                $p = ($data['permission_id'] ?? null) === null ? null : (int) $data['permission_id'];
+                $r = ($data['responsibility_id'] ?? null) === null ? null : (int) $data['responsibility_id'];
+                $stmt->bindValue(':p', $p, $p === null ? \PDO::PARAM_NULL : \PDO::PARAM_INT);
+                $stmt->bindValue(':r', $r, $r === null ? \PDO::PARAM_NULL : \PDO::PARAM_INT);
+                $stmt->bindValue(':x', $excludeId, \PDO::PARAM_INT);
+                $stmt->execute();
+
+                return (int) $stmt->fetchColumn() > 0;
+            }
+
+            if ($entity === 'oversight') {
+                $stmt = $this->conn->prepare(
+                    "SELECT COUNT(*) FROM gov_oversight
+                     WHERE oversight_status IN ('open', 'in_progress')
+                       AND title = :t
+                       AND (decision_id <=> :dc) AND (task_id <=> :tk) AND (responsibility_id <=> :r)
+                       AND id <> :x"
+                );
+                $stmt->bindValue(':t', (string) ($data['title'] ?? ''), \PDO::PARAM_STR);
+                $dc = ($data['decision_id'] ?? null) === null ? null : (int) $data['decision_id'];
+                $tk = ($data['task_id'] ?? null) === null ? null : (int) $data['task_id'];
+                $r = ($data['responsibility_id'] ?? null) === null ? null : (int) $data['responsibility_id'];
+                $stmt->bindValue(':dc', $dc, $dc === null ? \PDO::PARAM_NULL : \PDO::PARAM_INT);
+                $stmt->bindValue(':tk', $tk, $tk === null ? \PDO::PARAM_NULL : \PDO::PARAM_INT);
+                $stmt->bindValue(':r', $r, $r === null ? \PDO::PARAM_NULL : \PDO::PARAM_INT);
+                $stmt->bindValue(':x', $excludeId, \PDO::PARAM_INT);
+                $stmt->execute();
+
+                return (int) $stmt->fetchColumn() > 0;
+            }
+        } catch (\PDOException $e) {
+            throw new GovDataException('Unable to check for duplicate ' . $entity . ' records.', [], $e);
+        }
+
+        return false;
     }
 
     /**
@@ -1108,6 +1378,19 @@ final class GovRepository
                     $errors['risk_level'] = 'Risk level must be "' . $risk . '" for this permission key.';
                 }
             }
+        }
+
+        // V1.0 delegation semantics (PoC-02): authority object required, no
+        // self-delegation, date order. Pure rules live in
+        // GovRepository::delegationSemanticErrors so the test suite can call
+        // them without a database.
+        if ($entity === 'delegation') {
+            $errors += self::delegationSemanticErrors($data);
+        }
+
+        // V1.0 oversight semantics: at least one supervised object.
+        if ($entity === 'oversight') {
+            $errors += self::oversightLinkErrors($data);
         }
 
         return $errors;

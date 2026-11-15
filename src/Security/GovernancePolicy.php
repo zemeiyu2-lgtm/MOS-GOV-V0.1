@@ -81,6 +81,7 @@ final class GovernancePolicy
         }
 
         // 10a. explicit deny wins before any allow is considered.
+        $viaDelegation = null;
         if (PermissionResolver::isExplicitDeny($ctx, $permission)) {
             return AuthorizationDecision::deny(
                 'An explicit authorization denial applies to this permission.',
@@ -92,18 +93,27 @@ final class GovernancePolicy
         }
 
         if (!PermissionResolver::has($ctx, $permission)) {
-            return AuthorizationDecision::deny(
-                'Your governance roles do not include this permission.',
-                $permission,
-                null,
-                null,
-                'permission'
-            );
+            // V1.0 delegation fallback (PoC-02): direct authority absent —
+            // consult active, valid delegations. Explicit deny already won
+            // above (step 10a); scope (7) and visibility (8) still apply to
+            // a delegation-sourced grant below. Default deny when no valid
+            // delegation exists.
+            $delegationRow = DelegationService::activeDelegationGrant(null, $ctx->personId(), $permission);
+            if ($delegationRow === null) {
+                return AuthorizationDecision::deny(
+                    'Your governance roles do not include this permission.',
+                    $permission,
+                    null,
+                    null,
+                    'permission'
+                );
+            }
+            $viaDelegation = $delegationRow;
         }
 
         // 6. appointment lifecycle (already enforced in the context: roles
         //    bound to ended appointments are filtered out of activeRoles).
-        if ($activeRoles === []) {
+        if ($activeRoles === [] && $viaDelegation === null) {
             return AuthorizationDecision::deny(
                 'None of your appointments is currently active.',
                 $permission,
@@ -159,9 +169,16 @@ final class GovernancePolicy
         }
 
         // 9. action/permission cross-check (view != edit != export is already
-        //    encoded in the registry; manage never implies church authority)
-        if ($action === 'manage' && !in_array('E01', array_column($activeRoles, 'role_code'), true)
-            && PermissionResolver::source($ctx, $permission) === PermissionResolver::SOURCE_ROLE) {
+        //    encoded in the registry; manage never implies church authority).
+        //    V1.0: manage is also never exercisable through a delegation —
+        //    delegation grants operational permissions, not administrative
+        //    control.
+        if ($action === 'manage'
+            && (
+                !in_array('E01', array_column($activeRoles, 'role_code'), true)
+                && PermissionResolver::source($ctx, $permission) === PermissionResolver::SOURCE_ROLE
+                || $viaDelegation !== null
+            )) {
             return AuthorizationDecision::deny(
                 'Manage actions are reserved for the governance administrator role.',
                 $permission,
@@ -172,6 +189,14 @@ final class GovernancePolicy
         }
 
         // 11. allow
+        if ($viaDelegation !== null) {
+            return AuthorizationDecision::allow(
+                'Allowed by ' . $permission . ' via delegation #' . (int) $viaDelegation['id']
+                    . ' (delegator person #' . (int) $viaDelegation['delegator_person_id'] . ')',
+                DelegationService::SOURCE_DELEGATION
+            );
+        }
+
         return AuthorizationDecision::allow(
             'Allowed by ' . $permission . ' via ' . PermissionResolver::source($ctx, $permission),
             PermissionResolver::source($ctx, $permission)

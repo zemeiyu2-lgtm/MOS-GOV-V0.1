@@ -132,6 +132,73 @@ $mosGovRelatedCell = static function (array $fields, array $row, array $dec) use
         </div>
     </div>
 
+    <?php
+    // V1.0 整改闭环（DEV-07）：oversight 详情页的受控操作面板。
+    // 权限规则在 RemediationService（责任人提交证据、复核人复核、禁自批）；
+    // 面板只做呈现，服务端拒绝时返回明确错误页。
+    if ($slug === 'oversight' && !empty($canWrite) && isset($remediationActor)):
+        $hbActor = $remediationActor();
+        $hbOpen = in_array($row['oversight_status'] ?? '', ['open', 'in_progress'], true);
+        $hbAction = $mosGovRootPath . '/oversight/' . (int) $row['id'];
+        ?>
+        <div class="card mt-3 mg-card">
+            <div class="card-header"><h3 class="card-title">整改闭环（V1.0）</h3></div>
+            <div class="card-body">
+                <?php if (!$hbOpen): ?>
+                    <p class="text-secondary mb-0">
+                        该监督记录已归档（<?= $esc($mosGovValue((string) ($row['outcome'] ?? 'pending'))) ?>）。
+                        复核结论为终态记录；如需重新整改，请针对同一问题新建下一轮整改任务与监督记录。
+                    </p>
+                <?php else: ?>
+                    <div class="row g-3">
+                        <div class="col-lg-6">
+                            <h4 class="mb-2">提交整改证据</h4>
+                            <p class="text-secondary small">
+                                证据引用为外部凭证的文本引用（本平台不存储文件）；提交证据不等于整改通过，通过与否由复核结论决定。
+                            </p>
+                            <form method="post" action="<?= $esc($hbAction . '/evidence') ?>">
+                                <?= $csrfField ?? '' ?>
+                                <div class="mb-2">
+                                    <label class="form-label">证据引用</label>
+                                    <input class="form-control" name="evidence_ref" maxlength="190"
+                                           value="<?= $esc((string) ($row['evidence_ref'] ?? '')) ?>" placeholder="例如：会议纪要 2026-10-21 §3 或文件编号">
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label">证据说明</label>
+                                    <textarea class="form-control" name="evidence_notes" rows="3"><?= $esc((string) ($row['evidence_notes'] ?? '')) ?></textarea>
+                                </div>
+                                <button class="btn btn-primary btn-sm" type="submit">提交证据</button>
+                            </form>
+                        </div>
+                        <div class="col-lg-6">
+                            <h4 class="mb-2">复核结论</h4>
+                            <p class="text-secondary small">
+                                仅监督人（或治理权限管理员）可复核；整改责任人不得复核自己的整改。
+                                通过/部分通过要求已有证据；退回后原记录保留，可新建下一轮整改。
+                            </p>
+                            <form method="post" action="<?= $esc($hbAction . '/review') ?>">
+                                <?= $csrfField ?? '' ?>
+                                <div class="mb-2">
+                                    <label class="form-label">复核结论</label>
+                                    <select class="form-select" name="outcome">
+                                        <option value="pass">通过（pass）</option>
+                                        <option value="partial">部分通过（partial）</option>
+                                        <option value="fail">退回整改（fail）</option>
+                                    </select>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label">复核意见</label>
+                                    <textarea class="form-control" name="outcome_notes" rows="3"><?= $esc((string) ($row['outcome_notes'] ?? '')) ?></textarea>
+                                </div>
+                                <button class="btn btn-outline-primary btn-sm" type="submit">提交复核结论</button>
+                            </form>
+                        </div>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <?php foreach ($related as $group): ?>
         <div class="card mt-3 mg-card">
             <div class="card-header d-flex align-items-center">

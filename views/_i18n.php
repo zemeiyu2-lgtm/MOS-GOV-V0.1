@@ -188,6 +188,16 @@ $mosGovValues = [
     'approved' => '已批准',
     'rejected' => '已拒绝',
     'superseded' => '已取代',
+    // delegation (V1.0)
+    'draft' => '草稿',
+    'active' => '生效中',
+    'expired' => '已失效',
+    'revoked' => '已撤销',
+    // oversight outcome (V1.0)
+    'pending' => '待定',
+    'pass' => '通过',
+    'fail' => '不通过',
+    'partial' => '部分通过',
     // appointment / workflow
     'end' => '结束',
     // task
