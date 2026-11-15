@@ -132,8 +132,10 @@ sudo bash deploy/scripts/quick-tunnel.sh start     # 打印 https://<random>.try
 ## 7.4.1 创建首个管理员（mosgov-create-admin.sh）
 
 `provision-tenant.sh` 刻意不创建 ChurchCRM 用户：官方 `Install.sql` 只预置一个
-`per_ID=1 / usr_UserName='Admin'` 的**安装 seed 账号**（口令 hash 公开、`usr_Admin=1`），
-它属于安装产物，不应作为教会的正式管理员，本命令也**绝不覆盖或重置**它。
+`per_ID=1 / usr_UserName='Admin'` 的**安装 seed 账号**（公开默认口令、
+`usr_Admin=1`），它属于安装产物，不应作为教会的正式管理员。该默认凭据可直接用于
+管理员登录（已实测），因此本命令在创建首个正式管理员的**同一事务内把它停用**
+（只置 `person_per.per_DateDeactivated`，绝不删除记录、不改口令/权限）。
 首个可用管理员由本命令另行创建（把原先 P9 的手工 SQL 脚本化）。
 
 ```bash
@@ -143,8 +145,9 @@ sudo mosgov-create-admin.sh --tenant church-a \
     --pass-file /root/.church-a-admin.pass \
     --username admin2 --first-name Church --last-name Admin \
     --email admin@<教会域名>
-# 成功：exit 0，JSON 输出 person_id / username / need_password_change=true，
-#       输出中绝不含口令或哈希；审计行写 stderr（同样不含口令）。
+# 成功：exit 0，JSON 输出 person_id / username / need_password_change=true /
+#       seed_admin_disabled=true（seed 已停用），输出中绝不含口令或哈希；
+#       审计行写 stderr（同样不含口令）。
 ```
 
 **用户名约束**：`3–50` 位 `[A-Za-z0-9._-]`。注意 `usr_UserName` 唯一键是大小写不敏感
@@ -152,17 +155,19 @@ sudo mosgov-create-admin.sh --tenant church-a \
 username_exists`）；请选一个不同的名字（如 `admin2`、`office`），随后在 ChurchCRM 内
 自行改名即可。
 
-**行为保证（已用隔离合成库 26/26 用例验证，见 evidence/phase7/12-create-admin-suite.log）**：
+**行为保证（Phase 7.1 用隔离合成库 26/26 用例验证，见 evidence/phase7/12-create-admin-suite.log；
+Phase 7.2.2 新增 seed 停用硬化的 R0–R9 用例，见 evidence/phase7/14-seed-admin-hardening.log）**：
 
 | 场景 | 结果 | 退出码 |
 |---|---|---|
-| 首次创建 | person + admin user 同事务写入，`usr_NeedPasswordChange=1` | 0 |
+| 首次创建 | person + admin user 同事务写入，`usr_NeedPasswordChange=1`；**同事务停用 seed** | 0 |
 | 同名用户已存在 | 拒绝，不写凭据文件、不改任何行 | 4 |
 | 已有非 seed 管理员 | 拒绝（默认只允许首个），不改任何行 | 4 |
 | 非法 tenant / username / email / 相对 pass-file | 拒绝 | 2 |
 | env 的 TENANT_ID 与 `--tenant` 不符 / `gov_tenant` 锚点不符 | fail-closed 拒绝 | 3 |
-| 写入中途异常（DB 触发器注入失败） | 事务回滚，无半账户、凭据文件销毁 | 5 |
+| 写入中途异常（DB 触发器注入失败） | 事务回滚，无半账户、seed 未动、凭据文件销毁 | 5 |
 | pass-file 无法写入 | 拒绝 | 6 |
+| seed 身份无法核实 / 停用未生效（如 `per_ID=1` 已被他人改写） | 事务回滚，seed 不动、无新账户 | 7 |
 
 **首次登录必改密**：口令经 `password_hash(PASSWORD_DEFAULT)` 生成，与 ChurchCRM
 `User::isPasswordValid()` 的 `password_verify` 完全一致；`usr_NeedPasswordChange=1`
@@ -171,6 +176,18 @@ username_exists`）；请选一个不同的名字（如 `admin2`、`office`）�
 
 **凭据交接**：明文只在 `--pass-file`（0600）。用一次性安全渠道交给教会负责人后，
 立即 `shred -u <pass-file>`。命令不打印口令、不写任何日志、不写 Git。
+
+**seed 停用与恢复**：停用即把 `person_per` 中 `per_ID=1` 的 `per_DateDeactivated` 置为当日；
+`user_usr` 行、用户名 `Admin`、口令 hash、`usr_Admin=1` 全部保持原样，仅因
+`User::getSignInBlockedReason()='inactive'` 而拒绝登录（ChurchCRM 官方语义，可逆）。
+如因排查历史数据归属确需临时恢复，由 DBA 显式执行：
+
+```sql
+-- 仅在明确需要时执行；恢复后 seed 的公开默认口令会重新可用，务必立即改密或再次停用。
+UPDATE person_per SET per_DateDeactivated = NULL WHERE per_ID = 1;
+```
+
+恢复属高危操作，须记录变更并在复核后立刻重新停用；不得用它绕过首个管理员流程。
 
 ---
 

@@ -9,9 +9,11 @@ declare(strict_types=1);
  *   - user_usr 主键 = usr_per_ID；usr_UserName 为唯一键（utf8 COLLATE utf8_unicode_ci，
  *     大小写不敏感）；usr_Password varchar(500) 存 bcrypt（password_hash(PASSWORD_DEFAULT)）。
  *   - 官方 Install.sql 预置 per_ID=1 / usr_per_ID=1 / usr_UserName='Admin' / usr_Admin=1 /
- *     usr_NeedPasswordChange=1，口令 hash 是公开的。它属于「安装产物」，不是教会设的管理员，
- *     本命令不得覆盖或重置它（详见下方 seed 处理）。
+ *     usr_NeedPasswordChange=1，口令 hash 是公开的（默认口令公开可得）。它属于「安装产物」，
+ *     不是教会设的管理员；公开默认凭据可被直接用于管理员登录（P7.2 已证），是本命令要终结的风险。
  *   - P9 既定流程是「另建一个强密码管理员」，本命令把这一步脚本化。
+ *   - 为了让部署后不再存在可用的默认管理员，本命令在「创建正式管理员」的同一事务内，
+ *     核实并停用官方 seed（只置 per_DateDeactivated，绝不删除），提交前双重校验，失败整体回滚。
  *
  * 安全约定：
  *   - 强制 --tenant；env 的 MOSGOV_TENANT_ID 必须与 tenant、gov_tenant singleton 三者一致，
@@ -29,7 +31,8 @@ declare(strict_types=1);
  *
  * 退出码:
  *   0 成功；2 参数/输入非法；3 前置条件不满足（租户/DB/表）；
- *   4 管理员已存在（安全退出，未改动）；5 DB 写入失败（已回滚）；6 凭据文件写入失败。
+ *   4 管理员已存在（安全退出，未改动）；5 DB 写入失败（已回滚）；
+ *   6 凭据文件写入失败；7 seed Admin 核实/停用校验失败（已回滚，seed 未改动）。
  */
 // 逐个定位 CLI 公共库（仓库内 mosgov-cli.php / cli.php，或已安装位置）。
 $lib = '';
@@ -221,10 +224,15 @@ if ($wrote === false) {
 // 从内存清除明文引用（PHP 字符串不可真正的 mlock，这里尽力而为）。
 unset($plain);
 
-// ---- 5. 事务创建 person + user（原子，不留半账户） ------------------------------
+// ---- 5. 事务：创建 person + user，并核实/停用官方 seed Admin（原子） ----------------
+// 顺序：建正式管理员 → 写全权限 → 核实 seed 身份 → 停用 seed → 提交前双重校验。
+// 任一步失败整体回滚：绝不允许「新管理员建成但默认管理员仍可用」或「默认已停用但新管理员没建成」
+// 的半完成状态。
+$seedState = 'unknown';
 try {
     $pdo->beginTransaction();
 
+    // 5a. 正式管理员的人员记录。
     $st = $pdo->prepare(
         'INSERT INTO person_per (per_FirstName, per_LastName, per_Email, per_DateEntered, per_EnteredBy)
          VALUES (?, ?, ?, NOW(), 1)'
@@ -236,8 +244,8 @@ try {
         throw new RuntimeException('bad person id');
     }
 
-    // 管理员全权限：与 ChurchCRM createUser(admin) 的 normalizeAccessMode 一致。
-    // usr_NeedPasswordChange=1：首次登录由 LocalAuthentication 强制跳转改密页。
+    // 5b. 正式管理员账户：全权限（与 createUser(admin) 的 normalizeAccessMode 一致）；
+    //     usr_NeedPasswordChange=1 让首次登录被 LocalAuthentication 强制跳改密页。
     $st = $pdo->prepare(
         'INSERT INTO user_usr
           (usr_per_ID, usr_UserName, usr_Password, usr_NeedPasswordChange,
@@ -247,21 +255,99 @@ try {
          VALUES (?, ?, ?, 1, 1,1,1,1,1,1,1,1, NOW(), 0, 0, 0)'
     );
     $st->execute([$personId, $username, $hash]);
+
+    // 5c. 核实并停用官方 seed Admin（per_ID=1）。
+    //     绝不只凭 per_ID 就修改：必须同时满足官方 Install.sql 的 seed 画像
+    //     （person: Church / Admin / 建档 '2004-08-25 18:00:00'；user: Admin / usr_Admin=1）。
+    //     不匹配则判定「无法确认为 seed」→ 抛错回滚，避免误伤真实人员或遗漏默认管理员。
+    $seed = $pdo->query(
+        "SELECT p.per_ID, p.per_FirstName, p.per_LastName, p.per_DateEntered,
+                p.per_DateDeactivated,
+                u.usr_per_ID, u.usr_UserName, u.usr_Admin
+           FROM person_per p
+           LEFT JOIN user_usr u ON u.usr_per_ID = p.per_ID
+          WHERE p.per_ID = 1
+          LIMIT 1"
+    )->fetch(PDO::FETCH_ASSOC);
+
+    if ($seed === false || $seed['usr_per_ID'] === null) {
+        // 目标库没有 seed 登录账户（可能已被管理员移除）：无默认凭据风险，视为已满足。
+        $seedState = 'absent';
+    } else {
+        $isOfficialSeed =
+            strcasecmp((string) $seed['per_FirstName'], 'Church') === 0
+            && strcasecmp((string) $seed['per_LastName'], 'Admin') === 0
+            && (string) $seed['per_DateEntered'] === '2004-08-25 18:00:00'
+            && strcasecmp((string) $seed['usr_UserName'], 'Admin') === 0
+            && (int) $seed['usr_Admin'] === 1;
+
+        if (!$isOfficialSeed) {
+            throw new RuntimeException('seed admin identity not verified');
+        }
+
+        if ($seed['per_DateDeactivated'] === null) {
+            // 只置停用日期，不删除任何记录；条件化确保只影响仍处于「未停用」的这一行。
+            $up = $pdo->prepare(
+                'UPDATE person_per SET per_DateDeactivated = CURDATE()
+                  WHERE per_ID = 1 AND per_DateDeactivated IS NULL'
+            );
+            $up->execute();
+            if ($up->rowCount() !== 1) {
+                throw new RuntimeException('seed deactivation affected unexpected rows');
+            }
+            $seedState = 'disabled';
+        } else {
+            $seedState = 'already_disabled';
+        }
+    }
+
+    // 5d. 提交前双重校验：正式管理员存在且具管理员权限；seed 已停用（或不存在）。
+    $chk = $pdo->prepare(
+        'SELECT usr_Admin FROM user_usr WHERE usr_per_ID = ? AND LOWER(usr_UserName) = LOWER(?)'
+    );
+    $chk->execute([$personId, $username]);
+    $newAdmin = $chk->fetchColumn();
+    if ($newAdmin === false || (int) $newAdmin !== 1) {
+        throw new RuntimeException('new administrator not verified');
+    }
+    if ($seedState === 'disabled' || $seedState === 'already_disabled') {
+        $deact = $pdo->query('SELECT per_DateDeactivated FROM person_per WHERE per_ID = 1')->fetchColumn();
+        if ($deact === false || $deact === null) {
+            throw new RuntimeException('seed admin still active before commit');
+        }
+    }
+
     $pdo->commit();
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
     @unlink($passFile); // 账户未建成，凭据文件一并销毁，绝不留下孤立明文
-    auditEvent('create_failed', ['tenant' => $tenant, 'stage' => 'db_write']);
-    out(['ok' => false, 'exit_code' => 5, 'tenant' => $tenant,
-         'reason' => 'db_write_failed', 'detail' => 'transaction rolled back; no partial account']);
+    $msg = $e->getMessage();
+    $seedFailure = in_array($msg, [
+        'seed admin identity not verified',
+        'seed deactivation affected unexpected rows',
+        'seed admin still active before commit',
+        'new administrator not verified',
+    ], true);
+    $reason = $seedFailure ? 'seed_admin_verification_failed' : 'db_write_failed';
+    $code   = $seedFailure ? 7 : 5;
+    auditEvent('create_failed', ['tenant' => $tenant, 'stage' => 'db_write', 'reason' => $reason]);
+    out(['ok' => false, 'exit_code' => $code, 'tenant' => $tenant,
+         'reason' => $reason,
+         'detail' => 'transaction rolled back; no partial account, seed left unchanged']);
 }
 
 auditEvent('admin_created', [
     'tenant'   => $tenant,
     'username' => $username,
     'person_id'=> $personId,
+]);
+auditEvent('seed_admin_handled', [
+    'tenant'     => $tenant,
+    'person_id'  => 1,
+    'seed_state' => $seedState, // disabled | already_disabled | absent
+    'method'     => 'per_DateDeactivated',
 ]);
 
 // 输出绝不含密码 / 哈希 / apiKey。
@@ -274,12 +360,14 @@ out([
     'username'               => $username,
     'person_id'              => $personId,
     'need_password_change'   => true,
-    'seed_admin_untouched'   => true,
+    'seed_admin_disabled'    => in_array($seedState, ['disabled', 'already_disabled'], true),
+    'seed_admin_state'       => $seedState,
     'credential_file'        => $passFile,
     'credential_file_mode'   => '0600',
     'next_steps'             => [
         '1) 用一次性安全渠道把 --pass-file 中的初始口令交给教会负责人；',
         '2) 首次登录会被强制修改密码（usr_NeedPasswordChange=1）；',
         '3) 转交后立即 shred -u 删除该凭据文件。',
+        '4) seed Admin（per_ID=1）已被停用；如需恢复见 RUNBOOK 恢复说明。',
     ],
 ]);

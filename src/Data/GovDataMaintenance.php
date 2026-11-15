@@ -9,23 +9,21 @@
  *
  * 为什么自己实现，而不是直接指向核心的 /admin/system/reset：
  *
- *   实测核心的 DELETE /api/database/reset 存在三个与本轮要求直接冲突的问题：
+ *   核心端点为 `DELETE /admin/api/database/reset`，注册在 `/admin` 应用内，由
+ *   MvcAppFactory 全局挂载的 `AdminRoleAuthMiddleware` 保护：非管理员调用返回
+ *   JSON 403（Phase 7.2.2 已用真实 HTTP 请求验证）。此前 Phase 7.2 曾误报
+ *   「任何已登录用户都能调用」——那只是查看了 api/index.php 的中间件链，而该
+ *   路由实际由 admin/index.php 承载；该结论已更正，请勿再沿用。
  *
- *   1. **没有管理员权限校验。** api/index.php 的中间件链只有
- *      AuthMiddleware + VersionMiddleware + CorsMiddleware，
- *      admin/routes/api/database.php 全文没有 AdminRoleAuthMiddleware，
- *      也没有任何 isAdmin() 判断 —— 意味着**任何已登录的非管理员用户**
- *      都能调用。同文件的 /backup、/backupRemote、/restore 同样缺失校验。
- *      这违反 §12.7「管理员功能必须有明确权限保护」与
- *      §12.9「不要留下可以绕过 UI 直接执行危险操作的公开接口」。
+ *   即便权限守卫成立，核心 reset 仍有两个与本轮要求直接冲突的问题：
  *
- *   2. **它 DROP 全部表，不只是清空业务数据。** 实现是
+ *   1. **它 DROP 全部表，不只是清空业务数据。** 实现是
  *      `SHOW FULL TABLES` 后逐个 `DROP TABLE` / `DROP VIEW`，
  *      连 config_cfg（系统设置）与 gov_*（MOS 自身治理表）一起删，
  *      与「清空业务数据 ≠ 删除软件」「不破坏数据库结构」冲突。
  *
- *   3. **响应体回显默认口令。** 返回
- *      `defaultUsername: admin / defaultPassword: changeme`，
+ *   2. **响应体回显默认口令。** 返回
+ *      `defaultUsername: admin / defaultPassword: <公开默认值，已按要求隐去>`，
  *      等于把可用凭据写进响应，不应出现在产品流程里。
  *
  * 因此本实现只做「清空业务数据」：
