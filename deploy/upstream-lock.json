@@ -28,5 +28,24 @@
     "php": "8.4.x",
     "mariadb": "11.8.9",
     "note": "详见 deploy/VERSIONS.md；apt 具体补丁版本以服务器初始化后生成的 package-lock-<date>.txt 为准。"
-  }
+  },
+  "patches": [
+    {
+      "id": "group-service-sql-guard",
+      "applies_to": "churchcrm@7.8.0",
+      "target_file": "ChurchCRM/Service/GroupService.php",
+      "methods": [
+        "deleteGroupRole",
+        "enableGroupSpecificProperties",
+        "disableGroupSpecificProperties"
+      ],
+      "type": "defense-in-depth / integer coercion",
+      "patch_path": "deploy/patches/7.8.0/group-service-sql-guard.patch",
+      "patch_sha256": "e8c8c9e9dee5205cbc26168de589d27099718ae9f4f72f22489ca4c65ff579dc",
+      "rationale": "三处方法以 string 类型接收 groupID/roleID 并直接拼接进 SQL（其中 disableGroupSpecificProperties 还拼接进表名 groupprop_<id>）。公网调用受 Slim 路由正则 {groupID:[0-9]+} 约束不可利用，但方法边界对内部/CLI 调用无防护。补丁在方法入口强制 ctype_digit + 正整数校验并 (int) 转换，属最小范围修改、不改变业务行为，且保留上游可升级性（仅 3 个方法体增删若干行）。",
+      "applied_by": "deploy/scripts/apply-upstream-patches.sh",
+      "rollback": "patch -R -p1 < deploy/patches/7.8.0/group-service-sql-guard.patch",
+      "status": "authored; 补丁已校验可干净应用到 7.8.0 源码（patch --dry-run OK）；php -l 语法检查待 PHP 运行时（沙箱 Docker 守护未启动），将在部署主机/本地栈执行"
+    }
+  ]
 }

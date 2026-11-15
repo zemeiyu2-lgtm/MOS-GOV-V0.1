@@ -99,6 +99,24 @@
 
 ---
 
+## 7.5 上游补丁应用与回滚（GroupService SQL 守卫）
+
+ChurchCRM 7.8.0 核心在 `ChurchCRM/Service/GroupService.php` 的 `deleteGroupRole` /
+`enableGroupSpecificProperties` / `disableGroupSpecificProperties` 三处将 string 类型
+ID 直接拼接进 SQL（含表名拼接 `groupprop_<id>`）。补丁
+`deploy/patches/7.8.0/group-service-sql-guard.patch` 在方法入口强制正整数校验 +
+`(int)` 转换，属最小范围防御性修复，不改变业务行为、保留上游可升级性。
+
+- 应用（部署前，对【已 sha256 校验】的解压源码）：
+  `./deploy/scripts/apply-upstream-patches.sh /var/www/mos-gov/staging/churchcrm-7.8.0-src`
+- 干跑：`... apply-upstream-patches.sh <src> --dry-run`
+- 回滚：`... apply-upstream-patches.sh <src> --rollback`
+- 锁定记录：`deploy/upstream-lock.json` → `patches[0]`
+  （`patch_sha256: e8c8c9e9…`，`applies_to: churchcrm@7.8.0`）
+- 版本绑定：补丁仅针对 7.8.0；升级 ChurchCRM 主版本时须重新评估该补丁上下文是否仍适用。
+
+---
+
 ## 8. 备份与恢复
 
 - 本地备份：`backup-db.sh --tenant church-a`（`mariadb-dump --single-transaction --routines --triggers --events`）。
@@ -122,5 +140,6 @@
 - [ ] `server-init.sh` §7：fail2ban / pam_faillock
 - [ ] `server-init.sh` §8：certbot 自动签发与续期
 - [ ] 告警通道（备份/健康检查失败通知）
-- [ ] ChurchCRM 全栈 E2E 真机测试（当前仅实验室组件级 + 隔离 HTTP 实验台）
-- [ ] `upstream-lock.json` 官方归档 sha256 填入（当前占位符，deploy.sh 拒绝发布）
+- [ ] ChurchCRM 全栈 E2E 真机测试（本地 Docker 栈可补，真机待 Oracle 实例就绪）
+- [x] `upstream-lock.json` 官方归档 sha256 已填入并验证（发布阻断已解除，见 P5）
+- [ ] GroupService 补丁 `php -l` 语法检查（沙箱无 PHP 运行时；补丁已 `patch --dry-run` 验证可干净应用，正式 lint 在部署主机/本地栈执行）

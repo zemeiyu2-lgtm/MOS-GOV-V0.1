@@ -1,0 +1,41 @@
+--- a/ChurchCRM/Service/GroupService.php
++++ b/ChurchCRM/Service/GroupService.php
+@@ -225,6 +225,14 @@
+     public function deleteGroupRole(string $groupID, string $groupRoleID): array
+     {
+         AuthService::requireUserGroupMembership('bManageGroups');
++        // [MOS-GOV security guard] coerc IDs to positive integers before any SQL concat.
++        // The Slim route already constrains public callers via {groupID:[0-9]+}, but this
++        // hardens the method boundary for internal/CLI callers. Rejects non-digit/<=0 input.
++        if (!ctype_digit((string)$groupID) || (int)$groupID <= 0 || !ctype_digit((string)$groupRoleID) || (int)$groupRoleID <= 0) {
++            throw new \InvalidArgumentException('Invalid group or role identifier');
++        }
++        $groupID = (int)$groupID;
++        $groupRoleID = (int)$groupRoleID;
+         $sSQL = 'SELECT * FROM list_lst
+                 INNER JOIN group_grp
+                     ON group_grp.grp_RoleListID = list_lst.lst_ID
+@@ -353,6 +361,11 @@
+     public function enableGroupSpecificProperties(string $groupID): void
+     {
+         AuthService::requireUserGroupMembership('bManageGroups');
++        // [MOS-GOV security guard] ensure groupID is a positive integer before SQL concat.
++        if (!ctype_digit((string)$groupID) || (int)$groupID <= 0) {
++            throw new \InvalidArgumentException('Invalid group identifier');
++        }
++        $groupID = (int)$groupID;
+         $sSQL = 'UPDATE group_grp SET grp_hasSpecialProps = true
+             WHERE grp_ID = ' . $groupID;
+         FunctionsUtils::runQuery($sSQL);
+@@ -374,6 +387,11 @@
+     public function disableGroupSpecificProperties(string $groupID): void
+     {
+         AuthService::requireUserGroupMembership('bManageGroups');
++        // [MOS-GOV security guard] ensure groupID is a positive integer before SQL concat (table name!).
++        if (!ctype_digit((string)$groupID) || (int)$groupID <= 0) {
++            throw new \InvalidArgumentException('Invalid group identifier');
++        }
++        $groupID = (int)$groupID;
+         $sSQLp = 'DROP TABLE groupprop_' . $groupID;
+         FunctionsUtils::runQuery($sSQLp);
+ 
