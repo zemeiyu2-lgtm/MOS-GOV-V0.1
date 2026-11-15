@@ -1,0 +1,30 @@
+; MOS-GOV Phase 5 — isolated test PHP runtime template.
+; Copy to phase5/lab/php-phase5.ini and replace <LAB_ROOT> with the absolute
+; lab directory. Does NOT modify the shared D:/MOS-GOV-Web runtime.
+; Usage: php.exe -c <this file> <script.php>
+extension_dir = "D:/MOS-GOV-Web/runtime/PHP/ext"
+extension=php_pdo_mysql.dll
+extension=php_mysqli.dll
+extension=php_mbstring.dll
+extension=php_openssl.dll
+extension=php_sodium.dll
+extension=php_fileinfo.dll
+extension=php_intl.dll
+extension=php_gettext.dll
+extension=php_gd.dll
+extension=php_zip.dll
+extension=php_curl.dll
+
+display_errors = Off
+log_errors = On
+error_log = "<LAB_ROOT>/logs/php-error.log"
+date.timezone = Asia/Shanghai
+
+session.cookie_httponly = 1
+session.cookie_samesite = Lax
+session.use_strict_mode = 1
+session.use_only_cookies = 1
+session.gc_maxlifetime = 1800
+; Secure=Off for the local HTTP lab (plain HTTP on loopback). Production
+; templates keep Secure=On; see deploy/scripts/server-init.sh.
+session.cookie_secure = 0

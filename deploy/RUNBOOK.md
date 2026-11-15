@@ -107,13 +107,18 @@ ID 直接拼接进 SQL（含表名拼接 `groupprop_<id>`）。补丁
 `deploy/patches/7.8.0/group-service-sql-guard.patch` 在方法入口强制正整数校验 +
 `(int)` 转换，属最小范围防御性修复，不改变业务行为、保留上游可升级性。
 
-- 应用（部署前，对【已 sha256 校验】的解压源码）：
+- 应用（**由 `mosgov-deploy.sh` 在组装阶段自动执行**，无需人工介入）：
+  发布时先按 `upstream-lock.json` 校验补丁文件 sha256，再对刚解压的官方源码
+  `apply-upstream-patches.sh <target>`；补丁失败即为发布失败，不会带着未修补的上游上线。
+- 人工排障用（对【已 sha256 校验】的解压源码）：
   `./deploy/scripts/apply-upstream-patches.sh /var/www/mos-gov/staging/churchcrm-7.8.0-src`
 - 干跑：`... apply-upstream-patches.sh <src> --dry-run`
-- 回滚：`... apply-upstream-patches.sh <src> --rollback`
+- 回滚：`... apply-upstream-patches.sh <src> --rollback`（回滚后与官方原文件逐字节一致）
 - 锁定记录：`deploy/upstream-lock.json` → `patches[0]`
-  （`patch_sha256: e8c8c9e9…`，`applies_to: churchcrm@7.8.0`）
-- 版本绑定：补丁仅针对 7.8.0；升级 ChurchCRM 主版本时须重新评估该补丁上下文是否仍适用。
+  （`patch_sha256: ea3bac70…`，`base_file_sha256: dbe4e83b…`，`result_file_sha256: fc7af97b…`）
+- 版本绑定：补丁仅针对 7.8.0，且必须打在**官方 ChurchCRM-7.8.0.zip**解出的源码上。
+  本地参考源码树（sha256 `112ac6e0…`）与官方归档不同源，不得作为补丁基座。
+- 升级 ChurchCRM 主版本时须重新评估上下文；`deploy.sh` 会因 sha256 不匹配而阻断发布。
 
 ---
 

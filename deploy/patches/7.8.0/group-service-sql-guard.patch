@@ -1,41 +1,67 @@
 --- a/ChurchCRM/Service/GroupService.php
 +++ b/ChurchCRM/Service/GroupService.php
-@@ -225,6 +225,14 @@
-     public function deleteGroupRole(string $groupID, string $groupRoleID): array
+@@ -20,6 +20,35 @@
+ class GroupService
+ {
+     /**
++     * [MOS-GOV security guard v2] Normalise an identifier to a bounded positive
++     * integer before it is ever concatenated into SQL (including table names such
++     * as groupprop_<id>).
++     *
++     * The Slim routes already constrain public callers with {groupID:[0-9]+};
++     * this hardens the method boundary for internal/CLI callers. ctype_digit()
++     * alone is NOT sufficient: a 30-digit numeric string passes it, and (int)
++     * then silently saturates to PHP_INT_MAX, producing an abnormal table name
++     * and an unintended SQL statement. Reject >18 significant digits (always
++     * below PHP_INT_MAX) so the cast can never overflow.
++     */
++    private static function guardedId(string $value): int
++    {
++        $raw = (string)$value;
++        if ($raw === '' || !ctype_digit($raw)) {
++            throw new \InvalidArgumentException('Invalid identifier');
++        }
++        $significant = ltrim($raw, '0');
++        if ($significant === '' || strlen($significant) > 18) {
++            throw new \InvalidArgumentException('Invalid identifier');
++        }
++        $id = (int)$raw;
++        if ($id <= 0) {
++            throw new \InvalidArgumentException('Invalid identifier');
++        }
++        return $id;
++    }
++
++    /**
+      * Add person to group-specific properties table.
+      *
+      * @param int $groupID  Group ID
+@@ -221,6 +250,10 @@
+     public function deleteGroupRole(int $groupID, int $groupRoleID): array
      {
          AuthService::requireUserGroupMembership('bManageGroups');
-+        // [MOS-GOV security guard] coerc IDs to positive integers before any SQL concat.
-+        // The Slim route already constrains public callers via {groupID:[0-9]+}, but this
-+        // hardens the method boundary for internal/CLI callers. Rejects non-digit/<=0 input.
-+        if (!ctype_digit((string)$groupID) || (int)$groupID <= 0 || !ctype_digit((string)$groupRoleID) || (int)$groupRoleID <= 0) {
-+            throw new \InvalidArgumentException('Invalid group or role identifier');
-+        }
-+        $groupID = (int)$groupID;
-+        $groupRoleID = (int)$groupRoleID;
-         $sSQL = 'SELECT * FROM list_lst
-                 INNER JOIN group_grp
-                     ON group_grp.grp_RoleListID = list_lst.lst_ID
-@@ -353,6 +361,11 @@
++        // [MOS-GOV security guard v2] bounded positive-int coercion (defence in depth:
++        // the ORM path is already parameterised, this only bounds the identifier).
++        $groupID = self::guardedId((string)$groupID);
++        $groupRoleID = self::guardedId((string)$groupRoleID);
+ 
+         $con = Propel::getWriteConnection(GroupTableMap::DATABASE_NAME);
+         $con->beginTransaction();
+@@ -336,6 +369,8 @@
      public function enableGroupSpecificProperties(string $groupID): void
      {
          AuthService::requireUserGroupMembership('bManageGroups');
-+        // [MOS-GOV security guard] ensure groupID is a positive integer before SQL concat.
-+        if (!ctype_digit((string)$groupID) || (int)$groupID <= 0) {
-+            throw new \InvalidArgumentException('Invalid group identifier');
-+        }
-+        $groupID = (int)$groupID;
++        // [MOS-GOV security guard v2] bounded positive-int coercion before SQL/table-name concat.
++        $groupID = (string)self::guardedId($groupID);
          $sSQL = 'UPDATE group_grp SET grp_hasSpecialProps = true
              WHERE grp_ID = ' . $groupID;
          FunctionsUtils::runQuery($sSQL);
-@@ -374,6 +387,11 @@
+@@ -357,6 +392,8 @@
      public function disableGroupSpecificProperties(string $groupID): void
      {
          AuthService::requireUserGroupMembership('bManageGroups');
-+        // [MOS-GOV security guard] ensure groupID is a positive integer before SQL concat (table name!).
-+        if (!ctype_digit((string)$groupID) || (int)$groupID <= 0) {
-+            throw new \InvalidArgumentException('Invalid group identifier');
-+        }
-+        $groupID = (int)$groupID;
++        // [MOS-GOV security guard v2] bounded positive-int coercion before table-name concat.
++        $groupID = (string)self::guardedId($groupID);
          $sSQLp = 'DROP TABLE groupprop_' . $groupID;
          FunctionsUtils::runQuery($sSQLp);
  

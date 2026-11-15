@@ -53,6 +53,23 @@ repo_url="$(jq -r '.plugin.repository' "$lock")"
     || die "ChurchCRM 源码归档 sha256 与锁定值不符，拒绝发布"
 log "ChurchCRM $crm_ver 归档校验通过 sha256=${crm_sha:0:16}…"
 
+# ---- 上游补丁绑定校验（dry-run 也会执行）------------------------------------
+# 补丁直接改写上游源码。缺文件 / sha256 漂移 / 未填真实值，一律阻断发布，
+# 而不是留给运维"记得手工打补丁"。实际应用在组装阶段执行一次。
+patch_count="$(jq -r '(.patches // []) | length' "$lock")"
+if [[ "$patch_count" -gt 0 ]]; then
+    while IFS=$'\t' read -r pid ppath psha; do
+        [[ -n "$ppath" && "$ppath" != "null" ]] || die "补丁 $pid 缺少 patch_path"
+        [[ "$psha" =~ ^[0-9a-f]{64}$ ]] \
+            || die "补丁 $pid 的 patch_sha256 未填写真实值（发布阻断项，禁止推测值）"
+        pfile="$tpl_dir/../$ppath"
+        [[ -f "$pfile" ]] || die "补丁文件不存在：$ppath（补丁 $pid）"
+        [[ "$(sha256_of "$pfile")" == "$psha" ]] \
+            || die "补丁 $pid 文件 sha256 与锁定值不符，拒绝发布"
+        log "补丁 $pid 绑定校验通过 sha256=${psha:0:16}…"
+    done < <(jq -r '(.patches // [])[] | [.id, .patch_path, .patch_sha256] | @tsv' "$lock")
+fi
+
 # ---- git 固定镜像 ------------------------------------------------------------
 mirror="/var/www/mos-gov/mirror/MOS-GOV-V0.1.git"
 if [[ ! -d "$mirror" ]]; then
@@ -82,6 +99,15 @@ else
     # ChurchCRM 归档约定：单一顶层目录，内部即 Web 根内容。
     tar -xzf "$crm_archive" --strip-components=1 -C "$target"
     [[ -d "$target/Include" ]] || die "源码归档结构不符：缺少 Include/ 目录"
+
+    # 应用上游安全补丁（绑定已在前面校验）。失败即视为发布失败，
+    # 绝不允许"带着未修补的上游源码"上线。
+    if [[ "$patch_count" -gt 0 ]]; then
+        "$MOSGOV_SELF_DIR/apply-upstream-patches.sh" "$target" \
+            || die "上游补丁应用失败（apply-upstream-patches.sh，目录 $PWD）"
+        log "上游补丁已应用：$patch_count 个"
+    fi
+
     install -d -m 0755 "$target/$MOSGOV_PLUGIN_REL"
     git -C "$mirror" archive --format=tar "$release" | tar -x -C "$target/$MOSGOV_PLUGIN_REL"
     printf '%s\n' "$release" > "$target/REVISION"

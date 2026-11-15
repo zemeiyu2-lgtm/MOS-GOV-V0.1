@@ -10,3 +10,8 @@
 *.example   text eol=lf
 *.md        text eol=lf
 deploy/logrotate/mosgov text eol=lf
+
+# 补丁必须字节保真：任何换行转换都会让 upstream-lock.json 的 sha256 绑定失配，
+# 进而使 deploy.sh 的发布闸门误杀。
+*.patch -text
+*.template text eol=lf
