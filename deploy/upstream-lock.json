@@ -5,7 +5,8 @@
     "version": "7.8.0",
     "archive_path": "/var/www/mos-gov/staging/churchcrm-7.8.0.tar.gz",
     "sha256": "__FILL_WITH_ACTUAL_SHA256_OF_UPLOADED_ARCHIVE__",
-    "note": "ChurchCRM 7.8.0 是完整源码级集成（含 vendor/ 与定制 skin/mos/），不是 Composer 依赖。必须由运维上传经核验的源码归档并填写真实 sha256；不得从上游自动拉取，不得使用 latest 标签。"
+    "local_reference_php_source_sha256": "112ac6e0737e560bf4e19cdca148605fc596819abfa383638567a1268fc7b8bc",
+    "note": "ChurchCRM 7.8.0 是完整源码级集成（含 vendor/ 与定制 skin/mos/），不是 Composer 依赖。必须由运维上传经核验的源码归档并填写真实 sha256；不得从上游自动拉取，不得使用 latest 标签。local_reference_php_source_sha256 为本地整合源码（1099 个 .php 文件，排除 vendor/node_modules/.git）的确定性哈希，仅作本地比对参考；正式发布须在 provisioning 时下载官方 7.8.0 归档、计算 sha256 并填入上方 sha256 字段（当前为占位符，deploy.sh 会据此拒绝发布——这是预期的上线阻断项）。"
   },
   "plugin": {
     "repository": "https://github.com/zemeiyu2-lgtm/MOS-GOV-V0.1.git",
