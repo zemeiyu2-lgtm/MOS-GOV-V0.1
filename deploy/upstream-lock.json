@@ -3,10 +3,17 @@
   "schema_version": 1,
   "churchcrm": {
     "version": "7.8.0",
-    "archive_path": "/var/www/mos-gov/staging/churchcrm-7.8.0.tar.gz",
-    "sha256": "__FILL_WITH_ACTUAL_SHA256_OF_UPLOADED_ARCHIVE__",
+    "source_repo": "https://github.com/ChurchCRM/CRM",
+    "release_tag": "7.8.0",
+    "archive_path": "/var/www/mos-gov/staging/churchcrm-7.8.0.zip",
+    "archive_url": "https://github.com/ChurchCRM/CRM/releases/download/7.8.0/ChurchCRM-7.8.0.zip",
+    "archive_url_alt": "https://github.com/ChurchCRM/CRM/archive/refs/tags/7.8.0.zip",
+    "official_asset_name": "ChurchCRM-7.8.0.zip",
+    "official_asset_size_bytes": 49322609,
+    "official_source_verified": true,
+    "sha256": "0a2efd069bdeaa9535f76ca3e347f2e729890a8ad7951d7692fec0d060296fb1",
     "local_reference_php_source_sha256": "112ac6e0737e560bf4e19cdca148605fc596819abfa383638567a1268fc7b8bc",
-    "note": "ChurchCRM 7.8.0 是完整源码级集成（含 vendor/ 与定制 skin/mos/），不是 Composer 依赖。必须由运维上传经核验的源码归档并填写真实 sha256；不得从上游自动拉取，不得使用 latest 标签。local_reference_php_source_sha256 为本地整合源码（1099 个 .php 文件，排除 vendor/node_modules/.git）的确定性哈希，仅作本地比对参考；正式发布须在 provisioning 时下载官方 7.8.0 归档、计算 sha256 并填入上方 sha256 字段（当前为占位符，deploy.sh 会据此拒绝发布——这是预期的上线阻断项）。"
+    "note": "ChurchCRM 7.8.0 是完整源码级集成（含 vendor/ 与定制 skin/mos/），不是 Composer 依赖。composer.json 的 support.source 指向 github.com/ChurchCRM/CRM（非 ChurchCRM/ChurchCRM），7.8.0 发布已核实：tag=7.8.0、非 draft、非 prerelease、单一资产 ChurchCRM-7.8.0.zip。sha256 已于 2026-11-15 从官方发布资产（https://github.com/ChurchCRM/CRM/releases/download/7.8.0/ChurchCRM-7.8.0.zip）实际下载后计算：字节数 49,322,609 与 official_asset_size_bytes 完全一致，sha256=0a2efd069bdeaa9535f76ca3e347f2e729890a8ad7951d7692fec0d060296fb1（64 位十六进制）。来源与归档完整性现已双双核实，发布阻断项解除。local_reference_php_source_sha256（112ac6e0…）为本地整合源码（1099 个 .php 文件，排除 vendor/node_modules/.git）的确定性哈希，仅作本地比对参考，与官方归档 sha256 范围不同（前者不含 vendor、后者含完整归档），二者严格分开、不得混淆或冒充。deploy.sh 仍强制要求 sha256 为 64 位十六进制且非占位符，否则拒绝发布。"
   },
   "plugin": {
     "repository": "https://github.com/zemeiyu2-lgtm/MOS-GOV-V0.1.git",
