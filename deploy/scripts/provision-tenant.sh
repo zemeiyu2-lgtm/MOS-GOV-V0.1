@@ -103,6 +103,24 @@ mariadb --defaults-extra-file="$c" -e \
      FLUSH PRIVILEGES;"
 log "独立空数据库 $db 已创建（utf8mb4）"
 
+# ---- 2b. ChurchCRM 核心 schema（必须先于插件迁移） ---------------------------
+# 时序是硬约束，原因在 ChurchCRM 自身：
+#   Bootstrapper::isDatabaseEmpty() 只有在该库「一张表都没有」时才调用
+#   installChurchCRMSchema()。若先建 gov_* 表，isDatabaseEmpty() 恒为 false，
+#   核心表（person_per / user_usr / config_cfg …）永远不会被创建，
+#   教会实例第一次登录即失败（No upgrade path for "" to 7.8.0）。
+# 因此：核心 schema -> version_ver 登记 -> 插件迁移，顺序不可调换。
+core_sql="$MOSGOV_CURRENT/mysql/install/Install.sql"
+[[ -f "$core_sql" ]] || die "缺少 ChurchCRM 核心 schema $core_sql（请先执行 mosgov-deploy.sh --release <commit>）"
+core_ver="$(jq -r '.version // empty' "$MOSGOV_CURRENT/composer.json" 2>/dev/null || true)"
+[[ "$core_ver" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
+    || die "无法从 $MOSGOV_CURRENT/composer.json 读取 ChurchCRM 版本号（得到：'${core_ver}'）"
+mariadb --defaults-extra-file="$c" "$db" < "$core_sql"
+mariadb --defaults-extra-file="$c" "$db" -e \
+    "INSERT INTO version_ver (ver_version, ver_update_start, ver_update_end)
+     VALUES ('${core_ver}', NOW(), NOW());"
+log "ChurchCRM 核心 schema ${core_ver} 已导入，version_ver 已登记"
+
 # 依次执行 6 个迁移；005/006 内的 DELIMITER 由 mariadb CLI 解析。
 sqlroot="$MOSGOV_CURRENT/$MOSGOV_PLUGIN_REL/database"
 [[ -d "$sqlroot" ]] || die "找不到迁移目录 $sqlroot（请先执行 mosgov-deploy.sh --release <commit>）"
@@ -127,6 +145,26 @@ mariadb --defaults-extra-file="$c" -e \
      GRANT INSERT ON \`${db}\`.gov_audit_log TO '${dbuser}'@'127.0.0.1';
      FLUSH PRIVILEGES;"
 log "最小权限授权完成（evidence/audit 仅 SELECT + INSERT）"
+
+# 开通自检（fail-closed）：核心表与治理表必须同时存在，缺一即判开通失败。
+# 这是对上面「核心 schema 必须先导入」的运行时兜底，防止顺序被改回去。
+missing=""
+for t in person_per user_usr config_cfg version_ver gov_tenant gov_decision gov_evidence_log; do
+    cnt="$(mariadb --defaults-extra-file="$c" -N -e \
+        "SELECT COUNT(*) FROM information_schema.TABLES
+         WHERE TABLE_SCHEMA='${db}' AND TABLE_NAME='${t}';" 2>/dev/null)"
+    [[ "$cnt" == "1" ]] || missing="$missing $t"
+done
+[[ -z "$missing" ]] || die "教会 $tenant 开通自检失败，缺少表：$missing（核心 schema 与插件迁移都必须成功）"
+log "开通自检通过：核心表 + 治理表齐备"
+
+# 新教会默认启用 MOS-GOV：ChurchCRM 的插件启用状态存在 config_cfg
+# （plugin.<id>.enabled）。不写这一行，教会管理员登录后 /plugins/mos-gov/*
+# 会被核心当作未启用插件而重定向回仪表盘 —— 教堂看不到治理模块。
+mariadb --defaults-extra-file="$c" "$db" -e \
+    "INSERT INTO config_cfg (cfg_name, cfg_value) VALUES ('plugin.mos-gov.enabled','1')
+     ON DUPLICATE KEY UPDATE cfg_value=VALUES(cfg_value);"
+log "MOS-GOV 治理层已在新教会默认启用（plugin.mos-gov.enabled=1）"
 
 # gov_tenant singleton 行：运行时 fail-closed 校验的锚点
 esc() { printf '%s' "$1" | sed "s/'/''/g"; }

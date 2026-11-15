@@ -90,12 +90,21 @@
 
 ## 7. 首个教会实例初始化
 
-1. `provision-tenant.sh --tenant church-a --host mosgov.eu.org --db church_a --storage /var/lib/mosgov/church-a`
+> **顺序先发布、后开通**：`provision-tenant.sh` 需要从 `$MOSGOV_CURRENT` 读取
+> `REVISION` 与 ChurchCRM 核心 `mysql/install/Install.sql`，因此发布必须在开通之前。
+> 早期文档写成「先开通后发布」，会因缺少已部署源码而直接 die。
+
+1. `mosgov-deploy.sh --release <40-hex-commit>`（当前 `809adac` 或后续锁定 commit）
+   - 锁定校验 → 源码组装 → 上游补丁 → 全量 `php -l` → 配置体检 → vhost 渲染 → symlink 切换 → 健康检查。
+2. `provision-tenant.sh --tenant church-a`
    - 创建独立 DB + 最小权限账号 + vhost + FPM pool + 私有存储 + `gov_tenant` 单行 + 备份前缀。
-2. `mosgov-deploy.sh --release <40-hex-commit>`（当前 `809adac` 或后续锁定 commit）
-   - 锁定校验 → 源码组装 → 全量 `php -l` → 配置体检 → vhost 渲染 → symlink 切换 → 健康检查。
+   - **导入 ChurchCRM 核心 schema（`mysql/install/Install.sql` + `version_ver` 登记），然后才跑 6 个治理迁移。**
+     顺序不可调换：ChurchCRM 只在「零张表」时自动建核心表，先建 `gov_*` 会让核心表永远缺失。
+   - 结束时做 fail-closed 自检：核心表（`person_per`/`user_usr`/`config_cfg`/`version_ver`）与治理表必须齐备。
+   - 写入 `plugin.mos-gov.enabled=1`，新教会开局即可看到治理模块（否则 `/plugins/mos-gov/*` 被重定向回仪表盘）。
 3. 首次 `mosgov-healthcheck.sh --all` 必须通过。
-4. 第二个教会 `church-b` 重复上述，验证 silo 隔离。
+4. 在教会实例上创建首个管理员账号（首次登录前完成，随后删除安装痕迹）。
+5. 第二个教会 `church-b` 重复上述，验证 silo 隔离。
 
 ---
 
