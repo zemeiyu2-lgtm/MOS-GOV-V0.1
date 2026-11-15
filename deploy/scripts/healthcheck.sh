@@ -54,22 +54,41 @@ for t in "${targets[@]}"; do
     host="$(envval MOSGOV_TENANT_HOST)"
     hpath="$(envval MOSGOV_HEALTHCHECK_PATH)"
 
-    # ---- L1: HTTPS 存活探针 --------------------------------------------------
+    # ---- L1: 存活探针 --------------------------------------------------------
+    # 两种入口模式（server-init.sh 写入 /etc/mosgov/ingress-mode）：
+    #   tls    ：TLS 在本机 443 终结 → 走 https + --resolve，且确认 80 不明文提供应用
+    #   tunnel ：TLS 在 Cloudflare 边缘终结 → 本机只有回环 8080，用 Host 头直连
+    #            （仍然真的经 Apache + vhost + FPM，只是跳过本机 TLS）
     if [[ "$no_http" -eq 0 ]]; then
         need_cmd curl
-        # TLS 在本机终结（见 apache/mosgov-vhost.conf），用 --resolve 避免依赖外部 DNS。
-        code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 \
-            --noproxy '*' --resolve "${host}:443:127.0.0.1" \
-            "https://${host}${hpath}" 2>/dev/null || printf '000')"
-        [[ "$code" == "200" ]] && ok "$t：L1 HTTPS 存活探针 200" \
-            || bad "$t：L1 HTTPS 存活探针返回 $code（TLS / vhost / 探针文件未就绪）"
-        # 同时确认 HTTP 不会明文提供应用内容
-        plain="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 \
-            --noproxy '*' --resolve "${host}:80:127.0.0.1" \
-            "http://${host}/" 2>/dev/null || printf '000')"
-        [[ "$plain" == "301" || "$plain" == "302" || "$plain" == "403" || "$plain" == "000" ]] \
-            && ok "$t：L1 HTTP 未明文提供应用（$plain）" \
-            || bad "$t：L1 HTTP 明文返回 $plain，必须重定向到 HTTPS"
+        mode="${MOSGOV_INGRESS_MODE:-$(cat /etc/mosgov/ingress-mode 2>/dev/null || echo tls)}"
+        if [[ "$mode" == "tunnel" ]]; then
+            code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 \
+                --noproxy '*' -H "Host: ${host}" \
+                "http://127.0.0.1:8080${hpath}" 2>/dev/null || printf '000')"
+            [[ "$code" == "200" ]] && ok "$t：L1 存活探针 200（隧道模式，经 vhost→FPM）" \
+                || bad "$t：L1 存活探针返回 $code（vhost / FPM / 探针文件未就绪）"
+            # 隧道模式的关键边界：8080 不得出现在非回环地址上
+            if ss -ltn 2>/dev/null | grep -qE '0\.0\.0\.0:8080|\*:8080'; then
+                bad "$t：L1 8080 监听了非回环地址，隧道模式不允许"
+            else
+                ok "$t：L1 8080 仅回环监听"
+            fi
+        else
+            # TLS 在本机终结（见 apache/mosgov-vhost.conf），用 --resolve 避免依赖外部 DNS。
+            code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 \
+                --noproxy '*' --resolve "${host}:443:127.0.0.1" \
+                "https://${host}${hpath}" 2>/dev/null || printf '000')"
+            [[ "$code" == "200" ]] && ok "$t：L1 HTTPS 存活探针 200" \
+                || bad "$t：L1 HTTPS 存活探针返回 $code（TLS / vhost / 探针文件未就绪）"
+            # 同时确认 HTTP 不会明文提供应用内容
+            plain="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 \
+                --noproxy '*' --resolve "${host}:80:127.0.0.1" \
+                "http://${host}/" 2>/dev/null || printf '000')"
+            [[ "$plain" == "301" || "$plain" == "302" || "$plain" == "403" || "$plain" == "000" ]] \
+                && ok "$t：L1 HTTP 未明文提供应用（$plain）" \
+                || bad "$t：L1 HTTP 明文返回 $plain，必须重定向到 HTTPS"
+        fi
     fi
 
     # ---- L2: PHP CLI 运行时检查 ---------------------------------------------

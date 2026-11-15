@@ -147,6 +147,10 @@ grep -q '^bind-address' /etc/mysql/mariadb.conf.d/50-server.cnf \
     || printf '\nbind-address = 127.0.0.1\n' >> /etc/mysql/mariadb.conf.d/50-server.cnf
 
 echo "[8/10] 防火墙（模式：${MOSGOV_INGRESS_MODE:-tls}）"
+# 入口模式持久化：healthcheck.sh 据此决定 L1 走本机 443 还是回环 8080
+install -d -m 0755 /etc/mosgov
+printf '%s\n' "$INGRESS_MODE" > /etc/mosgov/ingress-mode
+chmod 0644 /etc/mosgov/ingress-mode
 ufw default deny incoming >/dev/null
 ufw default allow outgoing >/dev/null
 ufw allow OpenSSH >/dev/null
