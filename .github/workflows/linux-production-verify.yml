@@ -1,0 +1,75 @@
+name: MOS-GOV Linux Production Verify
+
+# Phase B/C：在真实 Ubuntu 24.04 上执行正式部署脚本、两教会隔离、备份与恢复实测。
+# 该环境为临时隔离实验机（GitHub 托管 runner），不是生产服务器；产物作为证据上传。
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/mos-gov-v2.1-public-hardening
+    paths:
+      - 'deploy/**'
+      - 'tests/phase8/**'
+      - 'src/**'
+      - 'plugin.json'
+      - '.github/workflows/linux-production-verify.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mosgov-linux-verify-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  linux-e2e:
+    name: Ubuntu 24.04 部署链 / 隔离 / 备份恢复
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: 检出代码（完整历史，供发布镜像使用）
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 运行机信息
+        run: |
+          . /etc/os-release
+          echo "OS=$PRETTY_NAME ($VERSION_CODENAME) ARCH=$(dpkg --print-architecture)"
+          nproc; free -m | head -2; df -h /
+
+      - name: 执行 Phase 8 套件
+        env:
+          RELEASE_SHA: ${{ github.sha }}
+          ARTIFACT_DIR: ${{ github.workspace }}/evidence/phase8
+        run: |
+          mkdir -p evidence/phase8
+          set +e
+          sudo env RELEASE_SHA="$RELEASE_SHA" ARTIFACT_DIR="$ARTIFACT_DIR" \
+            PATH="$PATH" bash tests/phase8/linux-e2e.sh
+          rc=$?
+          echo "PHASE8_EXIT=$rc"
+          sudo chmod -R a+rX evidence/phase8 || true
+          exit $rc
+
+      - name: 上传证据
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase8-evidence-${{ github.run_id }}
+          path: evidence/phase8/**
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: 失败时导出关键服务日志
+        if: failure()
+        run: |
+          for f in /var/log/apache2/error.log /var/log/mosgov/deploy.log \
+                   /var/log/mosgov/healthcheck.log /var/log/mosgov/restore.log \
+                   /var/log/mosgov/backup-cron.log; do
+            [ -f "$f" ] && { echo "===== $f ====="; sudo tail -80 "$f"; }
+          done
+          echo "===== php8.4-fpm service ====="
+          sudo systemctl status php8.4-fpm --no-pager -l | tail -20 || true
+          echo "===== apache2 service ====="
+          sudo systemctl status apache2 --no-pager -l | tail -20 || true

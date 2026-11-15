@@ -78,7 +78,11 @@ if ! id -u "$sysuser" >/dev/null 2>&1; then
     useradd --system --shell /usr/sbin/nologin --gid mosgov \
         --home-dir "/var/lib/mosgov/${tenant}" "$sysuser"
 fi
-install -d -m 0750 -o "$sysuser" -g mosgov "$storage"
+# 存储根权限 0700：只允许本教会自己的系统账号进入。
+# 早期用 0750 且属组为共享的 mosgov，导致同组内其他教会的 FPM 进程在
+# 越过 open_basedir 的场景（如运维脚本、调试 shell）可读取本教会上传文件；
+# 收紧为 0700 后，跨教会文件隔离不再只依赖 open_basedir 这一层。
+install -d -m 0700 -o "$sysuser" -g mosgov "$storage"
 install -d -m 0750 -o root -g mosgov "/etc/mosgov/${tenant}"
 install -d -m 0750 -o root -g mosgov "/var/log/mosgov/${tenant}"
 install -d -m 0700 -o root -g root  "/var/backups/mosgov/${tenant}"

@@ -70,6 +70,17 @@ if [[ "$patch_count" -gt 0 ]]; then
     done < <(jq -r '(.patches // [])[] | [.id, .patch_path, .patch_sha256] | @tsv' "$lock")
 fi
 
+# 补丁脚本与补丁目录都可能不在本目录（服务器上由 server-init.sh 安装到
+# /usr/local/bin 与 /etc/mosgov/deploy/patches）。这里解析一次，缺失即阻断发布。
+patch_bin=""
+if   [[ -x "$MOSGOV_SELF_DIR/apply-upstream-patches.sh" ]]; then patch_bin="$MOSGOV_SELF_DIR/apply-upstream-patches.sh"
+elif [[ -x /usr/local/bin/mosgov-apply-upstream-patches.sh ]]; then patch_bin=/usr/local/bin/mosgov-apply-upstream-patches.sh
+fi
+if [[ "$patch_count" -gt 0 ]]; then
+    [[ -n "$patch_bin" ]] || die "补丁集非空但找不到 apply-upstream-patches.sh（server-init.sh 未安装？）"
+    need_cmd patch
+fi
+
 # ---- git 固定镜像 ------------------------------------------------------------
 mirror="/var/www/mos-gov/mirror/MOS-GOV-V0.1.git"
 if [[ ! -d "$mirror" ]]; then
@@ -88,6 +99,40 @@ if [[ "$dry" -eq 1 ]]; then
     exit 0
 fi
 
+# ---- 源码归档解包 ------------------------------------------------------------
+# 锁定清单里的归档是官方 GitHub Release 资产 ChurchCRM-7.8.0.zip（sha256 已核对）。
+# 早期实现固定用 `tar -xzf`，对 zip 会直接失败（"This does not look like a
+# tar archive"，exit 2），发布链必然中断。这里按文件头魔数判断格式，
+# 不依赖扩展名、也不依赖运维手工改名；无法识别时 fail-closed。
+extract_source_archive() {
+    local archive="$1" dest="$2" magic tmp
+    local -a tops=()
+    magic="$(od -An -tx1 -N4 "$archive" | tr -d ' \n')"
+    case "$magic" in
+        504b0304*)
+            need_cmd unzip
+            tmp="$(mktemp -d)"
+            if ! unzip -q "$archive" -d "$tmp"; then
+                rm -rf "$tmp"; die "源码归档解包失败（zip）：$archive"
+            fi
+            mapfile -t tops < <(find "$tmp" -mindepth 1 -maxdepth 1)
+            if [[ "${#tops[@]}" -ne 1 || ! -d "${tops[0]}" ]]; then
+                rm -rf "$tmp"
+                die "源码归档结构不符：zip 内必须只有一个顶层目录（实际 ${#tops[@]} 个）"
+            fi
+            cp -a "${tops[0]}/." "$dest/"
+            rm -rf "$tmp"
+            ;;
+        1f8b*)
+            tar -xzf "$archive" --strip-components=1 -C "$dest" \
+                || die "源码归档解包失败（tar.gz）：$archive"
+            ;;
+        *)
+            die "无法识别的源码归档格式（magic=${magic:-空}）：$archive"
+            ;;
+    esac
+}
+
 # ---- 组装发布目录 ------------------------------------------------------------
 install -d -m 0755 "$MOSGOV_RELEASE_ROOT"
 target="$MOSGOV_RELEASE_ROOT/$release"
@@ -97,13 +142,13 @@ else
     [[ -e "$target" ]] && die "发布目录已存在但不完整，拒绝覆盖：$target"
     install -d -m 0755 "$target"
     # ChurchCRM 归档约定：单一顶层目录，内部即 Web 根内容。
-    tar -xzf "$crm_archive" --strip-components=1 -C "$target"
+    extract_source_archive "$crm_archive" "$target"
     [[ -d "$target/Include" ]] || die "源码归档结构不符：缺少 Include/ 目录"
 
     # 应用上游安全补丁（绑定已在前面校验）。失败即视为发布失败，
     # 绝不允许"带着未修补的上游源码"上线。
     if [[ "$patch_count" -gt 0 ]]; then
-        "$MOSGOV_SELF_DIR/apply-upstream-patches.sh" "$target" \
+        MOSGOV_PATCH_DIR="$tpl_dir/patches/7.8.0" "$patch_bin" "$target" \
             || die "上游补丁应用失败（apply-upstream-patches.sh，目录 $PWD）"
         log "上游补丁已应用：$patch_count 个"
     fi

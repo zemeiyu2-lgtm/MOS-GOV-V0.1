@@ -114,18 +114,27 @@ sudo bash deploy/scripts/quick-tunnel.sh start     # 打印 https://<random>.try
 
 1. `mosgov-deploy.sh --release <40-hex-commit>`（当前 `a275f43` 或后续锁定 commit）
    - 锁定校验 → 源码组装 → 上游补丁 → 全量 `php -l` → 配置体检 → vhost 渲染 → symlink 切换 → 健康检查。
-2. `provision-tenant.sh --tenant church-a --host <当前对外主机名> --db church_a --storage /var/lib/mosgov/church-a`
-   - `<当前对外主机名>`：隧道模式填 `quick-tunnel.sh start` 打印出的随机 `*.trycloudflare.com`；
-     该主机名会随隧道重启变化，变化后需更新 `/etc/mosgov/church-a/env` 的 `MOSGOV_TENANT_HOST` 并重渲染 `Config.php`。
+   - 源码归档按 `upstream-lock.json` 的 `archive_path` 放置，**保持官方 `.zip` 原样即可**：
+     `deploy.sh` 按文件头魔数（`PK\x03\x04` / `1f8b`）判断格式，zip 与 tar.gz 都能解，
+     不要求预先改名或解压（早期版本固定用 `tar -xzf`，对 zip 会直接失败）。
+2. **先改登记表，再开通**：`/etc/mosgov/tenants.json`（由 `deploy/tenant-registry.json` 安装）
+   中每个教会的 `host` / `database` / `db_user` / `storage_root` 是唯一来源。
+   把 `host` 改成当前真实对外主机名（隧道模式填 `quick-tunnel.sh start` 打印的随机
+   `*.trycloudflare.com`），`status` 保持 `planned`。示例域名（`*.example.org`、
+   `*.test`、`*.local`）会被脚本主动拒绝。
+3. `mosgov-provision-tenant.sh --tenant church-a`
+   - 脚本**不接受** `--host/--db/--storage` 参数（早期文档写错），所有值读自登记表。
+   - 主机名随隧道重启变化时：改登记表 `host` → 更新 `/etc/mosgov/church-a/env` 的
+     `MOSGOV_TENANT_HOST` → 重渲染 vhost。
    - 创建独立 DB + 最小权限账号 + vhost + FPM pool + 私有存储 + `gov_tenant` 单行 + 备份前缀。
    - **导入 ChurchCRM 核心 schema（`mysql/install/Install.sql` + `version_ver` 登记），然后才跑 6 个治理迁移。**
      顺序不可调换：ChurchCRM 只在「零张表」时自动建核心表，先建 `gov_*` 会让核心表永远缺失。
    - 结束时做 fail-closed 自检：核心表（`person_per`/`user_usr`/`config_cfg`/`version_ver`）与治理表必须齐备。
    - 写入 `plugin.mos-gov.enabled=1`，新教会开局即可看到治理模块（否则 `/plugins/mos-gov/*` 被重定向回仪表盘）。
-3. 首次 `mosgov-healthcheck.sh --all` 必须通过。
-4. 用 `mosgov-create-admin.sh --tenant church-a --pass-file <0600路径>` 创建首个管理员
+4. 首次 `mosgov-healthcheck.sh --all` 必须通过。
+5. 用 `mosgov-create-admin.sh --tenant church-a --pass-file <0600路径>` 创建首个管理员
    （详见 §7.4.1；首次登录前完成，凭据转交后立即 shred）。
-5. 第二个教会 `church-b` 重复上述，验证 silo 隔离。
+6. 第二个教会 `church-b` 重复上述，验证 silo 隔离。
 
 ---
 

@@ -29,7 +29,7 @@ apt-get update -y
 apt-get install -y --no-install-recommends \
     apache2 \
     mariadb-server mariadb-client \
-    ca-certificates curl gnupg git unzip jq openssl gzip tar \
+    ca-certificates curl gnupg git unzip jq openssl gzip tar patch \
     logrotate ufw
 
 # certbot 只在 Let's Encrypt 直连模式下需要；隧道模式 TLS 在 Cloudflare 边缘终止。
@@ -79,10 +79,10 @@ Package: php8.4* mariadb-server mariadb-server-core mariadb-client
 Pin: release o=Ubuntu
 Pin-Priority: -1
 EOF
+install -d -m 0755 /var/log/mosgov
 dpkg-query -W -f='${binary:Package}=${Version}\n' | sort \
-    > "/var/log/mosgov-package-lock-$(date +%Y%m%d).txt" 2>/dev/null \
-    || install -d -m 0755 /var/log
-echo "    版本快照: /var/log/mosgov-package-lock-$(date +%Y%m%d).txt"
+    > "/var/log/mosgov/package-lock-$(date +%Y%m%d).txt"
+echo "    版本快照: /var/log/mosgov/package-lock-$(date +%Y%m%d).txt"
 
 echo "[4/10] 系统账号与目录（每教会独立子目录）"
 id -u mosgov >/dev/null 2>&1 || useradd --system --shell /usr/sbin/nologin --home /var/lib/mosgov mosgov
@@ -107,6 +107,14 @@ install -m 0640 -o root -g mosgov "$TPL_DIR/env/mosgov.env.example" /etc/mosgov/
 install -m 0640 -o root -g mosgov "$TPL_DIR/config/Config.php.tpl"  /etc/mosgov/deploy/config/Config.php.tpl
 install -m 0640 -o root -g mosgov "$TPL_DIR/apache/mosgov-vhost.conf" /etc/mosgov/deploy/apache/mosgov-vhost.conf
 install -m 0640 -o root -g mosgov "$TPL_DIR/php/99-mosgov.ini"      /etc/mosgov/deploy/php/99-mosgov.ini
+# 上游安全补丁必须随模板一起安装，否则 deploy.sh 在「应用补丁」一步必然失败：
+# 它按 /etc/mosgov/deploy/patches/<ver> 找补丁文件。
+install -d -m 0750 -o root -g mosgov /etc/mosgov/deploy/patches/7.8.0
+if compgen -G "$TPL_DIR/patches/7.8.0/*.patch" >/dev/null; then
+    install -m 0640 -o root -g mosgov "$TPL_DIR"/patches/7.8.0/*.patch \
+        /etc/mosgov/deploy/patches/7.8.0/
+    echo "    已安装 $(compgen -G "$TPL_DIR/patches/7.8.0/*.patch" | wc -l) 个上游补丁"
+fi
 
 echo "[6/10] Apache 模块 / PHP 配置"
 a2enmod proxy_fcgi proxy_http setenvif headers rewrite ssl >/dev/null
@@ -192,11 +200,13 @@ for pair in \
     "healthcheck.sh:mosgov-healthcheck.sh" \
     "backup-db.sh:mosgov-backup-db.sh" \
     "restore-db.sh:mosgov-restore-db.sh" \
+    "restore-files.sh:mosgov-restore-files.sh" \
     "rollback.sh:mosgov-rollback.sh" \
     "deploy.sh:mosgov-deploy.sh" \
     "provision-tenant.sh:mosgov-provision-tenant.sh" \
     "mosgov-backup-all.sh:mosgov-backup-all.sh" \
     "mosgov-audit-anchor.sh:mosgov-audit-anchor.sh" \
+    "apply-upstream-patches.sh:mosgov-apply-upstream-patches.sh" \
     "mosgov-create-admin.sh:mosgov-create-admin.sh"; do
     src="${pair%%:*}"; dst="${pair#*:}"
     [[ -f "$SELF_DIR/$src" ]] || { echo "!! 缺少脚本 $src"; exit 5; }

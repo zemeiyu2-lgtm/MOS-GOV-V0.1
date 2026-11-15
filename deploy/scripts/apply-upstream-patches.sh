@@ -20,7 +20,20 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-PATCH_DIR="$REPO_ROOT/patches/7.8.0"
+
+# 补丁目录解析顺序：
+#   1) 显式传入的 MOSGOV_PATCH_DIR（deploy.sh 按 /etc/mosgov/deploy/patches/<ver> 传入）；
+#   2) 仓库内布局（$SCRIPT_DIR/../patches/<ver>，开发/CI 直接跑）；
+#   3) 服务器安装布局（/etc/mosgov/deploy/patches/<ver>、/usr/local/share/mosgov/patches/<ver>）。
+# 早期版本只认 (2)，脚本被 server-init 安装到 /usr/local/bin 后永远找不到补丁目录。
+PATCH_DIR=""
+for _cand in "${MOSGOV_PATCH_DIR:-}" \
+             "$REPO_ROOT/patches/7.8.0" \
+             "/etc/mosgov/deploy/patches/7.8.0" \
+             "/usr/local/share/mosgov/patches/7.8.0"; do
+    [[ -n "$_cand" && -d "$_cand" ]] && { PATCH_DIR="$_cand"; break; }
+done
+PATCH_DIR="${PATCH_DIR:-$REPO_ROOT/patches/7.8.0}"
 
 usage() { echo "usage: $0 <extracted-crm-src-root> [--dry-run|--rollback]" >&2; exit 2; }
 [[ $# -ge 1 ]] || usage

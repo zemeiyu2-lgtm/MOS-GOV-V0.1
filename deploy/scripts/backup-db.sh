@@ -77,6 +77,8 @@ sql_bytes="$(stat -c '%s' "$sqlfile")"
 
 files_sha=""
 files_bytes=0
+files_entries=0
+files_tree_sha=""
 if [[ "$with_files" -eq 1 ]]; then
     [[ -d "$storage" && ! -L "$storage" ]] || die "私有存储目录不可用：$storage"
     tarfile="$bdir/files-${tenant}-${stamp}.tar.gz"
@@ -86,6 +88,11 @@ if [[ "$with_files" -eq 1 ]]; then
     chmod 0400 "$tarfile"
     files_sha="$(sha256_of "$tarfile")"
     files_bytes="$(stat -c '%s' "$tarfile")"
+    # 文件树指纹（路径 + 大小 + 内容哈希）。恢复时用同一算法重算，
+    # 可证明「恢复后的存储与备份时刻逐文件一致」，而不是只看归档哈希。
+    files_entries="$(find "$storage" -type f | wc -l | tr -d ' ')"
+    files_tree_sha="$( ( cd "$storage" && find . -type f -print0 | sort -z | xargs -0 -r sha256sum ) \
+                        | sha256sum | awk '{print $1}')"
     printf '%s  %s\n%s  %s\n' "$sql_sha" "$sqlfile" "$files_sha" "$tarfile" > "$digest"
 else
     printf '%s  %s\n' "$sql_sha" "$sqlfile" > "$digest"
@@ -110,12 +117,14 @@ jq -n \
     --arg tenant "$tenant" --arg db "$db" --arg sql "$(basename "$sqlfile")" \
     --arg sql_sha "$sql_sha" --argjson sql_bytes "$sql_bytes" \
     --arg files_sha "$files_sha" --argjson files_bytes "$files_bytes" \
+    --arg files_tree "$files_tree_sha" --argjson files_entries "$files_entries" \
     --arg commit "$(envval MOSGOV_RELEASE_COMMIT)" \
     --arg chain_hash "$chain_hash" --argjson chain_rows "$chain_rows" \
     --argjson chain_verified "$chain_ok" --arg created "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     '{schema_version:1, tenant:$tenant, database:$db, created_at:$created,
       release_commit:$commit, database_dump:{file:$sql, sha256:$sql_sha, bytes:$sql_bytes},
-      files_archive:{sha256:$files_sha, bytes:$files_bytes, included:($files_bytes > 0)},
+      files_archive:{sha256:$files_sha, bytes:$files_bytes, entries:$files_entries,
+                     tree_sha256:$files_tree, included:($files_bytes > 0)},
       evidence_chain:{rows:$chain_rows, head_hash:$chain_hash, verified:$chain_verified},
       isolation_model:"silo-per-church", offsite_copy:"pending"}' > "$manifest"
 chmod 0400 "$manifest"

@@ -100,14 +100,25 @@ mysql_admin "DROP DATABASE IF EXISTS \`${db}\`; CREATE DATABASE \`${db}\` CHARAC
 gzip -cd "$file" | mysql_root
 log "导入完成"
 
-# 数据库用户与授权定义不在 dump 内；DROP DATABASE 不会删除账号，
-# 但显式重建授权以保证恢复后最小权限仍然成立。
+# 数据库用户与授权定义不在 dump 内；DROP DATABASE 不会删除账号，但会连带
+# 删除该库上的**表级**授权（mysql.tables_priv）。早期实现只重建了 db.* 的
+# SELECT 与两张审计表的 INSERT，漏掉业务表的 INSERT/UPDATE/DELETE，
+# 结果「恢复成功但教会完全不可写」。这里按 provision-tenant.sh 的同一口径
+# 逐表重建，保证恢复后最小权限与可写性同时成立。
 app_user="$(envval MOSGOV_DB_USER)"
-mysql_admin "GRANT SELECT ON \`${db}\`.* TO '${app_user}'@'127.0.0.1';
-             GRANT INSERT ON \`${db}\`.gov_evidence_log TO '${app_user}'@'127.0.0.1';
+c="$(root_cnf)"
+mysql_admin "GRANT SELECT ON \`${db}\`.* TO '${app_user}'@'127.0.0.1';"
+restore_tables="$(mariadb --defaults-extra-file="$c" -N -e \
+    "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA='${db}'
+     AND TABLE_TYPE='BASE TABLE'
+     AND TABLE_NAME NOT IN ('gov_evidence_log','gov_audit_log','gov_tenant','gov_tenant_file');")"
+for tbl in $restore_tables; do
+    mysql_admin "GRANT INSERT, UPDATE, DELETE ON \`${db}\`.\`${tbl}\` TO '${app_user}'@'127.0.0.1';"
+done
+mysql_admin "GRANT INSERT ON \`${db}\`.gov_evidence_log TO '${app_user}'@'127.0.0.1';
              GRANT INSERT ON \`${db}\`.gov_audit_log TO '${app_user}'@'127.0.0.1';
              FLUSH PRIVILEGES;"
-log "最小权限授权已重建（evidence / audit 仅 SELECT + INSERT）"
+log "最小权限授权已重建（业务表 DML；evidence / audit 仅 INSERT）"
 
 # ---- 5. 恢复后验证 -----------------------------------------------------------
 hc_bin=""

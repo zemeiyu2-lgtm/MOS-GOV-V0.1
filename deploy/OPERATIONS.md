@@ -229,8 +229,33 @@ sudo mosgov-restore-db.sh --tenant church-a \
 2. 先把当前状态另存为 `pre-restore-<tenant>-<timestamp>.sql.gz`，恢复本身可回退；
 3. `sha256sum -c` + manifest 归属与哈希比对；
 4. 检查 dump 中 `CREATE DATABASE` 恰好 1 个且库名匹配，防止 A 教会数据恢复到 B 教会；
-5. 恢复后重建最小权限授权，跑 `healthcheck.sh --no-http`；
+5. 恢复后按 `provision-tenant.sh` 的同一口径逐表重建最小权限授权（业务表 DML；
+   `gov_evidence_log` / `gov_audit_log` 仅 INSERT），否则「恢复成功但教会不可写」；
+   然后跑 `healthcheck.sh --no-http`；
 6. 绝不删除备份文件，绝不触碰其他教会库。
+
+### 文件存储恢复（高危）
+
+```bash
+sudo mosgov-restore-files.sh --tenant church-a \
+    --file /var/backups/mosgov/church-a/files-church-a-20261115-021500.tar.gz \
+    --yes --confirm RESTORE
+```
+
+**⚠️ 此操作非常危险，可能导致不可逆的数据丢失！** 它会整体替换当前教会的私有存储目录。
+强制保护：
+
+1. 必须 `--yes` 且 `--confirm RESTORE`；
+2. `sha256sum -c`（有 digest 时）+ manifest 归属与归档哈希比对，拒绝跨教会恢复；
+3. 拒绝含绝对路径 / `..` 的归档（防目录穿越写进 Web 根或系统目录）；
+4. 解包到同分区的临时目录，先用 manifest 的 `files_archive.entries` 与
+   `files_archive.tree_sha256` 校验，**通过后才原子切换**；
+5. 切换前把当前存储整体改名为 `<storage>.pre-restore-<timestamp>` 留存，恢复可回退；
+6. 恢复后 `chown -R <tenant 系统账号>:mosgov`、`chmod 0700`，再跑 `healthcheck.sh --no-http`；
+7. 绝不删除备份文件，绝不触碰其他教会目录。
+
+> 数据库与文件必须**成对恢复**：`db-*.sql.gz` 与同 stamp 的 `files-*.tar.gz` 由同一次
+> `backup-db.sh --with-files` 产出，manifest 中的证据链头与文件树哈希同属一份快照。
 
 ### 代码回滚
 
@@ -287,6 +312,8 @@ sudo mosgov-rollback.sh --to <40位commit> --yes
 | `healthcheck.php` | `/usr/local/lib/mosgov/healthcheck.php` | L2 运行时检查 |
 | `healthcheck.sh` | `/usr/local/bin/mosgov-healthcheck.sh` | L1/L2/L3 汇总 |
 | `backup-db.sh` | `/usr/local/bin/mosgov-backup-db.sh` | 单教会数据库+文件备份 |
+| `restore-db.sh` | `/usr/local/bin/mosgov-restore-db.sh` | 单教会数据库恢复到备份点（高危） |
+| `restore-files.sh` | `/usr/local/bin/mosgov-restore-files.sh` | 单教会私有存储恢复到备份点（高危） |
 | `mosgov-backup-all.sh` | `/usr/local/bin/mosgov-backup-all.sh` | cron 全教会备份入口 |
 | `restore-db.sh` | `/usr/local/bin/mosgov-restore-db.sh` | 高危数据库恢复 |
 | `rollback.sh` | `/usr/local/bin/mosgov-rollback.sh` | 代码 symlink 回滚 |
