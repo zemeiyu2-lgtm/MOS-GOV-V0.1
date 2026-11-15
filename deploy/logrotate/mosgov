@@ -1,0 +1,15 @@
+# /etc/logrotate.d/mosgov — 每教会独立日志轮转，权限 0640 root:mosgov
+/var/log/mosgov/*/*.log /var/www/mos-gov/current/logs/*.log {
+    daily
+    rotate 30
+    missingok
+    notifempty
+    compress
+    delaycompress
+    create 0640 root mosgov
+    sharedscripts
+    postrotate
+        /usr/bin/systemctl reload apache2 >/dev/null 2>&1 || true
+        /usr/bin/systemctl reload php8.4-fpm >/dev/null 2>&1 || true
+    endscript
+}

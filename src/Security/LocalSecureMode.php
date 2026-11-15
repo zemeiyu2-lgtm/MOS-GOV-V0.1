@@ -43,7 +43,20 @@ final class LocalSecureMode
     {
         $mode = strtoupper(trim((string) ($_ENV['MOS_GOV_SECURITY_MODE'] ?? getenv('MOS_GOV_SECURITY_MODE') ?: self::MODE_LOCAL)));
 
-        return in_array($mode, [self::MODE_LOCAL, self::MODE_LAN, self::MODE_OFF], true) ? $mode : self::MODE_LOCAL;
+        if (!in_array($mode, [self::MODE_LOCAL, self::MODE_LAN, self::MODE_OFF], true)) {
+            return self::MODE_LOCAL;
+        }
+
+        // Phase 3 SEC-01: "OFF" disables the network gate entirely. It was
+        // an explicit opt-out for a local-only product and must NEVER be
+        // reachable in a public deployment. Fail closed instead of silently
+        // accepting a dangerous configuration. PublicTrustPolicy also rejects
+        // this combination at bootstrap.
+        if ($mode === self::MODE_OFF && PublicTrustPolicy::isPublic()) {
+            return self::MODE_LOCAL;
+        }
+
+        return $mode;
     }
 
     /** Human description for the settings page. */

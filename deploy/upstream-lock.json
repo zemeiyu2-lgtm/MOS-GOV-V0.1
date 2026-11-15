@@ -1,0 +1,24 @@
+{
+  "_comment": "发布源锁定清单。deploy.sh 只接受本文件中登记的固定版本与 sha256，禁止 latest / HEAD / 分支名。sha256 为占位符时脚本会拒绝发布，这是正式上线的阻断项之一，不得以推测值填充。",
+  "schema_version": 1,
+  "churchcrm": {
+    "version": "7.8.0",
+    "archive_path": "/var/www/mos-gov/staging/churchcrm-7.8.0.tar.gz",
+    "sha256": "__FILL_WITH_ACTUAL_SHA256_OF_UPLOADED_ARCHIVE__",
+    "note": "ChurchCRM 7.8.0 是完整源码级集成（含 vendor/ 与定制 skin/mos/），不是 Composer 依赖。必须由运维上传经核验的源码归档并填写真实 sha256；不得从上游自动拉取，不得使用 latest 标签。"
+  },
+  "plugin": {
+    "repository": "https://github.com/zemeiyu2-lgtm/MOS-GOV-V0.1.git",
+    "version": "2.0.0",
+    "baseline_commit": "395db698d3c10e92d8ae1fa60759d3f4750dfb27",
+    "release_commit": "__PINNED_BY_deploy_sh_release_ARG__",
+    "note": "每次发布必须传入 40 位 commit SHA；分支 HEAD 不被接受。Phase 3 补丁集位于 feature/mos-gov-v2.1-public-hardening。"
+  },
+  "runtime": {
+    "os": "Ubuntu 24.04 LTS",
+    "apache": "2.4.x",
+    "php": "8.4.x",
+    "mariadb": "11.8.9",
+    "note": "详见 deploy/VERSIONS.md；apt 具体补丁版本以服务器初始化后生成的 package-lock-<date>.txt 为准。"
+  }
+}

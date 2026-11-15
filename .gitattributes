@@ -1,0 +1,12 @@
+# Phase 3：部署脚本必须在 Linux 上保持 LF，否则 shebang 会变成 /usr/bin/env bash\r
+* text=auto
+*.sh        text eol=lf
+*.php       text eol=lf
+*.tpl       text eol=lf
+*.sql       text eol=lf
+*.conf      text eol=lf
+*.ini       text eol=lf
+*.json      text eol=lf
+*.example   text eol=lf
+*.md        text eol=lf
+deploy/logrotate/mosgov text eol=lf

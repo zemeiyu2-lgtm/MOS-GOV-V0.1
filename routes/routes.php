@@ -43,6 +43,7 @@ use ChurchCRM\Plugins\MosGov\Governance\MyGovernanceService;
 use ChurchCRM\Plugins\MosGov\Integration\MosGovFinanceReport;
 use ChurchCRM\Plugins\MosGov\Integration\PersonLookup;
 use ChurchCRM\Plugins\MosGov\Security\AuditService;
+use ChurchCRM\Plugins\MosGov\Security\CsvExportGuard;
 use ChurchCRM\Plugins\MosGov\Security\DelegationService;
 use ChurchCRM\Plugins\MosGov\Security\GovernanceContext;
 use ChurchCRM\Plugins\MosGov\Security\GovAuthorization;
@@ -50,8 +51,14 @@ use ChurchCRM\Plugins\MosGov\Security\GovMembershipMiddleware;
 use ChurchCRM\Plugins\MosGov\Security\GovSecureModeMiddleware;
 use ChurchCRM\Plugins\MosGov\Security\GovWriteRoleAuthMiddleware;
 use ChurchCRM\Plugins\MosGov\Security\GovernancePolicy;
+use ChurchCRM\Plugins\MosGov\Security\GovernanceAuditService;
 use ChurchCRM\Plugins\MosGov\Security\LocalSecureMode;
 use ChurchCRM\Plugins\MosGov\Security\PermissionResolver;
+use ChurchCRM\Plugins\MosGov\Security\PublicRequestGuardMiddleware;
+use ChurchCRM\Plugins\MosGov\Security\PublicTrustPolicy;
+use ChurchCRM\Plugins\MosGov\Security\SafeError;
+use ChurchCRM\Plugins\MosGov\Security\SessionHardening;
+use ChurchCRM\Plugins\MosGov\Security\TenantContext;
 use ChurchCRM\Slim\SlimUtils;
 use ChurchCRM\Utils\CSRFUtils;
 use ChurchCRM\dto\SystemURLs;
@@ -64,6 +71,32 @@ $mosGovBase = SystemURLs::getRootPath() . '/plugins/mos-gov';
 // 应用级中间件，先于所有路由执行 —— 非管理员且无治理身份记录的登录用户
 // 在进入任何 /mos-gov/* 页面前即收到 403（未登录仍走全局 AuthMiddleware）。
 $app->add(new GovMembershipMiddleware());
+
+// ---------------------------------------------------------------------------
+// Phase 3 public-Internet boundary. Registered ONCE at application level so
+// every current and future /mos-gov route inherits it. In PUBLIC mode the
+// legacy per-route IP gate (GovSecureModeMiddleware) is a no-op; the real
+// boundary is HTTPS + trusted-proxy rules + authenticated session + origin /
+// CSRF + security headers, enforced here before any governance logic.
+//
+// The tenant context is resolved and validated at bootstrap for public
+// deployments: a vhost pointing at the wrong church's database fails closed.
+// LOCAL/LAN deployments keep the original behaviour (no tenant variables are
+// required), preserving the existing Windows local runtime unchanged.
+// ---------------------------------------------------------------------------
+if (PublicTrustPolicy::isPublic()) {
+    $mosGovTenant = TenantContext::fromEnvironment(null, (string) ($_SERVER['HTTP_HOST'] ?? ''));
+    $mosGovTenantCheck = $mosGovTenant->assertDatabase(\Propel\Runtime\Propel::getConnection());
+    if (!$mosGovTenantCheck['ok']) {
+        throw new \RuntimeException('MOS-GOV tenant boundary refused: ' . $mosGovTenantCheck['reason']);
+    }
+    PublicTrustPolicy::assertPublicReady($_SERVER);
+    if (strlen((string) (getenv('MOSGOV_AUDIT_HMAC_KEY') ?: '')) < 32) {
+        throw new \RuntimeException('MOS-GOV public deployment refused: audit HMAC key missing or too short.');
+    }
+    SessionHardening::apply(PublicTrustPolicy::authorityCheck($_SERVER)['https'], true);
+    $app->add(new PublicRequestGuardMiddleware());
+}
 
 // Presentation-layer Chinese mapping (views/_i18n.php). Used only to display
 // frozen-layer English messages (e.g. authorization deny reasons) in Chinese;
@@ -98,6 +131,55 @@ $mosGovErrorPage = static function (Response $response, string $message, int $st
 
     return $response->withStatus($status)->withHeader('Content-Type', 'text/html; charset=utf-8');
 };
+
+/**
+ * Phase 3 — append a governance evidence row for a security-relevant action.
+ *
+ * The business action and the evidence insert are separate statements (see
+ * GovernanceAuditService for the documented limitation). On public deployments
+ * a failed evidence write MUST fail the request: no export or privilege change
+ * may happen without a tamper-evident record. LOCAL/LAN deployments keep the
+ * legacy AuditService only and are unchanged.
+ */
+$mosGovRecordEvidence = static function (
+    string $action,
+    string $objectType,
+    ?int $objectId,
+    mixed $before,
+    mixed $after,
+    string $basis,
+    string $result,
+) use ($mosGovEsc): void {
+    if (!PublicTrustPolicy::isPublic()) {
+        return;
+    }
+    $key = (string) (getenv('MOSGOV_AUDIT_HMAC_KEY') ?: '');
+    try {
+        $tenant = TenantContext::fromEnvironment();
+        $service = new GovernanceAuditService(
+            \Propel\Runtime\Propel::getConnection(),
+            $tenant->id(),
+            $key
+        );
+        $user = GovAuthorization::currentUser();
+        $service->record([
+            'actor' => $user?->getUserName() ?? 'anonymous',
+            'object_type' => $objectType,
+            'object_id' => $objectId,
+            'action' => $action,
+            'before_state' => $before,
+            'after_state' => $after,
+            'authorization_basis' => $basis,
+            'result' => $result,
+        ]);
+    } catch (\Throwable $e) {
+        error_log('[MOS-GOV][evidence] write refused; request fails closed: ' . SafeError::idFor($e));
+        throw new \RuntimeException('Governance evidence unavailable; request refused.');
+    }
+};
+
+/** Phase 3 SEC-04: neutralize spreadsheet formula injection in CSV exports. */
+$mosGovCsvCell = static fn (mixed $value): string => CsvExportGuard::cell($value);
 
 /**
  * V0.2 — render a governance DENY page. The page explains the boundary
@@ -329,7 +411,7 @@ $mosGovDashboardHandler = function (Request $request, Response $response) use ($
     try {
         $stats = $repo->getDashboardCounts();
     } catch (GovDataException $e) {
-        $statsError = $e->getMessage();
+        $statsError = SafeError::publicMessage($e, 'dashboard-counts');
     }
 
     if ($statsError === null) {
@@ -354,7 +436,7 @@ $mosGovDashboardHandler = function (Request $request, Response $response) use ($
             $meetingDecorations = $mosGovDecorateRows($repo, $repo->getEntity('meeting'), $recentMeetings);
             $decisionDecorations = $mosGovDecorateRows($repo, $repo->getEntity('decision'), $recentDecisions);
         } catch (GovDataException $e) {
-            $recentError = $e->getMessage();
+            $recentError = SafeError::publicMessage($e, 'recent-records');
         }
     }
 
@@ -499,7 +581,7 @@ $app->get('/mos-gov/settings', function (Request $request, Response $response) u
     try {
         $stats = $mosGovRepo()->getDashboardCounts();
     } catch (GovDataException $e) {
-        $statsError = $e->getMessage();
+        $statsError = SafeError::publicMessage($e, 'dashboard-counts');
     }
 
     $response->getBody()->write($mosGovRender('settings.php', [
@@ -538,7 +620,7 @@ $app->get('/mos-gov/{entity:' . $mosGovSlugPattern . '}', function (Request $req
         }
         $decorations = $mosGovDecorateRows($repo, $cfg, $rows);
     } catch (GovDataException $e) {
-        $error = $e->getMessage();
+        $error = SafeError::publicMessage($e, 'governance-read');
         $decorations = [];
     }
 
@@ -562,7 +644,7 @@ $app->get('/mos-gov/{entity:' . $mosGovSlugPattern . '}/new', function (Request 
     try {
         $context = $mosGovFormContext($repo, $cfg);
     } catch (GovDataException $e) {
-        return $mosGovErrorPage($response, $e->getMessage(), 500);
+        return $mosGovErrorPage($response, SafeError::publicMessage($e, 'governance-write'), 500);
     }
 
     return $mosGovPage($response, 'entity_form.php', [
@@ -604,7 +686,7 @@ $app->post('/mos-gov/{entity:' . $mosGovSlugPattern . '}', function (Request $re
     try {
         $context = $mosGovFormContext($repo, $cfg, $data);
     } catch (GovDataException $e) {
-        return $mosGovErrorPage($response, $e->getMessage(), 500);
+        return $mosGovErrorPage($response, SafeError::publicMessage($e, 'governance-write'), 500);
     }
 
     try {
@@ -653,7 +735,7 @@ $app->post('/mos-gov/{entity:' . $mosGovSlugPattern . '}', function (Request $re
             'personLabels' => $context['personLabels'],
             'csrfField' => $context['csrfField'],
             'canWrite' => true,
-            'error' => $e->getMessage(),
+            'error' => SafeError::publicMessage($e, 'governance-read'),
             'esc' => $mosGovEsc,
         ], 400);
     }
@@ -704,7 +786,7 @@ $app->get('/mos-gov/{entity:' . $mosGovSlugPattern . '}/{id:[0-9]+}', function (
             $related = $mosGovCollectRelated($repo, $cfg, $id);
         }
     } catch (GovDataException $e) {
-        $error = $e->getMessage();
+        $error = SafeError::publicMessage($e, 'governance-read');
     }
 
     return $mosGovPage($response, 'entity_view.php', [
@@ -743,7 +825,7 @@ $app->get('/mos-gov/{entity:' . $mosGovSlugPattern . '}/{id:[0-9]+}/edit', funct
         }
         $context = $mosGovFormContext($repo, $cfg, $row);
     } catch (GovDataException $e) {
-        return $mosGovErrorPage($response, $e->getMessage(), 500);
+        return $mosGovErrorPage($response, SafeError::publicMessage($e, 'governance-write'), 500);
     }
 
     return $mosGovPage($response, 'entity_form.php', [
@@ -785,7 +867,7 @@ $app->post('/mos-gov/{entity:' . $mosGovSlugPattern . '}/{id:[0-9]+}/edit', func
     try {
         $context = $mosGovFormContext($repo, $cfg, $data);
     } catch (GovDataException $e) {
-        return $mosGovErrorPage($response, $e->getMessage(), 500);
+        return $mosGovErrorPage($response, SafeError::publicMessage($e, 'governance-write'), 500);
     }
 
     try {
@@ -821,7 +903,7 @@ $app->post('/mos-gov/{entity:' . $mosGovSlugPattern . '}/{id:[0-9]+}/edit', func
             'personLabels' => $context['personLabels'],
             'csrfField' => $context['csrfField'],
             'canWrite' => true,
-            'error' => $e->getMessage(),
+            'error' => SafeError::publicMessage($e, 'governance-read'),
             'esc' => $mosGovEsc,
         ], 400);
     }
@@ -864,7 +946,7 @@ $app->get('/mos-gov/search', function (Request $request, Response $response) use
             $results = $service->search($ctx, $query);
         }
     } catch (GovDataException $e) {
-        $error = $e->getMessage();
+        $error = SafeError::publicMessage($e, 'governance-read');
     }
 
     return $mosGovPage($response, 'search.php', [
@@ -879,7 +961,7 @@ $app->get('/mos-gov/search', function (Request $request, Response $response) use
 // §24: view and export are separate permissions. Default member = DENY,
 // P5 = DENY; only explicit grants (governance.export / meeting.export) may
 // export, and every export is audit-logged.
-$app->get('/mos-gov/{entity:' . $mosGovSlugPattern . '}/export', function (Request $request, Response $response, array $args) use ($mosGovRepo, $mosGovEntityBySlug, $mosGovErrorPage, $mosGovMsg): Response {
+$app->get('/mos-gov/{entity:' . $mosGovSlugPattern . '}/export', function (Request $request, Response $response, array $args) use ($mosGovRepo, $mosGovEntityBySlug, $mosGovErrorPage, $mosGovMsg, $mosGovRecordEvidence, $mosGovCsvCell): Response {
     $entity = $mosGovEntityBySlug[$args['entity']];
     $user = GovAuthorization::currentUser();
     $ctx = GovAuthorization::context();
@@ -887,7 +969,11 @@ $app->get('/mos-gov/{entity:' . $mosGovSlugPattern . '}/export', function (Reque
     // module-level export permission (view rights are NOT enough)
     $decision = GovAuthorization::can($user, 'export', $entity);
     if (!$decision->allowed) {
-        AuditService::auditCurrent('export-denied', $entity, null, 'DENY', $decision->reason);
+        // Phase 3 fix: the legacy result whitelist is lowercase; 'DENY' /
+        // 'ALLOW' were silently coerced to 'error', making every export audit
+        // row look like a failure. Use the documented result vocabulary.
+        AuditService::auditCurrent('export-denied', $entity, null, 'denied', $decision->reason);
+        $mosGovRecordEvidence('export', $entity, null, null, null, $decision->reason, 'denied');
 
         return $mosGovErrorPage($response, '不允许导出：' . $mosGovMsg($decision->reason), 403);
     }
@@ -906,7 +992,8 @@ $app->get('/mos-gov/{entity:' . $mosGovSlugPattern . '}/export', function (Reque
         }
     }
 
-    AuditService::auditCurrent('export', $entity, null, 'ALLOW', count($visible) . ' rows');
+    AuditService::auditCurrent('export', $entity, null, 'success', count($visible) . ' rows');
+    $mosGovRecordEvidence('export', $entity, null, ['row_count' => count($rows)], ['exported_rows' => count($visible)], $decision->reason, 'success');
 
     $cfg = $repo->getEntity($entity);
     $columns = array_merge(['id'], array_keys($cfg['fields']), ['created_at', 'updated_at']);
@@ -918,7 +1005,7 @@ $app->get('/mos-gov/{entity:' . $mosGovSlugPattern . '}/export', function (Reque
         $line = [];
         foreach ($columns as $column) {
             $value = $row[$column] ?? '';
-            $line[] = $value === '__P5_PROTECTED__' ? '[protected]' : (string) $value;
+            $line[] = $value === '__P5_PROTECTED__' ? '[protected]' : $mosGovCsvCell($value);
         }
         fputcsv($out, $line);
     }
@@ -1103,7 +1190,7 @@ $app->post('/mos-gov/identity/{id:[0-9]+}/attach-role', function (Request $reque
             $data['end_date'] ?? null
         );
     } catch (GovDataException $e) {
-        return $mosGovErrorPage($response, implode(' ', $e->getErrors() ?: [$e->getMessage()]));
+        return $mosGovErrorPage($response, SafeError::publicMessage($e, 'validation'));
     }
 
     return SlimUtils::renderRedirect($response, SystemURLs::getRootPath() . '/plugins/mos-gov/identity/' . (int) $args['id']);
@@ -1129,7 +1216,7 @@ $app->post('/mos-gov/identity/{id:[0-9]+}/assign-scope', function (Request $requ
             (string) ($data['source_type'] ?? 'manual_assignment')
         );
     } catch (GovDataException $e) {
-        return $mosGovErrorPage($response, $e->getMessage());
+        return $mosGovErrorPage($response, SafeError::publicMessage($e, 'governance-action'));
     }
 
     return SlimUtils::renderRedirect($response, SystemURLs::getRootPath() . '/plugins/mos-gov/identity/' . (int) $args['id']);
@@ -1155,7 +1242,7 @@ $app->post('/mos-gov/identity/{id:[0-9]+}/override-permission', function (Reques
             (string) ($data['reason'] ?? '')
         );
     } catch (GovDataException $e) {
-        return $mosGovErrorPage($response, $e->getMessage());
+        return $mosGovErrorPage($response, SafeError::publicMessage($e, 'governance-action'));
     }
 
     return SlimUtils::renderRedirect($response, SystemURLs::getRootPath() . '/plugins/mos-gov/identity/' . (int) $args['id']);
@@ -1319,6 +1406,10 @@ $app->post('/mos-gov/admin/data-maintenance', function (Request $request, Respon
 
     $maintenance = new GovDataMaintenance();
     $result = $maintenance->clearBusinessData();
+    // Phase 3 SEC-09: a failed DELETE may carry SQLSTATE / table / host detail.
+    if (!empty($result['error'])) {
+        $result['error'] = SafeError::publicText((string) $result['error']);
+    }
 
     return $mosGovPage($response, 'admin_data_maintenance.php', [
         // 清零后范围已变化，直接展示执行结果。
@@ -1340,7 +1431,7 @@ $app->get('/mos-gov/finance/report', function (Request $request, Response $respo
         'yearly'  => $report->yearly(),
         'byFund'  => $report->byFund(),
         'totals'  => $report->totals(),
-        'error'   => $report->error(),
+        'error'   => SafeError::publicText((string) ($report->error() ?? '')),
         'esc'     => $mosGovEsc,
     ]);
 })->add(GovSecureModeMiddleware::class);

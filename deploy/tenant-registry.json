@@ -1,0 +1,28 @@
+{
+  "_comment": "示例租户登记表（部署侧元数据，不入应用库）。每教会一行；provision-tenant.sh 读取此文件创建隔离资源。所有名称与主机为示例，不含真实教会信息。",
+  "schema_version": 1,
+  "tenants": [
+    {
+      "tenant_id": "church-a",
+      "display_name": "示例教会 A（合成）",
+      "host": "a.gov.example.org",
+      "database": "mosgov_church_a",
+      "db_user": "mosgov_church_a",
+      "storage_root": "/var/lib/mosgov/church-a/files",
+      "backup_prefix": "church-a",
+      "status": "planned"
+    },
+    {
+      "tenant_id": "church-b",
+      "display_name": "示例教会 B（合成）",
+      "host": "b.gov.example.org",
+      "database": "mosgov_church_b",
+      "db_user": "mosgov_church_b",
+      "storage_root": "/var/lib/mosgov/church-b/files",
+      "backup_prefix": "church-b",
+      "status": "planned"
+    }
+  ],
+  "isolation_model": "silo-per-church",
+  "isolation_note": "每个教会独立数据库 + 独立最小权限 DB 账号 + 独立 vhost/FPM pool/系统账号 + 独立私有存储 + 独立备份前缀。共享的只有只读应用代码目录。这不是共享库 SaaS 多租户，也不提供跨教会超级管理员。"
+}
