@@ -55,6 +55,12 @@ id -u "$sysuser" >/dev/null 2>&1 || die "缺少系统账号 $sysuser"
 base="${file%.tar.gz}"
 manifest="$base.manifest.json"
 digest="$base.sha256"
+# backup-db.sh 一份 manifest（db-<tenant>-<stamp>.manifest.json）同时覆盖 SQL
+# dump 与文件归档；files- 前缀的归档共享同一份清单，找不到时回退到 db- 命名。
+if [[ ! -f "$manifest" && "$(basename "$base")" == files-* ]]; then
+    alt="$(dirname "$base")/db-${base##*/files-}.manifest.json"
+    [[ -f "$alt" ]] && manifest="$alt" && digest="$(dirname "$base")/db-${base##*/files-}.sha256"
+fi
 
 echo
 printf '\033[1;31m⚠️ 此操作非常危险，可能导致不可逆的数据丢失！\033[0m\n'

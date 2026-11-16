@@ -218,7 +218,7 @@ p8_eq "合成教会名已写入 A" "MOS-GOV Lab (synthetic)" \
 
 for T in "$TENANT_A" "$TENANT_B"; do
     p8_eq "$T env 权限 0640 root:mosgov" "0640 root:mosgov" \
-        "$(stat -c '%a %U:%G' "/etc/mosgov/$T/env" 2>/dev/null)"
+        "$(stat -c '%04a %U:%G' "/etc/mosgov/$T/env" 2>/dev/null)"
     [[ -S "/run/php/php8.4-fpm-mosgov-$T.sock" ]] \
         && p8_ok "$T 独立 FPM socket 就绪" || p8_bad "$T 缺少 FPM socket"
     [[ -L "/etc/apache2/sites-enabled/mosgov-$T.conf" ]] \
@@ -236,8 +236,8 @@ CA_OUT="$(mosgov-create-admin.sh --tenant "$TENANT_A" --pass-file "$PASSFILE_A" 
     --email office@lab.invalid 2>"$WORK/create-admin.err")" || CA_RC=$?
 p8_exit "mosgov-create-admin church-a" 0 "$CA_RC"
 [[ "$CA_RC" -ne 0 ]] && { cat "$WORK/create-admin.err"; }
-p8_eq "create-admin 报告 seed_admin_disabled=1" "1" \
-    "$(printf '%s' "$CA_OUT" | jq -r '.seed_admin_disabled // ""')"
+p8_eq "create-admin 报告 seed_admin_disabled=1" "true" \
+    "$(printf '%s' "$CA_OUT" | jq -r 'if (.seed_admin_disabled == true or .seed_admin_disabled == 1) then "true" else (.seed_admin_disabled // "" | tostring) end')"
 p8_eq "seed per_ID=1 已停用（per_DateDeactivated 非空）" "1" \
     "$(sqlq "SELECT COUNT(*) FROM $DB_A.person_per WHERE per_ID=1 AND per_DateDeactivated IS NOT NULL")"
 p8_eq "正式管理员 usr_Admin=1" "1" \
@@ -328,7 +328,7 @@ BCODE="$(p8_req GET /v2/dashboard)"
 case "$BCODE" in
     302) p8_ok "B 站点未登录访问被重定向（302）" ;;
     200) p8_bad "B 站点未登录直接 200（会话/租户边界失效）" ;;
-    *)   p8_bad "B 站点未登录访问返回 $BCODE" ;;
+    *)   p8_bad "B 站点未登录访问返回 $BCODE（body 首行：$(head -c 300 "$P8_BODY" | head -1 | tr -d '\0' | cut -c1-200)）" ;;
 esac
 export P8_HOST="$HOST_A"
 stage_end
@@ -547,8 +547,10 @@ else
     p8_ok "Web 根内无数据库口令明文"
 fi
 unset PW
-p8_eq "Config.php 不含硬编码口令" "0" \
-    "$(grep -cE '\$sPASSWORD[[:space:]]*=[[:space:]]*['\''\"][^'\''\"]+['\''\"]' /var/www/mos-gov/current/Include/Config.php 2>/dev/null || echo 0)"
+# grep -c 零命中时 exit 1，`|| echo 0` 会再补一个 0（输出 "0\n0"），改用 || true
+CFG_PW_HITS="$(grep -cE '\$sPASSWORD[[:space:]]*=[[:space:]]*['\''\"][^'\''\"]+['\''\"]' /var/www/mos-gov/current/Include/Config.php 2>/dev/null || true)"
+p8_eq "Config.php 不含硬编码口令" "0" "${CFG_PW_HITS:-0}"
+unset CFG_PW_HITS
 # 证据脚本与日志不得残留口令（密钥缺失时跳过，不算通过也不算失败）
 HMAC_KEY="$(awk -F= '$1=="MOSGOV_AUDIT_HMAC_KEY"{print $2}' "/etc/mosgov/$TENANT_A/env")"
 if [[ -z "$HMAC_KEY" ]]; then
