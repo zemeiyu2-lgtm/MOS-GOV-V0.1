@@ -205,7 +205,8 @@ sed -e "s|__TENANT_ID__|${tenant}|g" \
     -e "s|__RELEASE_COMMIT__|${release_commit}|g" \
     "$envtpl" > "$envfile"
 # 任何未替换的占位符都是硬失败，绝不把半成品 env 留在生产目录
-if grep -qE '__[A-Z0-9_]+__' "$envfile"; then
+# （只检查非注释行：模板注释中的 __XXX__ 示例不算占位符）
+if grep -vE '^[[:space:]]*#' "$envfile" | grep -qE '__[A-Z0-9_]+__'; then
     rm -f -- "$envfile"
     die "env 模板存在未替换的占位符，已删除半成品文件"
 fi

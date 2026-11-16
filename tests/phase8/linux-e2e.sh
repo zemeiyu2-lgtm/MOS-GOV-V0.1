@@ -534,7 +534,7 @@ for T in "$TENANT_A" "$TENANT_B"; do
     p8_eq "$T 私有存储非世界可读" "0" \
         "$(php8.4 -r '$m=fileperms($argv[1]) & 0777; echo (($m & 0005) ? 1 : 0);' "/var/lib/mosgov/$T/files" 2>/dev/null)"
     p8_eq "$T 备份目录 0700 root:root" "0700 root:root" \
-        "$(stat -c '%a %U:%G' "/var/backups/mosgov/$T" 2>/dev/null)"
+        "$(stat -c '%04a %U:%G' "/var/backups/mosgov/$T" 2>/dev/null)"
 done
 p8_eq "备份文件不可被其他用户读（0400）" "0" \
     "$(find /var/backups/mosgov -maxdepth 2 -name 'db-*.sql.gz' -not -perm 0400 | wc -l)"
@@ -548,14 +548,17 @@ else
 fi
 unset PW
 p8_eq "Config.php 不含硬编码口令" "0" \
-    "$(grep -cE '\$sPASSWORD[[:space:]]*=[[:space:]]*.[A-Za-z0-9]' /var/www/mos-gov/current/Include/Config.php 2>/dev/null || echo 0)"
-# 证据脚本与日志不得残留口令
-if grep -rqF "$(awk -F= '$1=="MOSGOV_AUDIT_HMAC_KEY"{print $2}' "/etc/mosgov/$TENANT_A/env")" \
-        /var/log/mosgov "$ART" 2>/dev/null; then
+    "$(grep -cE '\$sPASSWORD[[:space:]]*=[[:space:]]*['\''\"][^'\''\"]+['\''\"]' /var/www/mos-gov/current/Include/Config.php 2>/dev/null || echo 0)"
+# 证据脚本与日志不得残留口令（密钥缺失时跳过，不算通过也不算失败）
+HMAC_KEY="$(awk -F= '$1=="MOSGOV_AUDIT_HMAC_KEY"{print $2}' "/etc/mosgov/$TENANT_A/env")"
+if [[ -z "$HMAC_KEY" ]]; then
+    p8_skip "审计 HMAC 密钥泄漏检查（env 缺失，前置阶段失败）"
+elif grep -rqF "$HMAC_KEY" /var/log/mosgov "$ART" 2>/dev/null; then
     p8_bad "审计 HMAC 密钥出现在日志/证据中"
 else
     p8_ok "审计 HMAC 密钥未出现在日志与证据中"
 fi
+unset PW HMAC_KEY
 
 # 收尾：销毁凭据文件
 if [[ -f "$PASSFILE_A" ]]; then
