@@ -48,14 +48,15 @@ mktemp_secure() {
     printf '%s' "$f"
 }
 mosgov_cleanup() {
-    # EXIT trap 的末命令失败会把整个脚本退出码改成 1（set -e 下已实测复现），
-    # 必须保留原退出码；备份/恢复的成败以业务结果为准。
+    # set -e 会令 EXIT trap 内任何「末命令失败」直接中止函数并改变脚本退出码
+    # （backup 输出 BACKUP_OK 后仍 rc=1 的根因，已本机复现）。
+    # trap 内所有语句一律 if 化，保证到达 return "$rc"。
     local rc=$?
     local f
     for f in "${MOSGOV_TMP_FILES[@]:-}"; do
-        [[ -n "$f" && -f "$f" ]] && rm -f -- "$f"
+        if [[ -n "$f" && -f "$f" ]]; then rm -f -- "$f"; fi
     done
-    if declare -F mosgov_on_exit >/dev/null 2>&1; then mosgov_on_exit; fi
+    declare -F mosgov_on_exit >/dev/null 2>&1 && mosgov_on_exit || true
     return "$rc"
 }
 trap mosgov_cleanup EXIT

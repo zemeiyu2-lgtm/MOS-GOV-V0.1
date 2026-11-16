@@ -57,9 +57,11 @@ manifest="$base.manifest.json"
 digest="$base.sha256"
 # backup-db.sh 一份 manifest（db-<tenant>-<stamp>.manifest.json）同时覆盖 SQL
 # dump 与文件归档；files- 前缀的归档共享同一份清单，找不到时回退到 db- 命名。
+# 注意：db-*.sha256 里第一行是 SQL dump，不能用于文件归档校验；
+# 回退清单时不重设 digest，走 manifest.files_archive.sha256 校验路径。
 if [[ ! -f "$manifest" && "$(basename "$base")" == files-* ]]; then
     alt="$(dirname "$base")/db-${base##*/files-}.manifest.json"
-    [[ -f "$alt" ]] && manifest="$alt" && digest="$(dirname "$base")/db-${base##*/files-}.sha256"
+    [[ -f "$alt" ]] && manifest="$alt" && digest=""
 fi
 
 echo
@@ -87,12 +89,12 @@ jq -e '.schema_version == 1' "$manifest" >/dev/null || die "manifest 版本不�
 mtenant="$(jq -r '.tenant' "$manifest")"
 [[ "$mtenant" == "$tenant" ]] \
     || die "manifest 归属不符（manifest=$mtenant，目标=$tenant），拒绝跨教会恢复"
-msha="$(jq -r '.files_archive.sha256 // ""')"
+msha="$(jq -r '.files_archive.sha256 // ""' "$manifest")"
 [[ -n "$msha" && "$msha" == "$(sha256_of "$file")" ]] \
     || die "归档 sha256 与 manifest 不一致，拒绝恢复"
 [[ "$(jq -r '.files_archive.included' "$manifest")" == "true" ]] \
     || die "该备份未包含文件归档，拒绝恢复"
-want_tree="$(jq -r '.files_archive.tree_sha256 // ""')"
+want_tree="$(jq -r '.files_archive.tree_sha256 // ""' "$manifest")"
 want_entries="$(jq -r '.files_archive.entries // 0' "$manifest")"
 log "manifest 归属与哈希一致 (tenant=$tenant files=$want_entries)"
 
@@ -105,7 +107,7 @@ log "归档路径边界检查通过（无绝对路径 / 无 ..）"
 # ---- 3. 解包到同分区临时目录并校验文件树 -------------------------------------
 parent="$(dirname "$storage")"
 tmpdir="$(mktemp -d "$parent/.restore-files.XXXXXX")"
-cleanup_tmp() { [[ -n "${tmpdir:-}" && -d "$tmpdir" ]] && rm -rf -- "$tmpdir"; }
+cleanup_tmp() { if [[ -n "${tmpdir:-}" && -d "$tmpdir" ]]; then rm -rf -- "$tmpdir"; fi; }
 trap cleanup_tmp EXIT
 
 tar -xzf "$file" -C "$tmpdir" --no-same-owner || die "解包失败：$file"

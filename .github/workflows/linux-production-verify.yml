@@ -66,8 +66,12 @@ jobs:
         run: |
           for f in /var/log/apache2/error.log /var/log/mosgov/deploy.log \
                    /var/log/mosgov/healthcheck.log /var/log/mosgov/restore.log \
-                   /var/log/mosgov/backup-cron.log; do
+                   /var/log/mosgov/backup-cron.log /var/log/mosgov/dump-header.txt; do
             [ -f "$f" ] && { echo "===== $f ====="; sudo tail -80 "$f"; }
+          done
+          echo "===== /var/log/mosgov/php（各教会 PHP 错误日志）====="
+          for f in /var/log/mosgov/php/*.log; do
+            [ -f "$f" ] && { echo "===== $f ====="; sudo tail -40 "$f"; }
           done
           echo "===== php8.4-fpm service ====="
           sudo systemctl status php8.4-fpm --no-pager -l | tail -20 || true

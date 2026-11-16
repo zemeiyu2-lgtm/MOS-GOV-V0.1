@@ -80,8 +80,11 @@ fi
 # ---- 2. dump 内容边界检查 ----------------------------------------------------
 create_count="$(gzip -cd "$file" | grep -c '^CREATE DATABASE' || true)"
 [[ "$create_count" == "1" ]] || die "dump 中 CREATE DATABASE 数量为 $create_count（应为 1），拒绝恢复"
-gzip -cd "$file" | grep -qE "^CREATE DATABASE .*\`${db}\`" \
-    || die "dump 中的数据库名与目标 $db 不符，拒绝跨教会恢复"
+if ! gzip -cd "$file" | grep -qE "^CREATE DATABASE .*\`${db}\`"; then
+    # 诊断输出：dump 实际的 CREATE DATABASE 行（不入审计链，仅运维排查）
+    gzip -cd "$file" | grep -m1 '^CREATE DATABASE' > "$MOSGOV_LOG_ROOT/dump-header.txt" 2>/dev/null || true
+    die "dump 中的数据库名与目标 $db 不符，拒绝跨教会恢复（实际行见 $MOSGOV_LOG_ROOT/dump-header.txt）"
+fi
 log "dump 仅包含本教会数据库 $db"
 
 # ---- 3. 恢复前先做一份「当前状态」快照 ---------------------------------------

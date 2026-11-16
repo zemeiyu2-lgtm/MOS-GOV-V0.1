@@ -226,6 +226,12 @@ pool="/etc/php/8.4/fpm/pool.d/mosgov-${tenant}.conf"
     printf 'pm.min_spare_servers = 1\npm.max_spare_servers = 2\npm.max_requests = 500\n'
     printf 'clear_env = no\n'
     printf 'php_admin_value[open_basedir] = %s:%s:/tmp\n' "$MOSGOV_CURRENT" "$storage"
+    # display_errors=Off 下 PHP 异常默认被 FPM 丢弃；每教会独立错误日志，
+    # 500 排障不再依赖猜测（失败日志仍不含敏感值，error_log 只记栈）。
+    install -d -m 0750 -o root -g mosgov /var/log/mosgov/php
+    printf 'php_admin_value[error_log] = /var/log/mosgov/php/%s.log\n' "$tenant"
+    printf 'php_admin_flag[log_errors] = on\n'
+    printf 'catch_workers_output = yes\n'
     while IFS='=' read -r k v; do
         [[ "$k" =~ ^[A-Z][A-Z0-9_]*$ ]] || continue
         printf 'env[%s] = %s\n' "$k" "$v"

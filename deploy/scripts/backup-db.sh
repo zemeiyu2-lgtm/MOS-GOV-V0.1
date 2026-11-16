@@ -62,7 +62,7 @@ digest="$bdir/${base}.sha256"
 [[ -e "$sqlfile" || -e "$manifest" ]] && die "目标备份文件已存在，拒绝覆盖：$base"
 partial="$(mktemp "$bdir/.${base}.partial.XXXXXX")"
 chmod 0600 "$partial"
-mosgov_on_exit() { [[ -f "$partial" ]] && rm -f -- "$partial"; }
+mosgov_on_exit() { if [[ -f "$partial" ]]; then rm -f -- "$partial"; fi; }
 
 log "开始备份 tenant=$tenant db=$db"
 # --single-transaction 保证 InnoDB 一致性快照；triggers/events/routines 必须随备份恢复。
