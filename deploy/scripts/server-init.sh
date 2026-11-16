@@ -38,13 +38,15 @@ if [ "$INGRESS_MODE" != "tunnel" ]; then
 fi
 
 echo "[2/10] 运行时版本闸门（Ubuntu 24.04 默认是 PHP 8.3 / MariaDB 10.11）"
-# Ubuntu 24.04 官方仓库不含 PHP 8.4，也不含 MariaDB 11.8；两者都需要经授权的
-# 第三方 apt 源。这里只做检查，不擅自添加，避免把未授权变更带进服务器。
-if ! command -v php8.4 >/dev/null 2>&1; then
-    echo "!! PHP 8.4 未安装：请按 deploy/VERSIONS.md 添加已批准的 PHP 8.4 源后重跑。"
+# PHP 8.4 只能来自上方 D1 闸门确认过的 sury 源（add-d1-repos.sh 已把
+# Ubuntu 自带版本优先级压到 -1，apt 不可能装错源）。先安装，再校验版本。
+apt-get install -y --no-install-recommends \
+    php8.4-fpm php8.4-cli php8.4-mysql php8.4-mbstring php8.4-intl \
+    php8.4-gd php8.4-zip php8.4-curl php8.4-xml php8.4-bcmath || {
+    echo "!! PHP 8.4 安装失败：请确认已按 deploy/VERSIONS.md 执行 add-d1-repos.sh。"
     echo "!! 本脚本不会自动添加 ondrej/php PPA（避免未授权变更）。"
     exit 3
-fi
+}
 PHP_VER="$(php8.4 -r 'echo PHP_VERSION;')"
 echo "    PHP=$PHP_VER"
 MB_VER="$(mariadb --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
@@ -55,9 +57,6 @@ if [[ ! "$MB_VER" =~ ^11\.8\. ]]; then
     echo "!! 本脚本不会自动更换数据库主版本。"
     exit 4
 fi
-apt-get install -y --no-install-recommends \
-    php8.4-fpm php8.4-cli php8.4-mysql php8.4-mbstring php8.4-intl \
-    php8.4-gd php8.4-zip php8.4-curl php8.4-xml php8.4-bcmath
 
 echo "[3/10] 固定已安装包版本，禁止自动升级 DB / PHP 主版本"
 apt-mark hold apache2 mariadb-server mariadb-client mariadb-server-core \
