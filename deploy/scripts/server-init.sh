@@ -146,9 +146,10 @@ if command -v ss >/dev/null 2>&1; then
 fi
 
 echo "[7/10] MariaDB 基础加固（不导入任何数据、不创建任何教会库）"
-mysql -e "DELETE FROM mysql.user WHERE User='';" || true
-mysql -e "DROP DATABASE IF EXISTS test;" || true
-mysql -e "FLUSH PRIVILEGES;"
+# MariaDB 11.x 官方源不再提供 mysql/mysqldump 兼容符号链接，规范名是 mariadb。
+mariadb -e "DELETE FROM mysql.user WHERE User='';" || true
+mariadb -e "DROP DATABASE IF EXISTS test;" || true
+mariadb -e "FLUSH PRIVILEGES;"
 # 生产库只允许本机 socket/TCP 回环访问
 grep -q '^bind-address' /etc/mysql/mariadb.conf.d/50-server.cnf \
     || printf '\nbind-address = 127.0.0.1\n' >> /etc/mysql/mariadb.conf.d/50-server.cnf
