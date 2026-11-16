@@ -374,6 +374,11 @@ for T in "$TENANT_A" "$TENANT_B"; do
     p8_eq "$T pool 设置独立 sys_temp_dir" "1" \
         "$(grep -c "sys_temp_dir.*/var/lib/mosgov/$T/tmp" "$pool" 2>/dev/null || true)"
 done
+# 保留一份合成文件作为后续备份/恢复的真实文件样本（Phase C 必须验证文件内容）。
+sudo -u "$USER_A" bash -c "printf 'p8-isolation-a\n' > '$STORAGE_A/p8-probe-a.txt'" 2>/dev/null
+sudo -u "$USER_B" bash -c "printf 'p8-isolation-b\n' > '$STORAGE_B/p8-probe-b.txt'" 2>/dev/null
+p8_file "A 私有存储合成样本存在" "$STORAGE_A/p8-probe-a.txt"
+p8_file "B 私有存储合成样本存在" "$STORAGE_B/p8-probe-b.txt"
 p8_eq "A/B 隔离存储根不同" "1" \
     "$([[ "$STORAGE_A" != "$STORAGE_B" ]] && echo 1 || echo 0)"
 p8_eq "A/B 数据库账号不同" "1" \
