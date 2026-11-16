@@ -228,7 +228,14 @@ pool="/etc/php/8.4/fpm/pool.d/mosgov-${tenant}.conf"
     # open_basedir 必须包含本教会的 PHP 错误日志目录，否则 error_log 写不进去
     phplogdir="/var/log/mosgov/php/${tenant}"
     install -d -m 0770 -o "$sysuser" -g mosgov "$phplogdir"
-    printf 'php_admin_value[open_basedir] = %s:%s:/tmp:%s\n' "$MOSGOV_CURRENT" "$storage" "$phplogdir"
+    # 独立临时目录：ChurchCRM 核心用 sys_get_temp_dir() 放 Monolog 日志
+    # （/tmp/<date>-churchcrm-app.log）。若共用 /tmp，先写入的教会拥有文件，
+    # 其他教会 append 被 Permission denied → HTTP 500，且跨教会共享日志文件。
+    tenant_tmp="/var/lib/mosgov/${tenant}/tmp"
+    install -d -m 0770 -o "$sysuser" -g mosgov "$tenant_tmp"
+    printf 'php_admin_value[open_basedir] = %s:%s:/tmp:%s:%s\n' "$MOSGOV_CURRENT" "$storage" "$phplogdir" "$tenant_tmp"
+    printf 'php_admin_value[sys_temp_dir] = %s\n' "$tenant_tmp"
+    printf 'php_admin_value[upload_tmp_dir] = %s\n' "$tenant_tmp"
     printf 'php_admin_value[error_log] = %s/php.log\n' "$phplogdir"
     printf 'php_admin_flag[log_errors] = on\n'
     printf 'catch_workers_output = yes\n'
