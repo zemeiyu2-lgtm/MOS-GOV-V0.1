@@ -225,11 +225,11 @@ pool="/etc/php/8.4/fpm/pool.d/mosgov-${tenant}.conf"
     printf 'pm = dynamic\npm.max_children = 5\npm.start_servers = 1\n'
     printf 'pm.min_spare_servers = 1\npm.max_spare_servers = 2\npm.max_requests = 500\n'
     printf 'clear_env = no\n'
-    printf 'php_admin_value[open_basedir] = %s:%s:/tmp\n' "$MOSGOV_CURRENT" "$storage"
-    # display_errors=Off 下 PHP 异常默认被 FPM 丢弃；每教会独立错误日志，
-    # 500 排障不再依赖猜测（失败日志仍不含敏感值，error_log 只记栈）。
-    install -d -m 0750 -o root -g mosgov /var/log/mosgov/php
-    printf 'php_admin_value[error_log] = /var/log/mosgov/php/%s.log\n' "$tenant"
+    # open_basedir 必须包含本教会的 PHP 错误日志目录，否则 error_log 写不进去
+    phplogdir="/var/log/mosgov/php/${tenant}"
+    install -d -m 0770 -o "$sysuser" -g mosgov "$phplogdir"
+    printf 'php_admin_value[open_basedir] = %s:%s:/tmp:%s\n' "$MOSGOV_CURRENT" "$storage" "$phplogdir"
+    printf 'php_admin_value[error_log] = %s/php.log\n' "$phplogdir"
     printf 'php_admin_flag[log_errors] = on\n'
     printf 'catch_workers_output = yes\n'
     while IFS='=' read -r k v; do

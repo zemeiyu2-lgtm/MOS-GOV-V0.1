@@ -329,7 +329,7 @@ case "$BCODE" in
     302) p8_ok "B 站点未登录访问被重定向（302）" ;;
     200) p8_bad "B 站点未登录直接 200（会话/租户边界失效）" ;;
     *)   p8_bad "B 站点未登录访问返回 $BCODE（body 首行：$(head -c 300 "$P8_BODY" | head -1 | tr -d '\0' | cut -c1-200)）"
-         tail -20 "/var/log/mosgov/php/${TENANT_B}.log" 2>/dev/null || true ;;
+         tail -20 "/var/log/mosgov/php/${TENANT_B}/php.log" 2>/dev/null || true ;;
 esac
 export P8_HOST="$HOST_A"
 stage_end
