@@ -7,7 +7,7 @@
 #       [--username admin] [--first-name Church] [--last-name Admin] [--email admin@example.org]
 #
 # 实际逻辑在 create-admin.php（PDO 参数化 + bcrypt + 事务）。本包装层只负责：
-#   * 要求 root（读 0640 的 env、写 0600 的凭据文件）；
+#   * 要求 root（读 0600 root-only 的 env、写 0600 的凭据文件）；
 #   * 定位 PHP 与 create-admin.php；
 #   * 把参数原样透传，并把 PHP 的非 0 退出码透传给调用方。
 #

@@ -72,23 +72,31 @@ jq --arg id "$tenant" '(.tenants[] | select(.tenant_id == $id) | .status) = "pro
 cat "$regtmp" > "$MOSGOV_TENANTS_JSON"
 chmod 0640 "$MOSGOV_TENANTS_JSON"
 
-# ---- 1. 独立系统账号与目录 ---------------------------------------------------
+# ---- 1. 独立系统账号、独立系统组与目录 --------------------------------------
 sysuser="mosgov-${tenant}"
+tgroup="$sysuser"   # 每教会独立主组，绝不使用共享 mosgov 组承载教会私有目录
+getent group "$tgroup" >/dev/null 2>&1 || groupadd --system "$tgroup"
 if ! id -u "$sysuser" >/dev/null 2>&1; then
-    useradd --system --shell /usr/sbin/nologin --gid mosgov \
+    useradd --system --shell /usr/sbin/nologin --gid "$tgroup" --groups mosgov \
         --home-dir "/var/lib/mosgov/${tenant}" "$sysuser"
+else
+    # 幂等修正旧账号：主组改成本教会独立组，保留 mosgov 仅为遍历公共父目录
+    usermod -g "$tgroup" -aG mosgov "$sysuser" 2>/dev/null || true
 fi
-# 存储根权限 0700：只允许本教会自己的系统账号进入。
-# 早期用 0750 且属组为共享的 mosgov，导致同组内其他教会的 FPM 进程在
-# 越过 open_basedir 的场景（如运维脚本、调试 shell）可读取本教会上传文件；
-# 收紧为 0700 后，跨教会文件隔离不再只依赖 open_basedir 这一层。
-install -d -m 0700 -o "$sysuser" -g mosgov "$storage"
-install -d -m 0750 -o root -g mosgov "/etc/mosgov/${tenant}"
+# 所有教会私有目录 0700 + 独立属组：其他教会系统用户既不属于该组，
+# 也无 owner 位，读/写/删/替换全部在 OS 层被拒绝（不只依赖 open_basedir）。
+install -d -m 0700 -o "$sysuser" -g "$tgroup" "$storage"
+chmod 0700 "$storage"; chown "$sysuser:$tgroup" "$storage"
+# env 内含本教会 DB 口令与审计 HMAC；旧版 0640 root:mosgov 可被同组其他教会
+# 系统用户读取，收紧为 0700/0600 root-only（FPM 的 env[] 在 pool 注入，
+# 运行时无需读取此文件）。
+install -d -m 0700 -o root -g root "/etc/mosgov/${tenant}"
+chmod 0700 "/etc/mosgov/${tenant}"; chown root:root "/etc/mosgov/${tenant}"
 install -d -m 0750 -o root -g mosgov "/var/log/mosgov/${tenant}"
 install -d -m 0700 -o root -g root  "/var/backups/mosgov/${tenant}"
 install -d -m 0700 -o root -g root  "/var/backups/mosgov/${tenant}/anchors"
 install -d -m 0750 -o root -g mosgov "/var/lib/mosgov/${tenant}"
-log "独立目录与系统账号就绪"
+log "独立目录与系统账号/独立组就绪"
 
 # ---- 2. 独立数据库与最小权限账号 ---------------------------------------------
 dbpass="$(openssl rand -hex 32)"
@@ -210,9 +218,9 @@ if grep -vE '^[[:space:]]*#' "$envfile" | grep -qE '__[A-Z0-9_]+__'; then
     rm -f -- "$envfile"
     die "env 模板存在未替换的占位符，已删除半成品文件"
 fi
-chown root:mosgov "$envfile"
-chmod 0640 "$envfile"
-log "独立 env 已生成（DB 口令 / HMAC 均只写入此 0640 文件，不打印、不入 Git）"
+chown root:root "$envfile"
+chmod 0600 "$envfile"
+log "独立 env 已生成（DB 口令 / HMAC 均只写入此 0600 root-only 文件，不打印、不入 Git）"
 
 # ---- 4. 独立 PHP-FPM pool ----------------------------------------------------
 # clear_env=yes 会丢掉 Apache SetEnv；这里显式把 env 注入进程环境并关闭 clear_env。
@@ -225,17 +233,26 @@ pool="/etc/php/8.4/fpm/pool.d/mosgov-${tenant}.conf"
     printf 'pm = dynamic\npm.max_children = 5\npm.start_servers = 1\n'
     printf 'pm.min_spare_servers = 1\npm.max_spare_servers = 2\npm.max_requests = 500\n'
     printf 'clear_env = no\n'
-    # open_basedir 必须包含本教会的 PHP 错误日志目录，否则 error_log 写不进去
+    # 每教会独立 PHP 错误日志目录：0700 + 独立组，其他教会系统用户无法读/写/删。
     phplogdir="/var/log/mosgov/php/${tenant}"
-    install -d -m 0770 -o "$sysuser" -g mosgov "$phplogdir"
-    # 独立临时目录：ChurchCRM 核心用 sys_get_temp_dir() 放 Monolog 日志
-    # （/tmp/<date>-churchcrm-app.log）。若共用 /tmp，先写入的教会拥有文件，
-    # 其他教会 append 被 Permission denied → HTTP 500，且跨教会共享日志文件。
+    install -d -m 0711 -o root -g root /var/log/mosgov/php
+    install -d -m 0700 -o "$sysuser" -g "$tgroup" "$phplogdir"
+    chmod 0700 "$phplogdir"; chown "$sysuser:$tgroup" "$phplogdir"
+    # 独立临时/上传/会话目录：ChurchCRM 核心用 sys_get_temp_dir() 放
+    # Monolog 日志（<date>-churchcrm-app.log）。共用 /tmp 时先写入的教会
+    # 拥有文件、其他教会 append 被拒 → HTTP 500，且跨教会共享日志/会话。
     tenant_tmp="/var/lib/mosgov/${tenant}/tmp"
-    install -d -m 0770 -o "$sysuser" -g mosgov "$tenant_tmp"
-    printf 'php_admin_value[open_basedir] = %s:%s:/tmp:%s:%s\n' "$MOSGOV_CURRENT" "$storage" "$phplogdir" "$tenant_tmp"
+    tenant_sessions="$tenant_tmp/sessions"
+    install -d -m 0700 -o "$sysuser" -g "$tgroup" "$tenant_tmp"
+    install -d -m 0700 -o "$sysuser" -g "$tgroup" "$tenant_sessions"
+    chmod 0700 "$tenant_tmp" "$tenant_sessions"
+    chown "$sysuser:$tgroup" "$tenant_tmp" "$tenant_sessions"
+    # 不再放行共享 /tmp：PHP 仅能看到本教会 web 根 + 私有存储 + 私有日志/tmp。
+    printf 'php_admin_value[open_basedir] = %s:%s:%s:%s\n' \
+        "$MOSGOV_CURRENT" "$storage" "$phplogdir" "$tenant_tmp"
     printf 'php_admin_value[sys_temp_dir] = %s\n' "$tenant_tmp"
     printf 'php_admin_value[upload_tmp_dir] = %s\n' "$tenant_tmp"
+    printf 'php_admin_value[session.save_path] = %s\n' "$tenant_sessions"
     printf 'php_admin_value[error_log] = %s/php.log\n' "$phplogdir"
     printf 'php_admin_flag[log_errors] = on\n'
     printf 'catch_workers_output = yes\n'

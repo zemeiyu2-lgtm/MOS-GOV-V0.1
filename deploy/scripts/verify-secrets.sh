@@ -46,8 +46,10 @@ for t in "${targets[@]}"; do
 
     owner="$(stat -c '%U:%G' "$envfile")"
     mode="$(stat -c '%a' "$envfile")"
-    [[ "$owner" == "root:mosgov" ]] && ok "$t：env 属主 root:mosgov" \
-        || bad "$t：env 属主是 $owner（应为 root:mosgov）"
+    # 0600 root:root 是唯一允许口径：旧 root:mosgov 会让同组其他教会账号读到
+    # 本教会 DB 口令 / HMAC，Phase 8.1 已收紧，配置体检必须同步 fail-closed。
+    [[ "$owner" == "root:root" && "$mode" == "600" ]] && ok "$t：env 属主/权限 root:root 0600" \
+        || bad "$t：env 属主/权限是 $owner $mode（应为 root:root 0600）"
     if (( $(other_bits "$envfile") == 0 )); then ok "$t：env 权限 $mode（其他用户无权限）"
     else bad "$t：env 权限过宽（$mode）"; fi
 

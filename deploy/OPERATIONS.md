@@ -133,8 +133,13 @@ sudo mosgov-provision-tenant.sh --tenant church-a
 - FPM pool 里用 `clear_env = no` + 显式 `env[MOSGOV_*]` 注入，
   否则 PHP-FPM 默认会丢掉 Apache `SetEnv`，`getenv()` 全部读不到，
   租户边界会 fail closed（这是必须的，不是可选项）。
-- env 文件 `/etc/mosgov/<tenant>/env` 为 `0640 root:mosgov`，
+- env 文件 `/etc/mosgov/<tenant>/env` 为 `0600 root:root`（目录 `0700 root:root`），
+  含 DB 口令与审计 HMAC，绝不让同组其他教会系统用户读取；
+  FPM pool 通过 `env[MOSGOV_*]` 注入，运行时不读该文件。
   任何残留 `__XXX__` 占位符都会导致半成品文件被删除并报错。
+- 每教会独立系统组 `mosgov-<tenant>`：私有存储、PHP `sys_temp_dir` /
+  `upload_tmp_dir` / `session.save_path`、错误日志目录均为 `0700` 且属主/属组
+  均为本教会账号；`open_basedir` 不再包含共享 `/tmp`。
 - 写入首个库外证据锚点，跑配置体检，最后把登记表状态改为 `active`。
 
 **本脚本没有任何导入入口，不会也不允许导入真实教会成员 / 奉献数据。**

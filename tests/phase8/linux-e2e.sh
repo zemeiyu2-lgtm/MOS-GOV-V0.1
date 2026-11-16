@@ -49,11 +49,53 @@ DB_A="mosgov_church_a"
 DB_B="mosgov_church_b"
 STORAGE_A="/var/lib/mosgov/church-a/files"
 STORAGE_B="/var/lib/mosgov/church-b/files"
+TMP_A="/var/lib/mosgov/church-a/tmp"
+TMP_B="/var/lib/mosgov/church-b/tmp"
+SESS_A="$TMP_A/sessions"
+SESS_B="$TMP_B/sessions"
+LOGDIR_A="/var/log/mosgov/php/church-a"
+LOGDIR_B="/var/log/mosgov/php/church-b"
+USER_A="mosgov-church-a"
+USER_B="mosgov-church-b"
 PASSFILE_A="/root/.p8-church-a-admin.pass"
 STAGE_START=0
 
 stage() { p8_hdr "$*"; STAGE_START="$(date +%s)"; }
 stage_end() { printf '  [TIME] %s 秒\n' "$(( $(date +%s) - STAGE_START ))"; }
+
+# OS 层隔离探针：owner 读写删替换全部可用；guest 读/写/创建/删/替换全部被拒。
+# 用真实 Linux 系统用户（sudo -u）执行，不依赖 open_basedir 或应用层判断。
+p8_private_dir() {
+    local label="$1" dir="$2" owner="$3" guest="$4"
+    p8_eq "$label 权限 0700" "0700" "$(stat -c '%04a' "$dir" 2>/dev/null)"
+    p8_eq "$label 属主/独立组 $owner" "$owner $owner" "$(stat -c '%U %G' "$dir" 2>/dev/null)"
+    if sudo -u "$owner" bash -c "printf 'owner\n' > '$dir/p8-owner.txt'" 2>/dev/null; then
+        p8_ok "$label 属主可写"
+    else
+        p8_bad "$label 属主不可写（自身业务会中断）"
+    fi
+    if sudo -u "$owner" cat "$dir/p8-owner.txt" >/dev/null 2>&1; then p8_ok "$label 属主可读"; else p8_bad "$label 属主不可读"; fi
+    if sudo -u "$owner" bash -c "printf 'new\n' > '$dir/p8-owner.txt'" 2>/dev/null; then p8_ok "$label 属主可覆写"; else p8_bad "$label 属主不可覆写"; fi
+    if sudo -u "$owner" bash -c "mv '$dir/p8-owner.txt' '$dir/p8-owner2.txt'" 2>/dev/null; then p8_ok "$label 属主可改名"; else p8_bad "$label 属主不可改名"; fi
+    if sudo -u "$owner" rm -f "$dir/p8-owner2.txt" 2>/dev/null; then p8_ok "$label 属主可删除"; else p8_bad "$label 属主不可删除"; fi
+
+    sudo -u "$owner" bash -c "printf 'secret\n' > '$dir/p8-secret.txt'" 2>/dev/null
+    if sudo -u "$guest" cat "$dir/p8-secret.txt" >/dev/null 2>&1; then p8_bad "$guest 可读 $label"; else p8_ok "$guest 不可读 $label"; fi
+    if sudo -u "$guest" bash -c "printf 'x' > '$dir/p8-secret.txt'" 2>/dev/null; then p8_bad "$guest 可覆写 $label"; else p8_ok "$guest 不可覆写 $label"; fi
+    if sudo -u "$guest" bash -c "printf 'x' > '$dir/p8-guest.txt'" 2>/dev/null; then p8_bad "$guest 可在 $label 创建"; else p8_ok "$guest 不可在 $label 创建"; fi
+    if sudo -u "$guest" bash -c "rm -f '$dir/p8-secret.txt'" 2>/dev/null; then p8_bad "$guest 可删除 $label 文件"; else p8_ok "$guest 不可删除 $label 文件"; fi
+    if sudo -u "$guest" bash -c "mv '$dir/p8-secret.txt' '$dir/p8-guest.txt'" 2>/dev/null; then p8_bad "$guest 可替换 $label 文件"; else p8_ok "$guest 不可替换 $label 文件"; fi
+    sudo -u "$owner" rm -f "$dir/p8-secret.txt" 2>/dev/null
+}
+
+# 恢复后轻量复核：权限/属主/独立组 + guest 读写拒绝。
+p8_private_dir_after_restore() {
+    local label="$1" dir="$2" owner="$3" guest="$4"
+    p8_eq "$label 恢复后权限 0700" "0700" "$(stat -c '%04a' "$dir" 2>/dev/null)"
+    p8_eq "$label 恢复后属主/独立组" "$owner $owner" "$(stat -c '%U %G' "$dir" 2>/dev/null)"
+    if sudo -u "$guest" test -r "$dir" 2>/dev/null; then p8_bad "$guest 恢复后仍可读 $label"; else p8_ok "$guest 恢复后不可读 $label"; fi
+    if sudo -u "$guest" bash -c "printf x > '$dir/p8-guest-after.txt'" 2>/dev/null; then p8_bad "$guest 恢复后仍可写 $label"; else p8_ok "$guest 恢复后不可写 $label"; fi
+}
 
 # =============================================================================
 stage "S0 环境前置"
@@ -217,7 +259,7 @@ p8_eq "合成教会名已写入 A" "MOS-GOV Lab (synthetic)" \
     "$(sqlq "SELECT cfg_value FROM $DB_A.config_cfg WHERE cfg_name='sChurchName'")"
 
 for T in "$TENANT_A" "$TENANT_B"; do
-    p8_eq "$T env 权限 0640 root:mosgov" "0640 root:mosgov" \
+    p8_eq "$T env 权限 0600 root:root" "0600 root:root" \
         "$(stat -c '%04a %U:%G' "/etc/mosgov/$T/env" 2>/dev/null)"
     [[ -S "/run/php/php8.4-fpm-mosgov-$T.sock" ]] \
         && p8_ok "$T 独立 FPM socket 就绪" || p8_bad "$T 缺少 FPM socket"
@@ -305,17 +347,33 @@ p8_eq "两库都完整初始化（表数量一致）" \
     "$(sqlq "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='$DB_A'")" \
     "$(sqlq "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='$DB_B'")"
 
-# 文件隔离：A 写一个探针文件，B 的系统账号不得读到
-install -d -m 0700 -o mosgov-church-a -g mosgov "$STORAGE_A"
-sudo -u mosgov-church-a bash -c "printf 'p8-isolation\n' > '$STORAGE_A/p8-probe.txt'" 2>/dev/null
-p8_file "A 私存探针文件已写入" "$STORAGE_A/p8-probe.txt"
-if sudo -u mosgov-church-b test -r "$STORAGE_A/p8-probe.txt" 2>/dev/null; then
-    p8_bad "B 的系统账号可读取 A 的私有存储（跨教会文件隔离失效）"
-else
-    p8_ok "B 的系统账号无法读取 A 的私有存储"
-fi
-sudo -u mosgov-church-b bash -c "printf 'p8-b\n' > '$STORAGE_B/p8-b.txt'" 2>/dev/null
-p8_file "B 私存探针文件已写入" "$STORAGE_B/p8-b.txt"
+# OS 层双向隔离：存储 / PHP 临时 / 上传（同 tmp）/ 会话 / 日志四目录，
+# A、B 真实系统用户各自可正常用，guest 对对方目录读写删替换全部被拒。
+for spec in \
+    "A 私有存储|$STORAGE_A|$USER_A|$USER_B" \
+    "B 私有存储|$STORAGE_B|$USER_B|$USER_A" \
+    "A PHP 临时目录|$TMP_A|$USER_A|$USER_B" \
+    "B PHP 临时目录|$TMP_B|$USER_B|$USER_A" \
+    "A PHP 会话目录|$SESS_A|$USER_A|$USER_B" \
+    "B PHP 会话目录|$SESS_B|$USER_B|$USER_A" \
+    "A PHP 日志目录|$LOGDIR_A|$USER_A|$USER_B" \
+    "B PHP 日志目录|$LOGDIR_B|$USER_B|$USER_A"; do
+    IFS='|' read -r label dir owner guest <<< "$spec"
+    p8_private_dir "$label" "$dir" "$owner" "$guest"
+done
+# env 含 DB 口令 / HMAC，不能让同组其他教会系统账号读取
+p8_eq "A env 0600 root:root" "0600 root:root" "$(stat -c '%04a %U:%G' "/etc/mosgov/$TENANT_A/env" 2>/dev/null)"
+p8_eq "B env 0600 root:root" "0600 root:root" "$(stat -c '%04a %U:%G' "/etc/mosgov/$TENANT_B/env" 2>/dev/null)"
+for T in "$TENANT_A" "$TENANT_B"; do
+    p8_eq "$T 配置目录 0700 root:root" "0700 root:root" "$(stat -c '%04a %U:%G' "/etc/mosgov/$T" 2>/dev/null)"
+    pool="/etc/php/8.4/fpm/pool.d/mosgov-$T.conf"
+    p8_eq "$T pool 不再放行共享 /tmp" "0" \
+        "$(grep -c 'open_basedir.*:/tmp' "$pool" 2>/dev/null || true)"
+    p8_eq "$T pool 设置独立 session.save_path" "1" \
+        "$(grep -c "session.save_path.*/var/lib/mosgov/$T/tmp/sessions" "$pool" 2>/dev/null || true)"
+    p8_eq "$T pool 设置独立 sys_temp_dir" "1" \
+        "$(grep -c "sys_temp_dir.*/var/lib/mosgov/$T/tmp" "$pool" 2>/dev/null || true)"
+done
 p8_eq "A/B 隔离存储根不同" "1" \
     "$([[ "$STORAGE_A" != "$STORAGE_B" ]] && echo 1 || echo 0)"
 p8_eq "A/B 数据库账号不同" "1" \
@@ -449,8 +507,16 @@ fi
 p8_eq "篡改文件在恢复后消失" "0" "$(test -e "$STORAGE_A/p8-dirty.txt" && echo 1 || echo 0)"
 p8_eq "恢复后文件数与备份清单一致" \
     "$(jq -r '.files_archive.entries' "${BK_A%.sql.gz}.manifest.json")" "${NFA2:-0}"
-p8_eq "恢复后存储属主为教会账号" "mosgov-church-a:mosgov" "$(stat -c '%U:%G' "$STORAGE_A")"
+p8_eq "恢复后存储属主为教会独立组" "mosgov-church-a:mosgov-church-a" "$(stat -c '%U:%G' "$STORAGE_A")"
 p8_eq "恢复后存储权限 0700" "700" "$(stat -c '%a' "$STORAGE_A")"
+p8_private_dir_after_restore "恢复后 A 私有存储" "$STORAGE_A" "$USER_A" "$USER_B"
+for spec in \
+    "恢复后 A PHP 临时目录|$TMP_A|$USER_A|$USER_B" \
+    "恢复后 A PHP 会话目录|$SESS_A|$USER_A|$USER_B" \
+    "恢复后 A PHP 日志目录|$LOGDIR_A|$USER_A|$USER_B"; do
+    IFS='|' read -r label dir owner guest <<< "$spec"
+    p8_private_dir_after_restore "$label" "$dir" "$owner" "$guest"
+done
 
 # B 必须完全不受 A 恢复影响
 db_snapshot "$DB_B" "$WORK/db_b_after_a.txt"
@@ -499,6 +565,14 @@ p8_exit "restore-files church-b" 0 "$RFB"
 NFB2="$(file_snapshot "$STORAGE_B" "$WORK/files_b_after.txt")"
 diff -q "$WORK/files_b_before.txt" "$WORK/files_b_after.txt" >/dev/null \
     && p8_ok "B 恢复后文件哈希一致（${NFB2} 个文件）" || p8_bad "B 恢复后文件不一致"
+p8_private_dir_after_restore "恢复后 B 私有存储" "$STORAGE_B" "$USER_B" "$USER_A"
+for spec in \
+    "恢复后 B PHP 临时目录|$TMP_B|$USER_B|$USER_A" \
+    "恢复后 B PHP 会话目录|$SESS_B|$USER_B|$USER_A" \
+    "恢复后 B PHP 日志目录|$LOGDIR_B|$USER_B|$USER_A"; do
+    IFS='|' read -r label dir owner guest <<< "$spec"
+    p8_private_dir_after_restore "$label" "$dir" "$owner" "$guest"
+done
 db_snapshot "$DB_A" "$WORK/db_a_after_b.txt"
 diff -q "$WORK/db_a_after.txt" "$WORK/db_a_after_b.txt" >/dev/null \
     && p8_ok "B 恢复未影响 A" || p8_bad "B 恢复影响了 A"

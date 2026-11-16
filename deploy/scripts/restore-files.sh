@@ -131,7 +131,8 @@ if ! mv -- "$tmpdir" "$storage"; then
     die "切换存储失败，已回滚"
 fi
 tmpdir=""   # 已改名为正式目录，禁止 trap 删除
-chown -R "$sysuser:mosgov" "$storage" || die "恢复后属主修正失败（存储位于 $storage）"
+# 恢复后必须回到本教会独立组，不能退回共享 mosgov 组（否则同组其他教会可越界）。
+chown -R "$sysuser:$sysuser" "$storage" || die "恢复后属主修正失败（存储位于 $storage）"
 chmod 0700 "$storage"
 
 final_entries="$(find "$storage" -type f | wc -l | tr -d ' ')"
